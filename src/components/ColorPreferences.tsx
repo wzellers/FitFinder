@@ -84,9 +84,9 @@ export default function ColorPreferences() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data, error } = await supabase
+      const { data: prefs, error } = await supabase
         .from('color_preferences')
-        .select('id, liked_combinations, disliked_combinations')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
       if (error) {
@@ -94,17 +94,13 @@ export default function ColorPreferences() {
         showToast('Failed to load preferences', 'error');
         return;
       }
-      if (!data) {
-        // create empty row for this user
-        const { error: insertErr } = await supabase
-          .from('color_preferences')
-          .insert({ user_id: user.id, liked_combinations: [], disliked_combinations: [] });
-        if (insertErr) console.error('Error creating color preferences row:', insertErr);
+      if (!prefs) {
+        // No preferences exist yet, start with empty arrays
         setLikedCombinations([]);
         setDislikedCombinations([]);
       } else {
-        const liked = (data.liked_combinations ?? []).map((c: any) => ({ id: c.id ?? `${c.topColor}-${c.bottomColor}`, topColor: c.topColor, bottomColor: c.bottomColor }));
-        const disliked = (data.disliked_combinations ?? []).map((c: any) => ({ id: c.id ?? `${c.topColor}-${c.bottomColor}`, topColor: c.topColor, bottomColor: c.bottomColor }));
+        const liked = (prefs.liked_combinations ?? []).map((c: any) => ({ id: c.id ?? `${c.topColor}-${c.bottomColor}`, topColor: c.topColor, bottomColor: c.bottomColor }));
+        const disliked = (prefs.disliked_combinations ?? []).map((c: any) => ({ id: c.id ?? `${c.topColor}-${c.bottomColor}`, topColor: c.topColor, bottomColor: c.bottomColor }));
         setLikedCombinations(liked);
         setDislikedCombinations(disliked);
       }
@@ -139,32 +135,20 @@ export default function ColorPreferences() {
       const nextLiked = isLiked ? [...likedCombinations, newCombination] : likedCombinations;
       const nextDisliked = !isLiked ? [...dislikedCombinations, newCombination] : dislikedCombinations;
 
-      const { data: updatedRows, error } = await supabase
+      const { error } = await supabase
         .from('color_preferences')
-        .update({
-          liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-          disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-        })
-        .eq('user_id', user.id)
-        .select();
+        .upsert(
+          {
+            user_id: user.id,
+            liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
+            disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
+          },
+          { onConflict: 'user_id' }
+        );
       if (error) {
         console.error('Error saving preferences:', error);
         showToast('Failed to save. Try again.', 'error');
         return;
-      }
-      if ((updatedRows?.length ?? 0) === 0) {
-        const { error: insertErr } = await supabase
-          .from('color_preferences')
-          .insert({
-            user_id: user.id,
-            liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-            disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-          });
-        if (insertErr) {
-          console.error('Error creating preferences row:', insertErr);
-          showToast('Failed to save. Try again.', 'error');
-          return;
-        }
       }
       if (isLiked) {
         setLikedCombinations(nextLiked);
@@ -183,32 +167,20 @@ export default function ColorPreferences() {
     if (!user) return;
     const nextLiked = isLiked ? likedCombinations.filter(c => c.id !== id) : likedCombinations;
     const nextDisliked = !isLiked ? dislikedCombinations.filter(c => c.id !== id) : dislikedCombinations;
-    const { data: updatedRows, error } = await supabase
+    const { error } = await supabase
       .from('color_preferences')
-      .update({
-        liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-        disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-      })
-      .eq('user_id', user.id)
-      .select();
+      .upsert(
+        {
+          user_id: user.id,
+          liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
+          disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
+        },
+        { onConflict: 'user_id' }
+      );
     if (error) {
       console.error('Error deleting combination:', error);
       showToast('Failed to delete', 'error');
       return;
-    }
-    if ((updatedRows?.length ?? 0) === 0) {
-      const { error: insertErr } = await supabase
-        .from('color_preferences')
-        .insert({
-          user_id: user.id,
-          liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-          disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-        });
-      if (insertErr) {
-        console.error('Error creating preferences row:', insertErr);
-        showToast('Failed to delete', 'error');
-        return;
-      }
     }
     setLikedCombinations(nextLiked);
     setDislikedCombinations(nextDisliked);
@@ -248,32 +220,20 @@ export default function ColorPreferences() {
       ? dislikedCombinations.map(c => (c.id === updatedCombination.id ? updatedCombination : c))
       : dislikedCombinations;
 
-    const { data: updatedRows, error } = await supabase
+    const { error } = await supabase
       .from('color_preferences')
-      .update({
-        liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-        disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-      })
-      .eq('user_id', user.id)
-      .select();
+      .upsert(
+        {
+          user_id: user.id,
+          liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
+          disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
+        },
+        { onConflict: 'user_id' }
+      );
     if (error) {
       console.error('Error updating combination:', error);
       showToast('Failed to update', 'error');
       return false;
-    }
-    if ((updatedRows?.length ?? 0) === 0) {
-      const { error: insertErr } = await supabase
-        .from('color_preferences')
-        .insert({
-          user_id: user.id,
-          liked_combinations: nextLiked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-          disliked_combinations: nextDisliked.map(c => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
-        });
-      if (insertErr) {
-        console.error('Error creating preferences row:', insertErr);
-        showToast('Failed to update', 'error');
-        return false;
-      }
     }
 
     setLikedCombinations(nextLiked);

@@ -148,7 +148,7 @@ export default function OutfitGenerator() {
           // Get clean clothing items
           supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
           // Get user's color preferences
-          supabase.from('color_preferences').select('liked_combinations, disliked_combinations').eq('user_id', user.id).maybeSingle(),
+          supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
           // Get saved outfits
           supabase.from('saved_outfits').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
         ]);
