@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabaseClient';
-// Removed import Squares from './Squares';
 
 export default function AuthForm() {
   const { signUp, signIn, signOut, user } = useAuth();
@@ -13,6 +12,7 @@ export default function AuthForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (isSignUp) {
       try {
         console.log('Starting signup process...');
@@ -24,125 +24,72 @@ export default function AuthForm() {
         }
 
         console.log('SignUp successful, data:', data);
-        console.log('User from signup:', data.user);
-        
-        // Use the user from the signup response directly
-        const user = data.user;
-        
-        if (!user) {
+
+        const newUser = data.user;
+        if (!newUser) {
           console.error('No user in signup response');
-          alert('Account created but user data is missing. Please try logging in.');
+          alert('Account created. Please check your email to confirm, then log in.');
           return;
         }
 
-        console.log('User found:', user.id, user.email);
-        console.log('Attempting to create profile...');
+        // If your auth settings create a session on signup, upsert the profile now.
+        // If not (email confirmation required), wait until the user logs in.
+        if (data.session) {
+          const { error: upsertErr } = await supabase
+            .from('profiles')
+            .upsert(
+              { id: newUser.id, username: newUser.email, zip_code: null },
+              { onConflict: 'id' }
+            );
 
-        // Create profile record (only with columns that exist)
-        const profileData = {
-          id: user.id,
-          username: user.email,
-          zip_code: null,
-          preferences: {}
-        };
-
-        console.log('Profile data to insert:', profileData);
-
-        const { data: profileInsertData, error: profileError } = await supabase
-          .from('profiles')
-          .insert([profileData])
-          .select();
-
-        console.log('Profile insert result:', { profileInsertData, profileError });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          alert(`Account created but profile setup failed: ${profileError.message}`);
+          if (upsertErr) {
+            console.error('Profile upsert failed:', upsertErr);
+            alert(`Account created but profile setup failed: ${upsertErr.message}`);
+          } else {
+            alert('Account created! You are signed in.');
+          }
         } else {
-          console.log('Profile created successfully for user:', user.id);
-          console.log('Profile data inserted:', profileInsertData);
-          alert('Account created successfully! Check your email for a confirmation link.');
+          alert('Account created! Check your email for the confirmation link, then log in.');
         }
-      } catch (error) {
-        console.error('Signup error:', error);
+      } catch (err) {
+        console.error('Signup error:', err);
         alert('An error occurred during signup. Please try again.');
       }
-    } else {
-      try {
-        console.log('Starting signin process...');
-        const { data, error } = await signIn(email, password);
-        if (error) {
-          console.error('SignIn error:', error);
-          alert(error.message);
-          return;
-        }
+      return;
+    }
 
-        console.log('SignIn successful, data:', data);
-        
-        // Check if user has a profile, create one if not
-        if (data.user) {
-          console.log('Checking if profile exists for user:', data.user.id);
-          
-          const { data: existingProfile, error: profileCheckError } = await supabase
-            .from('profiles')
-            .select('id, username')
-            .eq('id', data.user.id)
-            .maybeSingle();
-
-          if (profileCheckError) {
-            console.error('Error checking profile:', profileCheckError);
-          }
-
-          if (!existingProfile) {
-            console.log('No profile found, creating one...');
-            
-            const profileData = {
-              id: data.user.id,
-              username: data.user.email,
-              zip_code: null,
-              preferences: {}
-            };
-
-            console.log('Profile data to insert:', profileData);
-
-            const { data: profileInsertData, error: profileError } = await supabase
-              .from('profiles')
-              .insert([profileData])
-              .select();
-
-            if (profileError) {
-              console.error('Error creating profile:', profileError);
-            } else {
-              console.log('Profile created successfully for existing user:', data.user.id);
-              console.log('Profile data inserted:', profileInsertData);
-            }
-          } else {
-            console.log('Profile already exists for user:', data.user.id);
-            
-            // Check if the existing profile has a NULL username and update it
-            if (existingProfile.username === null) {
-              console.log('Updating NULL username to email...');
-              
-              const { data: updateData, error: updateError } = await supabase
-                .from('profiles')
-                .update({ username: data.user.email })
-                .eq('id', data.user.id)
-                .select();
-
-              if (updateError) {
-                console.error('Error updating username:', updateError);
-              } else {
-                console.log('Username updated successfully:', updateData);
-              }
-            } else {
-              console.log('Profile already has username:', existingProfile.username);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Signin error:', error);
-        alert('An error occurred during signin. Please try again.');
+    // ----- LOGIN PATH -----
+    try {
+      console.log('Starting signin process...');
+      const { data, error } = await signIn(email, password);
+      if (error) {
+        console.error('SignIn error:', error);
+        alert(error.message);
+        return;
       }
+
+      console.log('SignIn successful, data:', data);
+
+      if (data.user) {
+        const uid = data.user.id;
+
+        // Create or update the profile row. This satisfies RLS because id === auth.uid().
+        const { error: upsertErr } = await supabase
+          .from('profiles')
+          .upsert(
+            { id: uid, username: data.user.email, zip_code: null },
+            { onConflict: 'id' }
+          );
+
+        if (upsertErr) {
+          console.error('Profile upsert failed:', upsertErr);
+        } else {
+          console.log('Profile ensured for user:', uid);
+        }
+      }
+    } catch (err) {
+      console.error('Signin error:', err);
+      alert('An error occurred during signin. Please try again.');
     }
   };
 
@@ -168,7 +115,7 @@ export default function AuthForm() {
             style={{ maxWidth: 350, width: '100%' }}
           />
           <input
-            type="text"
+            type="password"                 // ← mask the password
             placeholder="Password"
             value={password}
             onChange={e => setPassword(e.target.value)}
