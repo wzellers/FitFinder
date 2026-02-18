@@ -1,135 +1,91 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/components/ToastProvider';
 
 export default function AuthForm() {
-  const { signUp, signIn, signOut, user } = useAuth();
+  const { signUp, signIn } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(true);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    if (isSignUp) {
-      try {
-        console.log('Starting signup process...');
+    try {
+      if (isSignUp) {
         const { data, error } = await signUp(email, password);
-        if (error) {
-          console.error('SignUp error:', error);
-          alert(error.message);
-          return;
-        }
-
-        console.log('SignUp successful, data:', data);
+        if (error) { showToast(error.message, 'error'); return; }
 
         const newUser = data.user;
         if (!newUser) {
-          console.error('No user in signup response');
-          alert('Account created. Please check your email to confirm, then log in.');
+          showToast('Account created — check your email to confirm, then log in.', 'info');
           return;
         }
 
-        // If your auth settings create a session on signup, upsert the profile now.
-        // If not (email confirmation required), wait until the user logs in.
         if (data.session) {
-          const { error: upsertErr } = await supabase
+          await supabase
             .from('profiles')
-            .upsert(
-              { id: newUser.id, username: newUser.email, zip_code: null },
-              { onConflict: 'id' }
-            );
-
-          if (upsertErr) {
-            console.error('Profile upsert failed:', upsertErr);
-            alert(`Account created but profile setup failed: ${upsertErr.message}`);
-          } else {
-            alert('Account created! You are signed in.');
-          }
+            .upsert({ id: newUser.id, username: newUser.email, zip_code: null }, { onConflict: 'id' });
+          showToast('Account created! You are signed in.', 'success');
         } else {
-          alert('Account created! Check your email for the confirmation link, then log in.');
+          showToast('Check your email for a confirmation link, then log in.', 'info');
         }
-      } catch (err) {
-        console.error('Signup error:', err);
-        alert('An error occurred during signup. Please try again.');
-      }
-      return;
-    }
+      } else {
+        const { data, error } = await signIn(email, password);
+        if (error) { showToast(error.message, 'error'); return; }
 
-    // ----- LOGIN PATH -----
-    try {
-      console.log('Starting signin process...');
-      const { data, error } = await signIn(email, password);
-      if (error) {
-        console.error('SignIn error:', error);
-        alert(error.message);
-        return;
-      }
-
-      console.log('SignIn successful, data:', data);
-
-      if (data.user) {
-        const uid = data.user.id;
-
-        // Create or update the profile row. This satisfies RLS because id === auth.uid().
-        const { error: upsertErr } = await supabase
-          .from('profiles')
-          .upsert(
-            { id: uid, username: data.user.email, zip_code: null },
-            { onConflict: 'id' }
-          );
-
-        if (upsertErr) {
-          console.error('Profile upsert failed:', upsertErr);
-        } else {
-          console.log('Profile ensured for user:', uid);
+        if (data.user) {
+          await supabase
+            .from('profiles')
+            .upsert({ id: data.user.id, username: data.user.email, zip_code: null }, { onConflict: 'id' });
         }
       }
-    } catch (err) {
-      console.error('Signin error:', err);
-      alert('An error occurred during signin. Please try again.');
+    } catch {
+      showToast('Something went wrong. Please try again.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (user) {
-    return (
-      <div>
-        <p>Signed in as: {user.email}</p>
-        <button onClick={() => signOut()}>Sign Out</button>
-      </div>
-    );
-  }
-
   return (
-    <div className="auth-form bg-transparent">
-      <h2>{isSignUp ? "Sign Up" : "Log In"}</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={{ maxWidth: 350, width: '100%' }}
-          />
-          <input
-            type="password"                 // ← mask the password
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            style={{ maxWidth: 350, width: '100%' }}
-          />
-        </div>
-        <div className="button-container">
-          <button type="button" onClick={() => setIsSignUp(!isSignUp)}>
-            {isSignUp ? "Log In" : "Sign Up"}
-          </button>
-          <button type="submit">
-            {isSignUp ? "Sign Up" : "Log In"}
-          </button>
-        </div>
+    <div className="card p-8 w-full max-w-sm">
+      <h2 className="text-xl font-semibold text-center mb-6 text-[var(--text)]">
+        {isSignUp ? 'Create Account' : 'Welcome Back'}
+      </h2>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+
+        <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
+          {loading ? 'Please wait...' : isSignUp ? 'Sign Up' : 'Log In'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsSignUp(!isSignUp)}
+          className="text-sm text-[var(--accent)] hover:underline text-center"
+        >
+          {isSignUp ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
+        </button>
       </form>
     </div>
   );

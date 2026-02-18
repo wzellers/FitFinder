@@ -1,11 +1,12 @@
-// WardrobeStats Component - Visual insights into wardrobe usage patterns
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabaseClient';
-import { ClothingItem, OutfitWear, typeToSection, sectionNames } from '../lib/types';
-import { getColorName } from '../lib/colorUtils';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabaseClient';
+import { sectionNames } from '@/lib/constants';
+import { typeToSection } from '@/lib/types';
+import { getColorName, getColorStyle } from '@/lib/colorUtils';
+import type { ClothingItem, OutfitWear } from '@/lib/types';
 
 interface WearCount {
   itemId: string;
@@ -25,7 +26,7 @@ interface Stats {
   dirtyItems: number;
   cleanItems: number;
   mostWornItems: WearCount[];
-  leastWornItems: ClothingItem[];
+  leastWornItems: (ClothingItem & { wearCount: number })[];
   colorDistribution: ColorCount[];
   avgRating: number;
   topRatedOutfits: OutfitWear[];
@@ -41,21 +42,15 @@ export default function WardrobeStats() {
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('month');
 
-  // Load data
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-
     try {
-      // Calculate date range based on time period
       let startDate: string | null = null;
       if (timePeriod !== 'all') {
         const date = new Date();
-        if (timePeriod === 'week') {
-          date.setDate(date.getDate() - 7);
-        } else {
-          date.setMonth(date.getMonth() - 1);
-        }
+        if (timePeriod === 'week') date.setDate(date.getDate() - 7);
+        else date.setMonth(date.getMonth() - 1);
         startDate = date.toISOString().split('T')[0];
       }
 
@@ -63,157 +58,105 @@ export default function WardrobeStats() {
         supabase.from('clothing_items').select('*').eq('user_id', user.id),
         startDate
           ? supabase.from('outfit_wears').select('*').eq('user_id', user.id).gte('worn_date', startDate)
-          : supabase.from('outfit_wears').select('*').eq('user_id', user.id)
+          : supabase.from('outfit_wears').select('*').eq('user_id', user.id),
       ]);
-
       setItems(itemsData || []);
       setOutfitWears(wearsData || []);
-    } catch (e) {
-      console.error('Failed to load stats data:', e);
+    } catch {
+      // silently fail
     } finally {
       setLoading(false);
     }
   }, [user, timePeriod]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  // Calculate statistics
   const stats = useMemo((): Stats => {
-    // Items by category
     const itemsByCategory: Record<string, number> = {};
-    sectionNames.forEach(section => {
-      itemsByCategory[section] = items.filter(item => typeToSection[item.type] === section).length;
+    sectionNames.forEach((section) => {
+      itemsByCategory[section] = items.filter((item) => typeToSection[item.type] === section).length;
     });
 
-    // Dirty/clean counts
-    const dirtyItems = items.filter(item => item.is_dirty).length;
-    const cleanItems = items.filter(item => !item.is_dirty).length;
+    const dirtyItems = items.filter((item) => item.is_dirty).length;
+    const cleanItems = items.filter((item) => !item.is_dirty).length;
 
-    // Wear counts per item
     const wearCounts: Record<string, number> = {};
-    outfitWears.forEach(wear => {
+    outfitWears.forEach((wear) => {
       if (wear.top_id) wearCounts[wear.top_id] = (wearCounts[wear.top_id] || 0) + 1;
       if (wear.bottom_id) wearCounts[wear.bottom_id] = (wearCounts[wear.bottom_id] || 0) + 1;
       if (wear.shoes_id) wearCounts[wear.shoes_id] = (wearCounts[wear.shoes_id] || 0) + 1;
       if (wear.outerwear_id) wearCounts[wear.outerwear_id] = (wearCounts[wear.outerwear_id] || 0) + 1;
     });
 
-    // Most worn items
     const wearCountsArray: WearCount[] = Object.entries(wearCounts)
-      .map(([itemId, count]) => ({
-        itemId,
-        item: items.find(i => i.id === itemId)!,
-        count
-      }))
-      .filter(wc => wc.item)
+      .map(([itemId, count]) => ({ itemId, item: items.find((i) => i.id === itemId)!, count }))
+      .filter((wc) => wc.item)
       .sort((a, b) => b.count - a.count);
 
     const mostWornItems = wearCountsArray.slice(0, 5);
 
-    // Least worn items (items never worn or worn least)
-    const itemsWithWearCount = items.map(item => ({
-      ...item,
-      wearCount: wearCounts[item.id] || 0
-    }));
-    const leastWornItems = itemsWithWearCount
+    const leastWornItems = items
+      .map((item) => ({ ...item, wearCount: wearCounts[item.id] || 0 }))
       .sort((a, b) => a.wearCount - b.wearCount)
       .slice(0, 5);
 
-    // Color distribution
     const colorCounts: Record<string, number> = {};
-    items.forEach(item => {
-      item.colors.forEach(color => {
-        const normalizedColor = getColorName(color);
-        colorCounts[normalizedColor] = (colorCounts[normalizedColor] || 0) + 1;
+    items.forEach((item) => {
+      item.colors.forEach((color) => {
+        const normalized = getColorName(color);
+        colorCounts[normalized] = (colorCounts[normalized] || 0) + 1;
       });
     });
     const colorDistribution = Object.entries(colorCounts)
       .map(([color, count]) => ({ color, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Average rating
-    const ratedOutfits = outfitWears.filter(w => w.rating != null);
+    const ratedOutfits = outfitWears.filter((w) => w.rating != null);
     const avgRating = ratedOutfits.length > 0
       ? ratedOutfits.reduce((sum, w) => sum + (w.rating || 0), 0) / ratedOutfits.length
       : 0;
 
-    // Top rated outfits
     const topRatedOutfits = [...outfitWears]
-      .filter(w => w.rating != null)
+      .filter((w) => w.rating != null)
       .sort((a, b) => (b.rating || 0) - (a.rating || 0))
       .slice(0, 5);
 
-    // Average days between repeating an outfit (simplified calculation)
     let avgDaysBetweenRepeat = 0;
     if (outfitWears.length > 1) {
-      const outfitStrings = outfitWears.map(w => 
-        `${w.top_id}-${w.bottom_id}-${w.shoes_id}-${w.outerwear_id}`
-      );
-      const repeatOccurrences = outfitStrings.filter((str, idx) => 
-        outfitStrings.indexOf(str) !== idx
-      );
-      avgDaysBetweenRepeat = repeatOccurrences.length > 0 
-        ? Math.round(outfitWears.length / repeatOccurrences.length) 
+      const outfitStrings = outfitWears.map((w) => `${w.top_id}-${w.bottom_id}-${w.shoes_id}-${w.outerwear_id}`);
+      const repeatOccurrences = outfitStrings.filter((str, idx) => outfitStrings.indexOf(str) !== idx);
+      avgDaysBetweenRepeat = repeatOccurrences.length > 0
+        ? Math.round(outfitWears.length / repeatOccurrences.length)
         : 0;
     }
 
-    return {
-      totalItems: items.length,
-      totalWears: outfitWears.length,
-      itemsByCategory,
-      dirtyItems,
-      cleanItems,
-      mostWornItems,
-      leastWornItems,
-      colorDistribution,
-      avgRating,
-      topRatedOutfits,
-      avgDaysBetweenRepeat
-    };
+    return { totalItems: items.length, totalWears: outfitWears.length, itemsByCategory, dirtyItems, cleanItems, mostWornItems, leastWornItems, colorDistribution, avgRating, topRatedOutfits, avgDaysBetweenRepeat };
   }, [items, outfitWears]);
 
-  // Get item image
   const getItemImage = (itemId: string | undefined): string | null => {
     if (!itemId) return null;
-    const item = items.find(i => i.id === itemId);
-    return item?.image_url || null;
+    return items.find((i) => i.id === itemId)?.image_url || null;
   };
 
   if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: '#e0f6ff' }}>
-        Loading statistics...
-      </div>
-    );
+    return <div className="text-center py-12 text-[var(--text-secondary)] text-sm">Loading statistics...</div>;
   }
 
   return (
-    <div style={{ width: '100%' }}>
-      {/* Header with time period selector */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '1.5rem' 
-      }}>
-        <h2 style={{ color: '#e0f6ff', margin: 0, fontSize: '1.5rem' }}>Wardrobe Statistics</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {(['week', 'month', 'all'] as TimePeriod[]).map(period => (
+    <div className="w-full max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="section-header border-0 mb-0 pb-0">Wardrobe Statistics</h2>
+        <div className="flex gap-1">
+          {(['week', 'month', 'all'] as TimePeriod[]).map((period) => (
             <button
               key={period}
               onClick={() => setTimePeriod(period)}
-              style={{
-                padding: '0.4rem 0.8rem',
-                background: timePeriod === period ? '#1565c0' : '#243152',
-                color: '#e0f6ff',
-                border: '2px solid #1565c0',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.85rem',
-                fontWeight: timePeriod === period ? 600 : 400
-              }}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                timePeriod === period
+                  ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
+                  : 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
+              }`}
             >
               {period === 'week' ? 'Week' : period === 'month' ? 'Month' : 'All Time'}
             </button>
@@ -221,94 +164,63 @@ export default function WardrobeStats() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="stats-grid">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Overview Card */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3 className="stat-card-title">Overview</h3>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div className="stat-number">{stats.totalItems}</div>
-              <div className="stat-subtitle">Total Items</div>
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Overview</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--accent)]">{stats.totalItems}</div>
+              <div className="text-xs text-[var(--text-secondary)]">Total Items</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div className="stat-number">{stats.totalWears}</div>
-              <div className="stat-subtitle">Outfits Logged</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--accent)]">{stats.totalWears}</div>
+              <div className="text-xs text-[var(--text-secondary)]">Outfits Logged</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div className="stat-number" style={{ color: '#28a745' }}>{stats.cleanItems}</div>
-              <div className="stat-subtitle">Clean Items</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{stats.cleanItems}</div>
+              <div className="text-xs text-[var(--text-secondary)]">Clean Items</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div className="stat-number" style={{ color: '#ffc107' }}>{stats.dirtyItems}</div>
-              <div className="stat-subtitle">Dirty Items</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-amber-500">{stats.dirtyItems}</div>
+              <div className="text-xs text-[var(--text-secondary)]">Dirty Items</div>
             </div>
           </div>
         </div>
 
         {/* Items by Category */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3 className="stat-card-title">Items by Category</h3>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {sectionNames.map(section => (
-              <div key={section} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ color: '#e0f6ff', fontSize: '0.9rem', width: '80px' }}>{section}</span>
-                <div style={{ 
-                  flex: 1, 
-                  height: '20px', 
-                  background: '#243152', 
-                  borderRadius: '4px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    width: `${stats.totalItems > 0 ? (stats.itemsByCategory[section] / stats.totalItems) * 100 : 0}%`,
-                    height: '100%',
-                    background: '#1565c0',
-                    borderRadius: '4px',
-                    transition: 'width 0.3s'
-                  }} />
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Items by Category</h3>
+          <div className="flex flex-col gap-3">
+            {sectionNames.map((section) => (
+              <div key={section} className="flex items-center gap-3">
+                <span className="text-xs text-[var(--text)] w-20 shrink-0">{section}</span>
+                <div className="flex-1 h-5 bg-[var(--muted)] rounded overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--accent)] rounded transition-all duration-300"
+                    style={{ width: `${stats.totalItems > 0 ? (stats.itemsByCategory[section] / stats.totalItems) * 100 : 0}%` }}
+                  />
                 </div>
-                <span style={{ color: '#e0f6ff', fontSize: '0.85rem', width: '30px', textAlign: 'right' }}>
-                  {stats.itemsByCategory[section]}
-                </span>
+                <span className="text-xs text-[var(--text-secondary)] w-6 text-right">{stats.itemsByCategory[section]}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Most Worn Items */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3 className="stat-card-title">Most Worn Items</h3>
-          </div>
+        {/* Most Worn */}
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Most Worn Items</h3>
           {stats.mostWornItems.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#e0f6ff', opacity: 0.7, padding: '1rem', fontSize: '0.9rem' }}>
-              No wear data yet
-            </div>
+            <div className="text-center text-[var(--text-secondary)] text-xs py-4">No wear data yet</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="flex flex-col gap-2">
               {stats.mostWornItems.map((wc, idx) => (
-                <div key={wc.itemId} className="stat-item-row">
-                  <span style={{ 
-                    color: '#1565c0', 
-                    fontWeight: 'bold', 
-                    width: '20px',
-                    fontSize: '0.85rem'
-                  }}>
-                    #{idx + 1}
-                  </span>
-                  <img 
-                    src={wc.item.image_url} 
-                    alt={wc.item.type}
-                    className="stat-item-image"
-                  />
-                  <div className="stat-item-info">
-                    <div className="stat-item-name">{wc.item.type}</div>
-                    <div className="stat-item-count">{wc.count} times worn</div>
+                <div key={wc.itemId} className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-[var(--accent)] w-5">#{idx + 1}</span>
+                  <img src={wc.item.image_url} alt={wc.item.type} className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-[var(--text)] truncate">{wc.item.type}</div>
+                    <div className="text-xs text-[var(--text-secondary)]">{wc.count} times</div>
                   </div>
                 </div>
               ))}
@@ -316,28 +228,20 @@ export default function WardrobeStats() {
           )}
         </div>
 
-        {/* Least Worn Items */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3 className="stat-card-title">Neglected Items</h3>
-          </div>
+        {/* Neglected Items */}
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Neglected Items</h3>
           {stats.leastWornItems.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#e0f6ff', opacity: 0.7, padding: '1rem', fontSize: '0.9rem' }}>
-              Add items to see stats
-            </div>
+            <div className="text-center text-[var(--text-secondary)] text-xs py-4">Add items to see stats</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="flex flex-col gap-2">
               {stats.leastWornItems.map((item) => (
-                <div key={item.id} className="stat-item-row">
-                  <img 
-                    src={item.image_url} 
-                    alt={item.type}
-                    className="stat-item-image"
-                  />
-                  <div className="stat-item-info">
-                    <div className="stat-item-name">{item.type}</div>
-                    <div className="stat-item-count" style={{ color: '#ff8c00' }}>
-                      {(item as ClothingItem & { wearCount?: number }).wearCount === 0 ? 'Never worn' : `${(item as ClothingItem & { wearCount?: number }).wearCount} times`}
+                <div key={item.id} className="flex items-center gap-3">
+                  <img src={item.image_url} alt={item.type} className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-[var(--text)] truncate">{item.type}</div>
+                    <div className={`text-xs ${item.wearCount === 0 ? 'text-amber-500' : 'text-[var(--text-secondary)]'}`}>
+                      {item.wearCount === 0 ? 'Never worn' : `${item.wearCount} times`}
                     </div>
                   </div>
                 </div>
@@ -347,38 +251,20 @@ export default function WardrobeStats() {
         </div>
 
         {/* Color Distribution */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3 className="stat-card-title">Color Distribution</h3>
-          </div>
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Color Distribution</h3>
           {stats.colorDistribution.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#e0f6ff', opacity: 0.7, padding: '1rem', fontSize: '0.9rem' }}>
-              No color data
-            </div>
+            <div className="text-center text-[var(--text-secondary)] text-xs py-4">No color data</div>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div className="flex flex-wrap gap-2">
               {stats.colorDistribution.slice(0, 10).map(({ color, count }) => (
-                <div 
-                  key={color}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '0.3rem 0.6rem',
-                    background: '#243152',
-                    borderRadius: '15px',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  <div style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    background: color.toLowerCase().replace(' ', ''),
-                    border: '1px solid #34507b'
-                  }} />
-                  <span style={{ color: '#e0f6ff' }}>{color}</span>
-                  <span style={{ color: '#e0f6ff', opacity: 0.7 }}>({count})</span>
+                <div key={color} className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--muted)] rounded-full text-xs">
+                  <div
+                    className="w-3 h-3 rounded-full border border-[var(--border)]"
+                    style={{ backgroundColor: getColorStyle(color).backgroundColor }}
+                  />
+                  <span className="text-[var(--text)]">{color}</span>
+                  <span className="text-[var(--text-secondary)]">({count})</span>
                 </div>
               ))}
             </div>
@@ -386,57 +272,37 @@ export default function WardrobeStats() {
         </div>
 
         {/* Ratings */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <h3 className="stat-card-title">Outfit Ratings</h3>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div className="stat-number" style={{ color: '#ffc107' }}>
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Outfit Ratings</h3>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-amber-500">
                 {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : '-'}
               </div>
-              <div className="stat-subtitle">Avg Rating (1-10)</div>
+              <div className="text-xs text-[var(--text-secondary)]">Avg Rating (1-10)</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div className="stat-number">
-                {stats.topRatedOutfits.length}
-              </div>
-              <div className="stat-subtitle">Rated Outfits</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--accent)]">{stats.topRatedOutfits.length}</div>
+              <div className="text-xs text-[var(--text-secondary)]">Rated Outfits</div>
             </div>
           </div>
-          
+
           {stats.topRatedOutfits.length > 0 && (
             <div>
-              <h4 style={{ color: '#e0f6ff', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Top Rated:</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <h4 className="text-xs font-medium text-[var(--text)] mb-2">Top Rated:</h4>
+              <div className="flex flex-col gap-2">
                 {stats.topRatedOutfits.slice(0, 3).map((outfit) => (
-                  <div key={outfit.id} style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem',
-                    padding: '0.4rem',
-                    background: '#243152',
-                    borderRadius: '6px'
-                  }}>
-                    <div style={{ display: 'flex', gap: '2px' }}>
+                  <div key={outfit.id} className="flex items-center gap-2 p-2 bg-[var(--muted)] rounded-lg">
+                    <div className="flex gap-0.5">
                       {[outfit.top_id, outfit.bottom_id].map((id, idx) => {
                         const imgUrl = getItemImage(id);
                         return imgUrl ? (
-                          <img 
-                            key={idx}
-                            src={imgUrl}
-                            alt=""
-                            style={{ width: '25px', height: '25px', objectFit: 'cover', borderRadius: '3px' }}
-                          />
+                          <img key={idx} src={imgUrl} alt="" className="w-6 h-6 rounded object-cover" />
                         ) : null;
                       })}
                     </div>
-                    <span style={{ color: '#ffc107', fontSize: '0.85rem', fontWeight: 600 }}>
-                      {outfit.rating}/10
-                    </span>
-                    <span style={{ color: '#e0f6ff', fontSize: '0.75rem', opacity: 0.7 }}>
-                      {outfit.worn_date}
-                    </span>
+                    <span className="text-sm font-semibold text-amber-500">{outfit.rating}/10</span>
+                    <span className="text-xs text-[var(--text-secondary)]">{outfit.worn_date}</span>
                   </div>
                 ))}
               </div>

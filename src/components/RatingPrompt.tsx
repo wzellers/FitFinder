@@ -1,10 +1,10 @@
-// RatingPrompt Component - Modal/popup for rating yesterday's outfit
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabaseClient';
-import { PendingRating, ClothingItem } from '../lib/types';
+import { Minus } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabaseClient';
+import type { PendingRating, ClothingItem } from '@/lib/types';
 
 interface RatingPromptProps {
   pendingRating: PendingRating;
@@ -21,126 +21,72 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load item images
   useEffect(() => {
     const loadItems = async () => {
       if (!user) return;
-      
       const itemIds = [
         pendingRating.outfit_items.top_id,
         pendingRating.outfit_items.bottom_id,
         pendingRating.outfit_items.shoes_id,
-        pendingRating.outfit_items.outerwear_id
+        pendingRating.outfit_items.outerwear_id,
       ].filter(Boolean) as string[];
 
-      if (itemIds.length === 0) {
-        setLoading(false);
-        return;
-      }
+      if (itemIds.length === 0) { setLoading(false); return; }
 
       try {
-        const { data } = await supabase
-          .from('clothing_items')
-          .select('*')
-          .in('id', itemIds);
-        
+        const { data } = await supabase.from('clothing_items').select('*').in('id', itemIds);
         setItems(data || []);
-      } catch (e) {
-        console.error('Failed to load items:', e);
+      } catch {
+        // silently fail
       } finally {
         setLoading(false);
       }
     };
-
     loadItems();
   }, [user, pendingRating]);
 
-  // Get item by ID
   const getItem = (itemId: string | undefined): ClothingItem | null => {
     if (!itemId) return null;
-    return items.find(i => i.id === itemId) || null;
+    return items.find((i) => i.id === itemId) || null;
   };
 
-  // Format date
   const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   };
 
-  // Handle submit
   const handleSubmit = () => {
     onSubmit(pendingRating.wear_id, rating, showComfort ? comfortRating : undefined);
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.6)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 400
-    }}>
-      <div style={{
-        background: '#1a2238',
-        border: '2px solid #1565c0',
-        borderRadius: '16px',
-        padding: '1.5rem',
-        maxWidth: '400px',
-        width: '90%',
-        boxShadow: '0 8px 32px rgba(21, 101, 192, 0.3)'
-      }}>
+    <div className="modal-overlay">
+      <div className="modal-content max-w-sm">
         {/* Header */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'flex-start',
-          marginBottom: '1rem'
-        }}>
+        <div className="flex justify-between items-start mb-4">
           <div>
-            <h3 style={{ color: '#e0f6ff', margin: '0 0 0.25rem 0', fontSize: '1.1rem' }}>
+            <h3 className="text-base font-semibold text-[var(--text)]">
               Rate Yesterday&apos;s Outfit
             </h3>
-            <p style={{ color: '#e0f6ff', opacity: 0.7, margin: 0, fontSize: '0.85rem' }}>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               {formatDate(pendingRating.worn_date)}
             </p>
           </div>
-          <button
-            onClick={onMinimize}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#e0f6ff',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              opacity: 0.7,
-              padding: '0.25rem'
-            }}
-          >
-            Minimize
+          <button onClick={onMinimize} className="btn-ghost text-xs p-1.5">
+            <Minus size={14} />
           </button>
         </div>
 
         {/* Outfit Preview */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          gap: '0.5rem',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap'
-        }}>
+        <div className="flex justify-center gap-2 mb-5 flex-wrap">
           {loading ? (
-            <div style={{ color: '#e0f6ff', opacity: 0.7 }}>Loading...</div>
+            <div className="text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : (
             [
               pendingRating.outfit_items.top_id,
               pendingRating.outfit_items.bottom_id,
               pendingRating.outfit_items.shoes_id,
-              pendingRating.outfit_items.outerwear_id
+              pendingRating.outfit_items.outerwear_id,
             ].map((id, idx) => {
               const item = getItem(id);
               return item ? (
@@ -148,13 +94,7 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
                   key={idx}
                   src={item.image_url}
                   alt={item.type}
-                  style={{
-                    width: '70px',
-                    height: '70px',
-                    objectFit: 'cover',
-                    borderRadius: '10px',
-                    border: '2px solid #34507b'
-                  }}
+                  className="w-16 h-16 object-cover rounded-xl border-2 border-[var(--border)]"
                 />
               ) : null;
             })
@@ -162,110 +102,57 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
         </div>
 
         {/* Overall Rating */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label style={{ 
-            display: 'block', 
-            color: '#e0f6ff', 
-            marginBottom: '0.5rem',
-            fontSize: '0.9rem',
-            fontWeight: 600
-          }}>
+        <div className="mb-5">
+          <label className="text-sm font-medium text-[var(--text)] block mb-2">
             Overall Rating
           </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="flex items-center gap-3">
             <input
               type="range"
               min="1"
               max="10"
               value={rating}
               onChange={(e) => setRating(Number(e.target.value))}
-              style={{
-                flex: 1,
-                height: '8px',
-                borderRadius: '4px',
-                background: `linear-gradient(to right, #1565c0 ${(rating - 1) * 11.1}%, #243152 ${(rating - 1) * 11.1}%)`,
-                appearance: 'none',
-                cursor: 'pointer'
-              }}
+              className="flex-1 h-2 accent-[var(--accent)] cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
             />
-            <span style={{ 
-              color: '#1565c0', 
-              fontWeight: 'bold', 
-              fontSize: '1.5rem',
-              minWidth: '40px',
-              textAlign: 'center'
-            }}>
+            <span className="text-2xl font-bold text-[var(--accent)] min-w-[40px] text-center">
               {rating}
             </span>
           </div>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            color: '#e0f6ff', 
-            opacity: 0.5,
-            fontSize: '0.7rem',
-            marginTop: '0.25rem'
-          }}>
+          <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
             <span>Not great</span>
             <span>Amazing</span>
           </div>
         </div>
 
         {/* Comfort Rating Toggle */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem',
-            cursor: 'pointer',
-            color: '#e0f6ff',
-            fontSize: '0.85rem'
-          }}>
+        <div className="mb-5">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text)]">
             <input
               type="checkbox"
               checked={showComfort}
               onChange={(e) => setShowComfort(e.target.checked)}
-              style={{ cursor: 'pointer' }}
+              className="w-4 h-4 rounded border-[var(--border)] accent-[var(--accent)] cursor-pointer p-0"
             />
             Add comfort rating (optional)
           </label>
-          
+
           {showComfort && (
-            <div style={{ marginTop: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="mt-3">
+              <div className="flex items-center gap-3">
                 <input
                   type="range"
                   min="1"
                   max="10"
                   value={comfortRating}
                   onChange={(e) => setComfortRating(Number(e.target.value))}
-                  style={{
-                    flex: 1,
-                    height: '8px',
-                    borderRadius: '4px',
-                    background: `linear-gradient(to right, #28a745 ${(comfortRating - 1) * 11.1}%, #243152 ${(comfortRating - 1) * 11.1}%)`,
-                    appearance: 'none',
-                    cursor: 'pointer'
-                  }}
+                  className="flex-1 h-2 accent-green-600 cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
                 />
-                <span style={{ 
-                  color: '#28a745', 
-                  fontWeight: 'bold', 
-                  fontSize: '1.25rem',
-                  minWidth: '40px',
-                  textAlign: 'center'
-                }}>
+                <span className="text-xl font-bold text-green-600 min-w-[40px] text-center">
                   {comfortRating}
                 </span>
               </div>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                color: '#e0f6ff', 
-                opacity: 0.5,
-                fontSize: '0.7rem',
-                marginTop: '0.25rem'
-              }}>
+              <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
                 <span>Uncomfortable</span>
                 <span>Super comfy</span>
               </div>
@@ -274,36 +161,11 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={onSkip}
-            style={{
-              flex: 1,
-              padding: '0.6rem 1rem',
-              background: '#243152',
-              color: '#e0f6ff',
-              border: '2px solid #34507b',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.9rem'
-            }}
-          >
+        <div className="flex gap-2">
+          <button onClick={onSkip} className="btn-secondary flex-1">
             Skip
           </button>
-          <button
-            onClick={handleSubmit}
-            style={{
-              flex: 2,
-              padding: '0.6rem 1rem',
-              background: '#1565c0',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              fontWeight: 600
-            }}
-          >
+          <button onClick={handleSubmit} className="btn-primary flex-[2]">
             Submit Rating
           </button>
         </div>

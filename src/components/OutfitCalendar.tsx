@@ -1,10 +1,12 @@
-// OutfitCalendar Component - Track what outfits were worn on which days
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabaseClient';
-import { ClothingItem, OutfitWear, SavedOutfit, typeToSection } from '../lib/types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/components/ToastProvider';
+import { typeToSection } from '@/lib/constants';
+import type { ClothingItem, OutfitWear, SavedOutfit } from '@/lib/types';
 
 interface DayData {
   date: Date;
@@ -16,160 +18,88 @@ interface DayData {
 
 export default function OutfitCalendar() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<DayData[]>([]);
   const [outfitWears, setOutfitWears] = useState<OutfitWear[]>([]);
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Modal state
+
+  // Modal
   const [showLogModal, setShowLogModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedOutfitWear, setSelectedOutfitWear] = useState<OutfitWear | null>(null);
-  
-  // Log outfit form state
   const [logMode, setLogMode] = useState<'saved' | 'custom'>('custom');
-  const [selectedSavedOutfit, setSelectedSavedOutfit] = useState<string>('');
-  const [selectedTop, setSelectedTop] = useState<string>('');
-  const [selectedBottom, setSelectedBottom] = useState<string>('');
-  const [selectedShoes, setSelectedShoes] = useState<string>('');
-  const [selectedOuterwear, setSelectedOuterwear] = useState<string>('');
+  const [selectedSavedOutfit, setSelectedSavedOutfit] = useState('');
+  const [selectedTop, setSelectedTop] = useState('');
+  const [selectedBottom, setSelectedBottom] = useState('');
+  const [selectedShoes, setSelectedShoes] = useState('');
+  const [selectedOuterwear, setSelectedOuterwear] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Load data
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-
     try {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
-      // Get data for the entire visible calendar range (including prev/next month days)
-      const calendarStart = new Date(startOfMonth);
-      calendarStart.setDate(calendarStart.getDate() - startOfMonth.getDay());
-      const calendarEnd = new Date(endOfMonth);
-      calendarEnd.setDate(calendarEnd.getDate() + (6 - endOfMonth.getDay()));
+      const calStart = new Date(startOfMonth);
+      calStart.setDate(calStart.getDate() - startOfMonth.getDay());
+      const calEnd = new Date(endOfMonth);
+      calEnd.setDate(calEnd.getDate() + (6 - endOfMonth.getDay()));
 
-      const [
-        { data: wearsData },
-        { data: itemsData },
-        { data: savedData }
-      ] = await Promise.all([
-        supabase
-          .from('outfit_wears')
-          .select('*')
-          .eq('user_id', user.id)
-          .gte('worn_date', calendarStart.toISOString().split('T')[0])
-          .lte('worn_date', calendarEnd.toISOString().split('T')[0]),
+      const [{ data: wearsData }, { data: itemsData }, { data: savedData }] = await Promise.all([
+        supabase.from('outfit_wears').select('*').eq('user_id', user.id)
+          .gte('worn_date', calStart.toISOString().split('T')[0])
+          .lte('worn_date', calEnd.toISOString().split('T')[0]),
         supabase.from('clothing_items').select('*').eq('user_id', user.id),
-        supabase.from('saved_outfits').select('*').eq('user_id', user.id)
+        supabase.from('saved_outfits').select('*').eq('user_id', user.id),
       ]);
-
       setOutfitWears(wearsData || []);
       setItems(itemsData || []);
       setSavedOutfits(savedData || []);
-    } catch (e) {
-      console.error('Failed to load calendar data:', e);
+    } catch {
+      showToast('Failed to load calendar', 'error');
     } finally {
       setLoading(false);
     }
-  }, [user, currentDate]);
+  }, [user, currentDate, showToast]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  // Generate calendar days for the current month view
   useEffect(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-    const startDay = firstDayOfMonth.getDay();
-    const daysInMonth = lastDayOfMonth.getDate();
-
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
     const days: DayData[] = [];
 
-    // Previous month days
-    const prevMonth = new Date(year, month, 0);
-    for (let i = startDay - 1; i >= 0; i--) {
-      const date = new Date(year, month - 1, prevMonth.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      days.push({
-        date,
-        dayOfMonth: date.getDate(),
-        isCurrentMonth: false,
-        isToday: false,
-        outfit: outfitWears.find(w => w.worn_date === dateStr) || null
-      });
+    const prev = new Date(year, month, 0);
+    for (let i = first.getDay() - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, prev.getDate() - i);
+      days.push({ date: d, dayOfMonth: d.getDate(), isCurrentMonth: false, isToday: false, outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null });
     }
-
-    // Current month days
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split('T')[0];
-      days.push({
-        date,
-        dayOfMonth: day,
-        isCurrentMonth: true,
-        isToday: date.getTime() === today.getTime(),
-        outfit: outfitWears.find(w => w.worn_date === dateStr) || null
-      });
+    for (let day = 1; day <= last.getDate(); day++) {
+      const d = new Date(year, month, day);
+      days.push({ date: d, dayOfMonth: day, isCurrentMonth: true, isToday: d.getTime() === today.getTime(), outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null });
     }
-
-    // Next month days to fill the grid
-    const remainingDays = 42 - days.length; // 6 rows * 7 days
-    for (let i = 1; i <= remainingDays; i++) {
-      const date = new Date(year, month + 1, i);
-      const dateStr = date.toISOString().split('T')[0];
-      days.push({
-        date,
-        dayOfMonth: i,
-        isCurrentMonth: false,
-        isToday: false,
-        outfit: outfitWears.find(w => w.worn_date === dateStr) || null
-      });
+    const rem = 42 - days.length;
+    for (let i = 1; i <= rem; i++) {
+      const d = new Date(year, month + 1, i);
+      days.push({ date: d, dayOfMonth: i, isCurrentMonth: false, isToday: false, outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null });
     }
-
     setCalendarDays(days);
   }, [currentDate, outfitWears]);
 
-  // Navigate months
-  const goToPrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
+  const getItemImage = (id: string | undefined) => id ? items.find((i) => i.id === id)?.image_url ?? null : null;
+  const getItemsBySection = (section: string) => items.filter((i) => typeToSection[i.type] === section && !i.is_dirty);
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
-
-  // Get item image by ID
-  const getItemImage = (itemId: string | undefined): string | null => {
-    if (!itemId) return null;
-    const item = items.find(i => i.id === itemId);
-    return item?.image_url || null;
-  };
-
-  // Filter items by category
-  const getItemsBySection = (section: string) => {
-    return items.filter(item => typeToSection[item.type] === section && !item.is_dirty);
-  };
-
-  // Handle day click
   const handleDayClick = (day: DayData) => {
     setSelectedDate(day.date);
     if (day.outfit) {
       setSelectedOutfitWear(day.outfit);
-      // Pre-populate form with existing data
       setSelectedTop(day.outfit.top_id || '');
       setSelectedBottom(day.outfit.bottom_id || '');
       setSelectedShoes(day.outfit.shoes_id || '');
@@ -182,441 +112,136 @@ export default function OutfitCalendar() {
     setShowLogModal(true);
   };
 
-  // Reset form
-  const resetForm = () => {
-    setLogMode('custom');
-    setSelectedSavedOutfit('');
-    setSelectedTop('');
-    setSelectedBottom('');
-    setSelectedShoes('');
-    setSelectedOuterwear('');
-    setNotes('');
+  const resetForm = () => { setLogMode('custom'); setSelectedSavedOutfit(''); setSelectedTop(''); setSelectedBottom(''); setSelectedShoes(''); setSelectedOuterwear(''); setNotes(''); };
+
+  const handleSavedOutfitSelect = (id: string) => {
+    setSelectedSavedOutfit(id);
+    const o = savedOutfits.find((s) => s.id === id);
+    if (o) { setSelectedTop(o.outfit_items.top_id || ''); setSelectedBottom(o.outfit_items.bottom_id); setSelectedShoes(o.outfit_items.shoes_id); setSelectedOuterwear(o.outfit_items.outerwear_id || ''); }
   };
 
-  // Handle saved outfit selection
-  const handleSavedOutfitSelect = (outfitId: string) => {
-    setSelectedSavedOutfit(outfitId);
-    const outfit = savedOutfits.find(o => o.id === outfitId);
-    if (outfit) {
-      setSelectedTop(outfit.outfit_items.top_id || '');
-      setSelectedBottom(outfit.outfit_items.bottom_id);
-      setSelectedShoes(outfit.outfit_items.shoes_id);
-      setSelectedOuterwear(outfit.outfit_items.outerwear_id || '');
-    }
-  };
-
-  // Save outfit wear
   const handleSave = async () => {
     if (!user || !selectedDate) return;
-    if (!selectedTop && !selectedBottom && !selectedShoes) {
-      alert('Please select at least one item');
-      return;
-    }
-
+    if (!selectedTop && !selectedBottom && !selectedShoes) { showToast('Select at least one item', 'warning'); return; }
     const dateStr = selectedDate.toISOString().split('T')[0];
-
     try {
+      const payload = { top_id: selectedTop || null, bottom_id: selectedBottom || null, shoes_id: selectedShoes || null, outerwear_id: selectedOuterwear || null, outfit_id: selectedSavedOutfit || null, notes: notes || null };
       if (selectedOutfitWear) {
-        // Update existing
-        await supabase
-          .from('outfit_wears')
-          .update({
-            top_id: selectedTop || null,
-            bottom_id: selectedBottom || null,
-            shoes_id: selectedShoes || null,
-            outerwear_id: selectedOuterwear || null,
-            outfit_id: selectedSavedOutfit || null,
-            notes: notes || null
-          })
-          .eq('id', selectedOutfitWear.id);
+        await supabase.from('outfit_wears').update(payload).eq('id', selectedOutfitWear.id);
       } else {
-        // Create new
-        await supabase
-          .from('outfit_wears')
-          .insert({
-            user_id: user.id,
-            worn_date: dateStr,
-            top_id: selectedTop || null,
-            bottom_id: selectedBottom || null,
-            shoes_id: selectedShoes || null,
-            outerwear_id: selectedOuterwear || null,
-            outfit_id: selectedSavedOutfit || null,
-            notes: notes || null
-          });
+        await supabase.from('outfit_wears').insert({ user_id: user.id, worn_date: dateStr, ...payload });
       }
-
       setShowLogModal(false);
       loadData();
-    } catch (e) {
-      console.error('Failed to save outfit wear:', e);
-      alert('Failed to save. Please try again.');
+    } catch {
+      showToast('Failed to save', 'error');
     }
   };
 
-  // Delete outfit wear
   const handleDelete = async () => {
-    if (!selectedOutfitWear) return;
-    if (!confirm('Are you sure you want to delete this entry?')) return;
-
-    try {
-      await supabase
-        .from('outfit_wears')
-        .delete()
-        .eq('id', selectedOutfitWear.id);
-
-      setShowLogModal(false);
-      loadData();
-    } catch (e) {
-      console.error('Failed to delete:', e);
-    }
+    if (!selectedOutfitWear || !confirm('Delete this entry?')) return;
+    await supabase.from('outfit_wears').delete().eq('id', selectedOutfitWear.id);
+    setShowLogModal(false);
+    loadData();
   };
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  if (loading) return <div className="text-center py-12 text-[var(--text-secondary)] text-sm">Loading calendar...</div>;
+
   return (
-    <div className="calendar-container" style={{ maxWidth: '100%' }}>
-      {/* Calendar Header */}
-      <div className="calendar-header">
-        <button className="calendar-nav-button" onClick={goToPrevMonth}>
-          ← Prev
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <h2 className="calendar-month-title">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
-          <button 
-            className="calendar-nav-button" 
-            onClick={goToToday}
-            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
-          >
-            Today
-          </button>
+    <div className="w-full max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="btn-ghost p-2"><ChevronLeft size={18} /></button>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-[var(--text)]">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
+          <button onClick={() => setCurrentDate(new Date())} className="btn-secondary text-xs">Today</button>
         </div>
-        <button className="calendar-nav-button" onClick={goToNextMonth}>
-          Next →
-        </button>
+        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="btn-ghost p-2"><ChevronRight size={18} /></button>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="calendar-grid">
-        {/* Day headers */}
-        {dayNames.map(day => (
-          <div key={day} className="calendar-day-header">{day}</div>
+      {/* Grid */}
+      <div className="grid grid-cols-7 gap-px bg-[var(--border)] rounded-xl overflow-hidden border border-[var(--border)]">
+        {dayNames.map((d) => (
+          <div key={d} className="bg-[var(--muted)] text-center text-xs font-medium text-[var(--text-secondary)] py-2">{d}</div>
         ))}
-
-        {/* Calendar days */}
-        {calendarDays.map((day, index) => (
-          <div
-            key={index}
-            className={`calendar-day ${!day.isCurrentMonth ? 'other-month' : ''} ${day.isToday ? 'today' : ''} ${day.outfit ? 'has-outfit' : ''}`}
+        {calendarDays.map((day, idx) => (
+          <button
+            key={idx}
             onClick={() => handleDayClick(day)}
+            className={`bg-white min-h-[80px] p-1.5 text-left flex flex-col transition-colors hover:bg-blue-50 ${
+              !day.isCurrentMonth ? 'opacity-40' : ''
+            } ${day.isToday ? 'ring-2 ring-inset ring-[var(--accent)]' : ''}`}
           >
-            <div className="calendar-day-number">{day.dayOfMonth}</div>
-            <div className="calendar-day-outfit">
-              {day.outfit && (
-                <div className="calendar-outfit-thumbnail">
-                  {[day.outfit.top_id, day.outfit.bottom_id, day.outfit.shoes_id, day.outfit.outerwear_id]
-                    .filter(Boolean)
-                    .slice(0, 4)
-                    .map((id, idx) => {
-                      const imgUrl = getItemImage(id);
-                      return imgUrl ? (
-                        <img key={idx} src={imgUrl} alt="" />
-                      ) : null;
-                    })}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Log Outfit Modal */}
-      {showLogModal && selectedDate && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 300
-        }}>
-          <div style={{
-            background: '#1a2238',
-            border: '2px solid #34507b',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ color: '#e0f6ff', margin: 0 }}>
-                {selectedOutfitWear ? 'Edit' : 'Log'} Outfit - {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </h3>
-              <button
-                onClick={() => setShowLogModal(false)}
-                style={{ background: 'none', border: 'none', color: '#e0f6ff', fontSize: '1.5rem', cursor: 'pointer' }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Mode Toggle */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-              <button
-                onClick={() => { setLogMode('custom'); resetForm(); }}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem',
-                  background: logMode === 'custom' ? '#1565c0' : '#243152',
-                  color: '#e0f6ff',
-                  border: '2px solid #1565c0',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                Pick Items
-              </button>
-              <button
-                onClick={() => setLogMode('saved')}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem',
-                  background: logMode === 'saved' ? '#1565c0' : '#243152',
-                  color: '#e0f6ff',
-                  border: '2px solid #1565c0',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                From Saved Outfits
-              </button>
-            </div>
-
-            {/* Saved Outfit Selection */}
-            {logMode === 'saved' && (
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ color: '#e0f6ff', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem' }}>
-                  Select Saved Outfit:
-                </label>
-                <select
-                  value={selectedSavedOutfit}
-                  onChange={(e) => handleSavedOutfitSelect(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: '#243152',
-                    color: '#e0f6ff',
-                    border: '2px solid #34507b',
-                    borderRadius: '6px'
-                  }}
-                >
-                  <option value="">-- Select an outfit --</option>
-                  {savedOutfits.map(outfit => (
-                    <option key={outfit.id} value={outfit.id}>
-                      Outfit from {outfit.created_at ? new Date(outfit.created_at).toLocaleDateString() : 'Unknown'}
-                    </option>
-                  ))}
-                </select>
+            <span className={`text-xs font-medium ${day.isToday ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>{day.dayOfMonth}</span>
+            {day.outfit && (
+              <div className="flex gap-0.5 mt-auto flex-wrap">
+                {[day.outfit.top_id, day.outfit.bottom_id].filter(Boolean).map((id, i) => {
+                  const url = getItemImage(id);
+                  return url ? <img key={i} src={url} alt="" className="w-5 h-5 rounded object-cover" /> : null;
+                })}
               </div>
             )}
+          </button>
+        ))}
+      </div>
 
-            {/* Item Selection */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-              {/* Top */}
-              <div>
-                <label style={{ color: '#e0f6ff', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Top:</label>
-                <select
-                  value={selectedTop}
-                  onChange={(e) => setSelectedTop(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: '#243152',
-                    color: '#e0f6ff',
-                    border: '2px solid #34507b',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  <option value="">-- None --</option>
-                  {getItemsBySection('Tops').map(item => (
-                    <option key={item.id} value={item.id}>{item.type}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Bottom */}
-              <div>
-                <label style={{ color: '#e0f6ff', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Bottom:</label>
-                <select
-                  value={selectedBottom}
-                  onChange={(e) => setSelectedBottom(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: '#243152',
-                    color: '#e0f6ff',
-                    border: '2px solid #34507b',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  <option value="">-- None --</option>
-                  {getItemsBySection('Bottoms').map(item => (
-                    <option key={item.id} value={item.id}>{item.type}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Shoes */}
-              <div>
-                <label style={{ color: '#e0f6ff', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Shoes:</label>
-                <select
-                  value={selectedShoes}
-                  onChange={(e) => setSelectedShoes(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: '#243152',
-                    color: '#e0f6ff',
-                    border: '2px solid #34507b',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  <option value="">-- None --</option>
-                  {getItemsBySection('Shoes').map(item => (
-                    <option key={item.id} value={item.id}>{item.type}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Outerwear */}
-              <div>
-                <label style={{ color: '#e0f6ff', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Outerwear:</label>
-                <select
-                  value={selectedOuterwear}
-                  onChange={(e) => setSelectedOuterwear(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    background: '#243152',
-                    color: '#e0f6ff',
-                    border: '2px solid #34507b',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  <option value="">-- None --</option>
-                  {getItemsBySection('Outerwear').map(item => (
-                    <option key={item.id} value={item.id}>{item.type}</option>
-                  ))}
-                </select>
-              </div>
+      {/* Log Modal */}
+      {showLogModal && selectedDate && (
+        <div className="modal-overlay" onClick={() => setShowLogModal(false)}>
+          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-semibold text-[var(--text)]">
+                {selectedOutfitWear ? 'Edit' : 'Log'} Outfit — {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </h3>
+              <button onClick={() => setShowLogModal(false)} className="btn-ghost p-1 text-lg">&times;</button>
             </div>
 
-            {/* Selected Items Preview */}
-            <div style={{ 
-              display: 'flex', 
-              gap: '0.5rem', 
-              justifyContent: 'center', 
-              marginBottom: '1rem',
-              flexWrap: 'wrap'
-            }}>
-              {[selectedTop, selectedBottom, selectedShoes, selectedOuterwear].map((id, idx) => {
-                const imgUrl = getItemImage(id);
-                return imgUrl ? (
-                  <img
-                    key={idx}
-                    src={imgUrl}
-                    alt=""
-                    style={{
-                      width: '60px',
-                      height: '60px',
-                      objectFit: 'cover',
-                      borderRadius: '8px',
-                      border: '2px solid #34507b'
-                    }}
-                  />
-                ) : null;
+            {/* Mode toggle */}
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => { setLogMode('custom'); resetForm(); }} className={logMode === 'custom' ? 'btn-primary text-xs flex-1' : 'btn-secondary text-xs flex-1'}>Pick Items</button>
+              <button onClick={() => setLogMode('saved')} className={logMode === 'saved' ? 'btn-primary text-xs flex-1' : 'btn-secondary text-xs flex-1'}>From Saved</button>
+            </div>
+
+            {logMode === 'saved' && (
+              <select value={selectedSavedOutfit} onChange={(e) => handleSavedOutfitSelect(e.target.value)} className="w-full mb-4">
+                <option value="">Select saved outfit...</option>
+                {savedOutfits.map((o) => <option key={o.id} value={o.id}>Outfit from {o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Unknown'}</option>)}
+              </select>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {(['Tops', 'Bottoms', 'Shoes', 'Outerwear'] as const).map((section) => {
+                const val = section === 'Tops' ? selectedTop : section === 'Bottoms' ? selectedBottom : section === 'Shoes' ? selectedShoes : selectedOuterwear;
+                const setter = section === 'Tops' ? setSelectedTop : section === 'Bottoms' ? setSelectedBottom : section === 'Shoes' ? setSelectedShoes : setSelectedOuterwear;
+                return (
+                  <div key={section}>
+                    <label className="text-xs font-medium text-[var(--text)] mb-1 block">{section}</label>
+                    <select value={val} onChange={(e) => setter(e.target.value)} className="w-full text-sm">
+                      <option value="">None</option>
+                      {getItemsBySection(section).map((i) => <option key={i.id} value={i.id}>{i.type}</option>)}
+                    </select>
+                  </div>
+                );
               })}
             </div>
 
-            {/* Notes */}
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ color: '#e0f6ff', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
-                Notes (optional):
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g., Work meeting, date night..."
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  background: '#243152',
-                  color: '#e0f6ff',
-                  border: '2px solid #34507b',
-                  borderRadius: '6px',
-                  minHeight: '60px',
-                  resize: 'vertical'
-                }}
-              />
+            {/* Preview */}
+            <div className="flex gap-2 justify-center mb-4">
+              {[selectedTop, selectedBottom, selectedShoes, selectedOuterwear].map((id, i) => {
+                const url = getItemImage(id);
+                return url ? <img key={i} src={url} alt="" className="w-12 h-12 rounded-lg object-cover border border-[var(--border)]" /> : null;
+              })}
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              {selectedOutfitWear && (
-                <button
-                  onClick={handleDelete}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#dc3545',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    marginRight: 'auto'
-                  }}
-                >
-                  Delete
-                </button>
-              )}
-              <button
-                onClick={() => setShowLogModal(false)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#243152',
-                  color: '#e0f6ff',
-                  border: '2px solid #34507b',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#1565c0',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                {selectedOutfitWear ? 'Update' : 'Save'}
-              </button>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full mb-4 min-h-[60px]" />
+
+            <div className="flex gap-2 justify-end">
+              {selectedOutfitWear && <button onClick={handleDelete} className="btn-danger text-xs mr-auto">Delete</button>}
+              <button onClick={() => setShowLogModal(false)} className="btn-secondary text-xs">Cancel</button>
+              <button onClick={handleSave} className="btn-primary text-xs">{selectedOutfitWear ? 'Update' : 'Save'}</button>
             </div>
           </div>
         </div>

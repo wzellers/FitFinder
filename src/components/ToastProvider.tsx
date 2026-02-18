@@ -22,42 +22,40 @@ export function useToast() {
   return ctx;
 }
 
+const bgMap: Record<ToastType, string> = {
+  success: 'bg-green-600',
+  error: 'bg-red-600',
+  warning: 'bg-amber-500',
+  info: 'bg-accent',
+};
+
 export default function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((message: string, type: ToastType = 'info', durationMs = 2200) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    setToasts(prev => [...prev, { id, message, type }]);
-    if (durationMs > 0) {
-      setTimeout(() => removeToast(id), durationMs);
-    }
-  }, [removeToast]);
+  const showToast = useCallback(
+    (message: string, type: ToastType = 'info', durationMs = 2500) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      setToasts((prev) => [...prev, { id, message, type }]);
+      if (durationMs > 0) setTimeout(() => removeToast(id), durationMs);
+    },
+    [removeToast],
+  );
 
   const value = useMemo(() => ({ showToast }), [showToast]);
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div style={{ position: 'fixed', top: 16, right: 16, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 2000 }}>
-        {toasts.map(t => (
-          <div key={t.id}
+      <div className="fixed top-4 right-4 flex flex-col gap-2 z-[2000]">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
             onClick={() => removeToast(t.id)}
-            style={{
-              background: t.type === 'success' ? '#1565c0' : t.type === 'error' ? '#ff8c00' : t.type === 'warning' ? '#ff8c00' : '#1565c0',
-              color: '#e0f6ff',
-              borderRadius: 8,
-              padding: '0.6rem 0.8rem',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.2)',
-              cursor: 'pointer',
-              fontFamily: 'Arial, sans-serif',
-              fontSize: '0.9rem',
-              maxWidth: 360,
-              border: '2px solid #e0f6ff'
-            }}
+            className={`${bgMap[t.type]} text-white rounded-lg px-4 py-3 shadow-lg cursor-pointer text-sm max-w-[360px] animate-[fadeIn_0.15s_ease]`}
           >
             {t.message}
           </div>
@@ -66,5 +64,3 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
     </ToastContext.Provider>
   );
 }
-
-
