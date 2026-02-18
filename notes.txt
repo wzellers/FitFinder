@@ -1,8 +1,0 @@
-get rid of third subsection for clothing items
-fix pop up screen format when adding clothing item
-make add item button white until its being hovered over
-move generate fit button up a little more
-add a jacket + other layer combo if meets certain weather criteria
-fix preferences tab + get rid of disliked combos
-align lock buttons
-think about ways to make adding items quicker

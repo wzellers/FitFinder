@@ -16,4 +16,12 @@ dist/
 # Logs / misc
 *.log
 .DS_Store
+
+# Editor / IDE
 .vscode/
+.cursor/
+.claude/
+
+# Personal data
+FitFinder.clothes/
+notes.txt
