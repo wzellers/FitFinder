@@ -1,19 +1,24 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Lock, Unlock, Sparkles, Save, CloudSun, CalendarPlus } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Lock, Unlock, Sparkles, Save, CloudSun, CalendarPlus, CloudOff, X, Calendar } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
-import { typeToSection, occasions } from '@/lib/constants';
+import { typeToSection } from '@/lib/constants';
 import { fetchWeather, getTemperatureCategory, getWeatherIconUrl, TEMPERATURE_THRESHOLDS } from '@/lib/weatherApi';
 import { generateScoredOutfits } from '@/lib/outfitScoring';
-import type { ClothingItem, ColorCombination, SavedOutfit, OutfitWear } from '@/lib/types';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { SkeletonOutfitSlots } from '@/components/ui/Skeleton';
+import type { ClothingItem, ColorCombination, SavedOutfit, OutfitWear, UserWeatherPreferences } from '@/lib/types';
 import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
-import type { Occasion } from '@/lib/constants';
 import type { OutfitCandidate } from '@/lib/outfitScoring';
 
-export default function OutfitGenerator() {
+interface OutfitGeneratorProps {
+  onNavigateToCalendar?: () => void;
+}
+
+export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGeneratorProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -28,19 +33,17 @@ export default function OutfitGenerator() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [tempCategory, setTempCategory] = useState<TemperatureCategory | null>(null);
-
-  // Occasion
-  const [selectedOccasion, setSelectedOccasion] = useState<Occasion | null>(null);
+  const [ignoreWeather, setIgnoreWeather] = useState(false);
+  const [userWeatherPrefs, setUserWeatherPrefs] = useState<UserWeatherPreferences | null>(null);
 
   // Current outfit display
   const [top, setTop] = useState<ClothingItem | null>(null);
-  const [outerwear, setOuterwear] = useState<ClothingItem | null>(null);
   const [bottom, setBottom] = useState<ClothingItem | null>(null);
   const [shoes, setShoes] = useState<ClothingItem | null>(null);
 
-  // Scored results
-  const [scoredResults, setScoredResults] = useState<OutfitCandidate[]>([]);
-  const [resultIndex, setResultIndex] = useState(0);
+  // Scored results (not displayed to user — just used internally)
+  const scoredResultsRef = React.useRef<OutfitCandidate[]>([]);
+  const resultIndexRef = React.useRef(0);
 
   // Locks
   const [lockedTop, setLockedTop] = useState(false);
@@ -51,6 +54,17 @@ export default function OutfitGenerator() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'generator' | 'saved'>('generator');
+
+  // Item picker modal
+  const [pickerSlot, setPickerSlot] = useState<'top' | 'bottom' | 'shoes' | null>(null);
+
+  // Save modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [pendingSaveName, setPendingSaveName] = useState('');
+
+  // Confirm dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Fetch data
   useEffect(() => {
@@ -68,6 +82,7 @@ export default function OutfitGenerator() {
           { data: wearsData },
           { data: ratedData },
           { data: profileData },
+          { data: weatherPrefsData },
         ] = await Promise.all([
           supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
           supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
@@ -75,6 +90,7 @@ export default function OutfitGenerator() {
           supabase.from('outfit_wears').select('*').eq('user_id', user.id).gte('worn_date', weekAgo.toISOString().split('T')[0]),
           supabase.from('outfit_wears').select('*').eq('user_id', user.id).not('rating', 'is', null).order('worn_date', { ascending: false }).limit(50),
           supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+          supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
         ]);
 
         setItems(itemsData || []);
@@ -83,12 +99,18 @@ export default function OutfitGenerator() {
         setRecentWears(wearsData || []);
         setRatedOutfits(ratedData || []);
 
+        const userWP: UserWeatherPreferences | null = weatherPrefsData ? {
+          thresholds: weatherPrefsData.thresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM },
+          clothingRules: weatherPrefsData.clothing_rules ?? null,
+        } : null;
+        setUserWeatherPrefs(userWP);
+
         // Fetch weather
         if (profileData?.zip_code) {
           setWeatherLoading(true);
           const wd = await fetchWeather(profileData.zip_code);
           setWeather(wd);
-          if (wd) setTempCategory(getTemperatureCategory(wd.highTemperature));
+          if (wd) setTempCategory(getTemperatureCategory(wd.highTemperature, userWP?.thresholds));
           setWeatherLoading(false);
         }
       } catch {
@@ -101,14 +123,30 @@ export default function OutfitGenerator() {
   }, [user]);
 
   // Generate outfit
-  const pickOutfit = useCallback(() => {
+  const pickOutfit = () => {
     setError('');
+
+    // If we have cached results, cycle to the next one
+    if (scoredResultsRef.current.length > 0) {
+      const next = (resultIndexRef.current + 1) % scoredResultsRef.current.length;
+      resultIndexRef.current = next;
+
+      // If we've cycled through all, regenerate fresh results
+      if (next === 0) {
+        scoredResultsRef.current = [];
+      } else {
+        applyOutfit(scoredResultsRef.current[next]);
+        return;
+      }
+    }
+
     const results = generateScoredOutfits(items, {
       likedCombinations: liked,
-      weather: tempCategory,
+      weather: ignoreWeather ? null : tempCategory,
       recentWears,
-      occasion: selectedOccasion,
+      occasion: null,
       ratedOutfits,
+      weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
     }, 10);
 
     if (results.length === 0) {
@@ -116,35 +154,33 @@ export default function OutfitGenerator() {
       return;
     }
 
-    setScoredResults(results);
-    setResultIndex(0);
+    scoredResultsRef.current = results;
+    resultIndexRef.current = 0;
     applyOutfit(results[0]);
-  }, [items, liked, tempCategory, recentWears, selectedOccasion, ratedOutfits]);
-
-  const cycleNext = () => {
-    if (scoredResults.length === 0) return;
-    const next = (resultIndex + 1) % scoredResults.length;
-    setResultIndex(next);
-    applyOutfit(scoredResults[next]);
   };
 
   const applyOutfit = (candidate: OutfitCandidate) => {
-    if (!lockedTop) {
-      setTop(candidate.top);
-      setOuterwear(candidate.outerwear);
-    }
+    if (!lockedTop) setTop(candidate.top);
     if (!lockedBottom) setBottom(candidate.bottom);
     if (!lockedShoes) setShoes(candidate.shoes);
   };
 
-  // Save outfit
-  const saveOutfit = async () => {
+  // Save outfit with name
+  const openSaveModal = () => {
     if (!top || !bottom || !shoes || !user) { setError('Cannot save incomplete outfit'); return; }
+    setPendingSaveName(`Outfit #${savedOutfits.length + 1}`);
+    setShowSaveModal(true);
+  };
+
+  const confirmSaveOutfit = async () => {
+    if (!top || !bottom || !shoes || !user) return;
+    setShowSaveModal(false);
     setLoading(true);
     try {
       const { error: err } = await supabase.from('saved_outfits').insert({
         user_id: user.id,
-        outfit_items: { top_id: top.id, outerwear_id: outerwear?.id, bottom_id: bottom.id, shoes_id: shoes.id },
+        name: pendingSaveName.trim() || null,
+        outfit_items: { top_id: top.id, bottom_id: bottom.id, shoes_id: shoes.id },
       }).select().single();
       if (err) throw err;
       showToast('Outfit saved!', 'success');
@@ -159,16 +195,25 @@ export default function OutfitGenerator() {
 
   // Wear today
   const wearToday = async () => {
-    if (!user || (!top && !outerwear) || !bottom || !shoes) return;
+    if (!user || !top || !bottom || !shoes) return;
     const today = new Date().toISOString().split('T')[0];
     try {
+      const { data: existing } = await supabase
+        .from('outfit_wears')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('worn_date', today)
+        .maybeSingle();
+      if (existing) {
+        showToast('Already logged an outfit for today', 'warning');
+        return;
+      }
       await supabase.from('outfit_wears').insert({
         user_id: user.id,
         worn_date: today,
-        top_id: top?.id ?? null,
+        top_id: top.id,
         bottom_id: bottom.id,
         shoes_id: shoes.id,
-        outerwear_id: outerwear?.id ?? null,
       });
       showToast('Logged as today\'s outfit!', 'success');
     } catch {
@@ -177,14 +222,22 @@ export default function OutfitGenerator() {
   };
 
   // Delete saved outfit
-  const deleteOutfit = async (outfitId: string) => {
-    if (!user || !confirm('Delete this saved outfit?')) return;
+  const requestDeleteOutfit = (outfitId: string) => {
+    setPendingDeleteId(outfitId);
+    setConfirmOpen(true);
+  };
+
+  const confirmDeleteOutfit = async () => {
+    if (!user || !pendingDeleteId) return;
+    setConfirmOpen(false);
     try {
-      await supabase.from('saved_outfits').delete().eq('id', outfitId).eq('user_id', user.id);
-      setSavedOutfits((prev) => prev.filter((o) => o.id !== outfitId));
+      await supabase.from('saved_outfits').delete().eq('id', pendingDeleteId).eq('user_id', user.id);
+      setSavedOutfits((prev) => prev.filter((o) => o.id !== pendingDeleteId));
       showToast('Outfit deleted', 'success');
     } catch {
       showToast('Failed to delete', 'error');
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
@@ -193,64 +246,81 @@ export default function OutfitGenerator() {
     setTop(items.find((i) => i.id === outfit.outfit_items.top_id) ?? null);
     setBottom(items.find((i) => i.id === outfit.outfit_items.bottom_id) ?? null);
     setShoes(items.find((i) => i.id === outfit.outfit_items.shoes_id) ?? null);
-    setOuterwear(items.find((i) => i.id === outfit.outfit_items.outerwear_id) ?? null);
     setLockedTop(false); setLockedBottom(false); setLockedShoes(false);
     setActiveTab('generator');
   };
 
-  // Item card renderer
-  const ItemSlot = ({ item, label, locked, onToggleLock }: { item: ClothingItem | null; label: string; locked: boolean; onToggleLock: () => void }) => (
-    <div className="flex items-center gap-3">
-      <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-xl border border-[var(--border)] bg-white flex items-center justify-center overflow-hidden">
+  // Picker helpers
+  const getPickerSection = (slot: typeof pickerSlot): string[] => {
+    if (!slot) return [];
+    if (slot === 'top') return ['Tops'];
+    if (slot === 'bottom') return ['Bottoms'];
+    return ['Shoes'];
+  };
+
+  const pickerItems = pickerSlot
+    ? items.filter((i) => getPickerSection(pickerSlot).includes(typeToSection[i.type] ?? ''))
+    : [];
+
+  const handlePickItem = (item: ClothingItem) => {
+    if (!pickerSlot) return;
+    switch (pickerSlot) {
+      case 'top': setTop(item); setLockedTop(true); break;
+      case 'bottom': setBottom(item); setLockedBottom(true); break;
+      case 'shoes': setShoes(item); setLockedShoes(true); break;
+    }
+    setPickerSlot(null);
+  };
+
+  const hasOutfit = top && bottom && shoes;
+
+  // Item slot renderer
+  const ItemSlot = ({ item, label, locked, onToggleLock, onClickSlot }: {
+    item: ClothingItem | null; label: string; locked: boolean;
+    onToggleLock: () => void; onClickSlot: () => void;
+  }) => (
+    <div className="flex items-center gap-3 w-full">
+      <button
+        type="button"
+        onClick={onClickSlot}
+        className={`w-32 h-32 sm:w-36 sm:h-36 rounded-xl border bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[var(--accent)] transition-colors shrink-0 ${
+          item ? 'border-[var(--border)]' : 'border-2 border-dashed border-gray-300'
+        }`}
+        title={`Click to choose ${label.toLowerCase()}`}
+      >
         {item ? (
           <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-2" />
         ) : (
           <span className="text-sm text-[var(--text-secondary)]">{label}</span>
         )}
-      </div>
-      <button
-        onClick={onToggleLock}
-        className={`p-2 rounded-lg border transition-colors ${locked ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]'}`}
-        title={locked ? `Unlock ${label}` : `Lock ${label}`}
-      >
-        {locked ? <Lock size={16} /> : <Unlock size={16} />}
       </button>
+      <div className="flex flex-col items-start gap-1 min-h-[3.5rem]">
+        <span className="text-sm font-medium text-[var(--text)]">{label}</span>
+        <span className="text-xs text-[var(--text-secondary)]">{item ? item.type : '\u00A0'}</span>
+        <button
+          onClick={onToggleLock}
+          className={`p-1.5 rounded-md border transition-colors ${locked ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]'}`}
+          title={locked ? `Unlock ${label}` : `Lock ${label}`}
+        >
+          {locked ? <Lock size={12} /> : <Unlock size={12} />}
+        </button>
+      </div>
     </div>
   );
 
+  // Skeleton loading state
+  if (loading && items.length === 0) {
+    return (
+      <div className="w-full">
+        <SkeletonOutfitSlots />
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full">
       {/* Error */}
       {error && <div className="bg-amber-50 text-amber-800 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>}
-
-      {/* Weather widget */}
-      {weather && (
-        <div className="card p-4 mb-6 flex items-center gap-4">
-          <img src={getWeatherIconUrl(weather.icon)} alt={weather.condition} className="w-12 h-12" />
-          <div>
-            <div className="text-lg font-semibold text-[var(--text)]">{weather.temperature}°F</div>
-            <div className="text-xs text-[var(--text-secondary)]">
-              High {weather.highTemperature}°F · {weather.condition}
-            </div>
-          </div>
-          <div className={`ml-auto text-xs font-medium px-3 py-1 rounded-full ${
-            tempCategory === 'cold' ? 'bg-blue-100 text-blue-700' :
-            tempCategory === 'cool' ? 'bg-sky-100 text-sky-700' :
-            tempCategory === 'warm' ? 'bg-orange-100 text-orange-700' :
-            'bg-red-100 text-red-700'
-          }`}>
-            {tempCategory === 'cold' ? `Cold (<${TEMPERATURE_THRESHOLDS.COLD}°F)` :
-             tempCategory === 'cool' ? `Cool (${TEMPERATURE_THRESHOLDS.COLD}-${TEMPERATURE_THRESHOLDS.COOL}°F)` :
-             tempCategory === 'warm' ? `Warm (${TEMPERATURE_THRESHOLDS.COOL}-${TEMPERATURE_THRESHOLDS.WARM}°F)` :
-             `Hot (>${TEMPERATURE_THRESHOLDS.WARM}°F)`}
-          </div>
-        </div>
-      )}
-      {!weather && !weatherLoading && (
-        <div className="card p-3 mb-6 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-          <CloudSun size={16} /> Set your zip code in Preferences to enable weather-aware suggestions.
-        </div>
-      )}
 
       {/* Tab toggle */}
       <div className="flex gap-2 mb-6">
@@ -263,63 +333,114 @@ export default function OutfitGenerator() {
       </div>
 
       {activeTab === 'generator' && (
-        <>
-          {/* Occasion chips */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            <button
-              onClick={() => setSelectedOccasion(null)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                !selectedOccasion ? 'bg-[var(--accent)] text-white border-[var(--accent)]' : 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
-              }`}
-            >
-              Any Occasion
-            </button>
-            {occasions.map((occ) => (
-              <button
-                key={occ}
-                onClick={() => setSelectedOccasion(occ)}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                  selectedOccasion === occ ? 'bg-[var(--accent)] text-white border-[var(--accent)]' : 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
-                }`}
-              >
-                {occ}
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_240px] gap-6">
+          {/* ====== LEFT PANEL — Weather ====== */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-[var(--text)]">Weather</h3>
 
-          {/* Outfit display */}
-          <div className="flex flex-col items-center gap-4 mb-6">
-            <ItemSlot item={top || outerwear} label="Top" locked={lockedTop} onToggleLock={() => setLockedTop(!lockedTop)} />
-            <ItemSlot item={bottom} label="Bottom" locked={lockedBottom} onToggleLock={() => setLockedBottom(!lockedBottom)} />
-            <ItemSlot item={shoes} label="Shoes" locked={lockedShoes} onToggleLock={() => setLockedShoes(!lockedShoes)} />
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex flex-wrap justify-center gap-3 mb-2">
-            <button onClick={pickOutfit} disabled={loading} className="btn-primary">
-              <Sparkles size={16} /> Generate
-            </button>
-            {scoredResults.length > 1 && (
-              <button onClick={cycleNext} className="btn-secondary">
-                Next ({resultIndex + 1}/{scoredResults.length})
-              </button>
+            {weatherLoading && (
+              <div className="card p-4 animate-pulse">
+                <div className="h-12 bg-[var(--muted)] rounded-lg" />
+              </div>
             )}
-            <button
-              onClick={saveOutfit}
-              disabled={!top && !outerwear || !bottom || !shoes}
-              className="btn-secondary disabled:opacity-50"
-            >
-              <Save size={16} /> Save
+
+            {weather && !weatherLoading && (
+              <div className="card p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <img src={getWeatherIconUrl(weather.icon)} alt={weather.condition} className="w-14 h-14" />
+                  <div>
+                    <div className="text-2xl font-bold text-[var(--text)]">{weather.temperature}°F</div>
+                    <div className="text-xs text-[var(--text-secondary)]">{weather.condition}</div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-[var(--text-secondary)]">
+                  High: <span className="font-medium text-[var(--text)]">{weather.highTemperature}°F</span>
+                </div>
+
+                <div className={`text-xs font-medium px-3 py-1.5 rounded-full text-center ${
+                  ignoreWeather ? 'opacity-50' : ''
+                } ${
+                  tempCategory === 'cold' ? 'bg-blue-100 text-blue-700' :
+                  tempCategory === 'cool' ? 'bg-sky-100 text-sky-700' :
+                  tempCategory === 'warm' ? 'bg-orange-100 text-orange-700' :
+                  'bg-red-100 text-red-700'
+                }`}>
+                  {(() => {
+                    const t = userWeatherPrefs?.thresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM };
+                    return tempCategory === 'cold' ? `Cold (<${t.cold}°F)` :
+                           tempCategory === 'cool' ? `Cool (${t.cold}-${t.cool}°F)` :
+                           tempCategory === 'warm' ? `Warm (${t.cool}-${t.warm}°F)` :
+                           `Hot (>${t.warm}°F)`;
+                  })()}
+                </div>
+
+                <button
+                  onClick={() => setIgnoreWeather(!ignoreWeather)}
+                  className={`w-full text-sm px-3 py-2 rounded-lg border font-medium transition-colors flex items-center justify-center gap-2 ${
+                    ignoreWeather
+                      ? 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
+                      : 'bg-[var(--accent)] text-white border-[var(--accent)]'
+                  }`}
+                >
+                  {ignoreWeather ? <><CloudOff size={14} />Weather Off</> : <><CloudSun size={14} />Using Weather</>}
+                </button>
+              </div>
+            )}
+
+            {!weather && !weatherLoading && (
+              <div className="card p-4 text-sm text-[var(--text-secondary)] flex items-start gap-2">
+                <CloudSun size={18} className="shrink-0 mt-0.5" />
+                <span>Set your zip code in Preferences to enable weather-aware suggestions.</span>
+              </div>
+            )}
+          </div>
+
+          {/* ====== CENTER PANEL — Outfit Display ====== */}
+          <div className="flex flex-col items-center">
+            {/* Outfit slots — 3 boxes stacked */}
+            <div className="flex flex-col items-start gap-3 mb-6 mx-auto">
+              <ItemSlot item={top} label="Top" locked={lockedTop} onToggleLock={() => setLockedTop(!lockedTop)} onClickSlot={() => setPickerSlot('top')} />
+              <ItemSlot item={bottom} label="Bottom" locked={lockedBottom} onToggleLock={() => setLockedBottom(!lockedBottom)} onClickSlot={() => setPickerSlot('bottom')} />
+              <ItemSlot item={shoes} label="Shoes" locked={lockedShoes} onToggleLock={() => setLockedShoes(!lockedShoes)} onClickSlot={() => setPickerSlot('shoes')} />
+            </div>
+
+            {/* Generate button — centered under outfit display */}
+            <button onClick={pickOutfit} disabled={loading} className="btn-primary text-base px-6 py-2.5 mx-auto">
+              <Sparkles size={18} /> Generate
             </button>
+          </div>
+
+          {/* ====== RIGHT PANEL — Actions ====== */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-[var(--text)]">Actions</h3>
+
+            <button
+              onClick={openSaveModal}
+              disabled={!hasOutfit}
+              className="btn-secondary w-full disabled:opacity-50"
+            >
+              <Save size={16} /> Save Outfit
+            </button>
+
             <button
               onClick={wearToday}
-              disabled={(!top && !outerwear) || !bottom || !shoes}
-              className="btn-secondary disabled:opacity-50"
+              disabled={!hasOutfit}
+              className="btn-secondary w-full disabled:opacity-50"
             >
               <CalendarPlus size={16} /> Wear Today
             </button>
+
+            <div className="border-t border-[var(--border)] my-2" />
+
+            <button
+              onClick={onNavigateToCalendar}
+              className="btn-ghost w-full"
+            >
+              <Calendar size={16} /> View Calendar
+            </button>
           </div>
-        </>
+        </div>
       )}
 
       {/* Saved outfits tab */}
@@ -337,7 +458,10 @@ export default function OutfitGenerator() {
                 const shoesItem = items.find((i) => i.id === outfit.outfit_items.shoes_id);
                 return (
                   <div key={outfit.id ?? idx} className="card p-3 flex flex-col items-center gap-2">
-                    <div className="text-xs text-[var(--text-secondary)]">
+                    <div className="text-xs font-medium text-[var(--text)] truncate w-full text-center">
+                      {outfit.name || `Outfit #${idx + 1}`}
+                    </div>
+                    <div className="text-[10px] text-[var(--text-secondary)]">
                       {outfit.created_at ? new Date(outfit.created_at).toLocaleDateString() : ''}
                     </div>
                     {[topItem, bottomItem, shoesItem].map((item, i) =>
@@ -351,7 +475,7 @@ export default function OutfitGenerator() {
                     )}
                     <div className="flex gap-2 mt-1">
                       <button onClick={() => loadSavedOutfit(outfit)} className="btn-primary text-xs py-1 px-2">Load</button>
-                      <button onClick={() => deleteOutfit(outfit.id!)} className="btn-danger text-xs py-1 px-2">Delete</button>
+                      <button onClick={() => requestDeleteOutfit(outfit.id!)} className="btn-danger text-xs py-1 px-2">Delete</button>
                     </div>
                   </div>
                 );
@@ -360,6 +484,74 @@ export default function OutfitGenerator() {
           )}
         </div>
       )}
+
+      {/* Save name modal */}
+      {showSaveModal && (
+        <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
+          <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[var(--text)] mb-4">Save Outfit</h3>
+            <label className="text-xs font-medium text-[var(--text)] mb-1 block">Outfit Name</label>
+            <input
+              type="text"
+              value={pendingSaveName}
+              onChange={(e) => setPendingSaveName(e.target.value)}
+              placeholder="e.g. Casual Friday"
+              className="w-full mb-4"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') confirmSaveOutfit(); }}
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowSaveModal(false)} className="btn-secondary text-xs">Cancel</button>
+              <button onClick={confirmSaveOutfit} className="btn-primary text-xs">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Item picker modal */}
+      {pickerSlot && (
+        <div className="modal-overlay" onClick={() => setPickerSlot(null)}>
+          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-[var(--text)]">
+                Choose {pickerSlot.charAt(0).toUpperCase() + pickerSlot.slice(1)}
+              </h3>
+              <button onClick={() => setPickerSlot(null)} className="p-1 rounded-md hover:bg-gray-100">
+                <X size={16} />
+              </button>
+            </div>
+            {pickerItems.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)] text-center py-6">No items in this category.</p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
+                {pickerItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handlePickItem(item)}
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
+                  >
+                    <div className="w-16 h-16 rounded-lg bg-white overflow-hidden border border-[var(--border)]">
+                      <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-1" />
+                    </div>
+                    <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-center">{item.type}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        message="Delete this saved outfit?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDeleteOutfit}
+        onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null); }}
+      />
     </div>
   );
 }

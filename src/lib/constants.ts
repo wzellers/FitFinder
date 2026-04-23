@@ -69,11 +69,10 @@ export const typeToSection: Record<string, ClothingSection> = {
   'Polo': 'Tops',
   'Tank Top': 'Tops',
   'Button-Up Shirt': 'Tops',
-  'Hoodie': 'Tops',
-  'Jacket': 'Outerwear',
-  'Sweatshirt': 'Outerwear',
-  'Crewneck': 'Outerwear',
-  'Sweater': 'Outerwear',
+  'Jacket': 'Tops',
+  'Sweatshirt': 'Tops',
+  'Crewneck': 'Tops',
+  'Sweater': 'Tops',
   'Jeans': 'Bottoms',
   'Pants': 'Bottoms',
   'Shorts': 'Bottoms',
@@ -85,14 +84,13 @@ export const typeToSection: Record<string, ClothingSection> = {
 
 /** Available clothing types grouped by section */
 export const clothingTypes: Record<ClothingSection, string[]> = {
-  Tops: ['T-Shirt', 'Long Sleeve Shirt', 'Polo', 'Tank Top', 'Button-Up Shirt', 'Hoodie'],
+  Tops: ['T-Shirt', 'Long Sleeve Shirt', 'Polo', 'Tank Top', 'Button-Up Shirt', 'Jacket', 'Sweatshirt', 'Crewneck', 'Sweater'],
   Bottoms: ['Jeans', 'Pants', 'Shorts', 'Sweats', 'Skirt', 'Leggings'],
-  Outerwear: ['Jacket', 'Sweatshirt', 'Crewneck', 'Sweater'],
   Shoes: ['Shoes'],
 };
 
 /** Section names in display order */
-export const sectionNames: ClothingSection[] = ['Tops', 'Bottoms', 'Outerwear', 'Shoes'];
+export const sectionNames: ClothingSection[] = ['Tops', 'Bottoms', 'Shoes'];
 
 // ============================================================================
 // OCCASION RULES (for smart outfit generation)
@@ -103,29 +101,25 @@ export type Occasion = 'Casual' | 'Work' | 'Date' | 'Active';
 export const occasions: Occasion[] = ['Casual', 'Work', 'Date', 'Active'];
 
 /** Which clothing types are appropriate per occasion */
-export const occasionRules: Record<Occasion, { tops: string[]; bottoms: string[]; outerwear: string[]; shoes: string[] }> = {
+export const occasionRules: Record<Occasion, { tops: string[]; bottoms: string[]; shoes: string[] }> = {
   Casual: {
-    tops: ['T-Shirt', 'Long Sleeve Shirt', 'Polo', 'Tank Top', 'Hoodie'],
+    tops: ['T-Shirt', 'Long Sleeve Shirt', 'Polo', 'Tank Top', 'Jacket', 'Sweatshirt', 'Crewneck', 'Sweater'],
     bottoms: ['Jeans', 'Pants', 'Shorts', 'Sweats', 'Leggings'],
-    outerwear: ['Jacket', 'Sweatshirt', 'Crewneck', 'Sweater'],
     shoes: ['Shoes'],
   },
   Work: {
-    tops: ['Long Sleeve Shirt', 'Polo', 'Button-Up Shirt'],
+    tops: ['Long Sleeve Shirt', 'Polo', 'Button-Up Shirt', 'Sweater', 'Crewneck'],
     bottoms: ['Jeans', 'Pants', 'Skirt'],
-    outerwear: ['Sweater', 'Crewneck'],
     shoes: ['Shoes'],
   },
   Date: {
-    tops: ['Long Sleeve Shirt', 'Polo', 'Button-Up Shirt'],
+    tops: ['Long Sleeve Shirt', 'Polo', 'Button-Up Shirt', 'Jacket', 'Sweater'],
     bottoms: ['Jeans', 'Pants', 'Skirt'],
-    outerwear: ['Jacket', 'Sweater'],
     shoes: ['Shoes'],
   },
   Active: {
-    tops: ['T-Shirt', 'Tank Top', 'Hoodie'],
+    tops: ['T-Shirt', 'Tank Top', 'Sweatshirt', 'Jacket'],
     bottoms: ['Shorts', 'Sweats', 'Leggings'],
-    outerwear: ['Sweatshirt', 'Jacket'],
     shoes: ['Shoes'],
   },
 };

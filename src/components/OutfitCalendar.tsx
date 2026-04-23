@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { SkeletonCalendar } from '@/components/ui/Skeleton';
 import type { ClothingItem, OutfitWear, SavedOutfit } from '@/lib/types';
 
 interface DayData {
@@ -35,8 +37,11 @@ export default function OutfitCalendar() {
   const [selectedTop, setSelectedTop] = useState('');
   const [selectedBottom, setSelectedBottom] = useState('');
   const [selectedShoes, setSelectedShoes] = useState('');
-  const [selectedOuterwear, setSelectedOuterwear] = useState('');
   const [notes, setNotes] = useState('');
+  const [rating, setRating] = useState<number>(0);
+
+  // Confirm dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -103,8 +108,8 @@ export default function OutfitCalendar() {
       setSelectedTop(day.outfit.top_id || '');
       setSelectedBottom(day.outfit.bottom_id || '');
       setSelectedShoes(day.outfit.shoes_id || '');
-      setSelectedOuterwear(day.outfit.outerwear_id || '');
       setNotes(day.outfit.notes || '');
+      setRating(day.outfit.rating ?? 0);
     } else {
       setSelectedOutfitWear(null);
       resetForm();
@@ -112,12 +117,12 @@ export default function OutfitCalendar() {
     setShowLogModal(true);
   };
 
-  const resetForm = () => { setLogMode('custom'); setSelectedSavedOutfit(''); setSelectedTop(''); setSelectedBottom(''); setSelectedShoes(''); setSelectedOuterwear(''); setNotes(''); };
+  const resetForm = () => { setLogMode('custom'); setSelectedSavedOutfit(''); setSelectedTop(''); setSelectedBottom(''); setSelectedShoes(''); setNotes(''); setRating(0); };
 
   const handleSavedOutfitSelect = (id: string) => {
     setSelectedSavedOutfit(id);
     const o = savedOutfits.find((s) => s.id === id);
-    if (o) { setSelectedTop(o.outfit_items.top_id || ''); setSelectedBottom(o.outfit_items.bottom_id); setSelectedShoes(o.outfit_items.shoes_id); setSelectedOuterwear(o.outfit_items.outerwear_id || ''); }
+    if (o) { setSelectedTop(o.outfit_items.top_id || ''); setSelectedBottom(o.outfit_items.bottom_id); setSelectedShoes(o.outfit_items.shoes_id); }
   };
 
   const handleSave = async () => {
@@ -125,7 +130,14 @@ export default function OutfitCalendar() {
     if (!selectedTop && !selectedBottom && !selectedShoes) { showToast('Select at least one item', 'warning'); return; }
     const dateStr = selectedDate.toISOString().split('T')[0];
     try {
-      const payload = { top_id: selectedTop || null, bottom_id: selectedBottom || null, shoes_id: selectedShoes || null, outerwear_id: selectedOuterwear || null, outfit_id: selectedSavedOutfit || null, notes: notes || null };
+      const payload = {
+        top_id: selectedTop || null,
+        bottom_id: selectedBottom || null,
+        shoes_id: selectedShoes || null,
+        outfit_id: selectedSavedOutfit || null,
+        notes: notes || null,
+        rating: rating > 0 ? rating : null,
+      };
       if (selectedOutfitWear) {
         await supabase.from('outfit_wears').update(payload).eq('id', selectedOutfitWear.id);
       } else {
@@ -138,8 +150,14 @@ export default function OutfitCalendar() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedOutfitWear || !confirm('Delete this entry?')) return;
+  const requestDelete = () => {
+    if (!selectedOutfitWear) return;
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedOutfitWear) return;
+    setConfirmOpen(false);
     await supabase.from('outfit_wears').delete().eq('id', selectedOutfitWear.id);
     setShowLogModal(false);
     loadData();
@@ -148,7 +166,37 @@ export default function OutfitCalendar() {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  if (loading) return <div className="text-center py-12 text-[var(--text-secondary)] text-sm">Loading calendar...</div>;
+  // Star rating component
+  const StarRating = ({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) => (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-medium text-[var(--text)]">{label}</label>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(value === n ? 0 : n)}
+            className="p-0.5"
+            title={`${n}/10`}
+          >
+            <Star
+              size={18}
+              className={`transition-colors ${
+                n <= value
+                  ? 'text-amber-400 fill-amber-400'
+                  : 'text-gray-300'
+              }`}
+            />
+          </button>
+        ))}
+        {value > 0 && (
+          <span className="text-xs text-[var(--text-secondary)] ml-1 self-center">{value}/10</span>
+        )}
+      </div>
+    </div>
+  );
+
+  if (loading) return <SkeletonCalendar />;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -163,7 +211,7 @@ export default function OutfitCalendar() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-7 gap-px bg-[var(--border)] rounded-xl overflow-hidden border border-[var(--border)]">
+      <div className="grid grid-cols-7 gap-[2px] bg-[var(--border)] rounded-xl overflow-hidden border border-[var(--border)]">
         {dayNames.map((d) => (
           <div key={d} className="bg-[var(--muted)] text-center text-xs font-medium text-[var(--text-secondary)] py-2">{d}</div>
         ))}
@@ -171,18 +219,32 @@ export default function OutfitCalendar() {
           <button
             key={idx}
             onClick={() => handleDayClick(day)}
-            className={`bg-white min-h-[80px] p-1.5 text-left flex flex-col transition-colors hover:bg-blue-50 ${
+            className={`group bg-white min-h-[120px] p-1.5 text-left flex flex-col transition-colors hover:bg-blue-50 ${
               !day.isCurrentMonth ? 'opacity-40' : ''
             } ${day.isToday ? 'ring-2 ring-inset ring-[var(--accent)]' : ''}`}
           >
             <span className={`text-xs font-medium ${day.isToday ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>{day.dayOfMonth}</span>
-            {day.outfit && (
-              <div className="flex gap-0.5 mt-auto flex-wrap">
-                {[day.outfit.top_id, day.outfit.bottom_id].filter(Boolean).map((id, i) => {
-                  const url = getItemImage(id);
-                  return url ? <img key={i} src={url} alt="" className="w-5 h-5 rounded object-cover" /> : null;
-                })}
+            {day.outfit ? (
+              <div className="flex flex-col gap-0.5 mt-auto">
+                <div className="flex gap-0.5 flex-wrap">
+                  {[day.outfit.top_id, day.outfit.bottom_id, day.outfit.shoes_id].filter(Boolean).map((id, i) => {
+                    const url = getItemImage(id);
+                    return url ? <img key={i} src={url} alt="" className="w-10 h-10 rounded object-cover" /> : null;
+                  })}
+                </div>
+                {day.outfit.rating != null && (
+                  <div className="flex items-center gap-0.5">
+                    <Star size={10} className="text-amber-500 fill-amber-500" />
+                    <span className="text-[10px] text-amber-600 font-medium">{day.outfit.rating}</span>
+                  </div>
+                )}
               </div>
+            ) : (
+              day.isCurrentMonth && (
+                <div className="mt-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Plus size={16} className="text-[var(--text-secondary)]" />
+                </div>
+              )
             )}
           </button>
         ))}
@@ -191,61 +253,100 @@ export default function OutfitCalendar() {
       {/* Log Modal */}
       {showLogModal && selectedDate && (
         <div className="modal-overlay" onClick={() => setShowLogModal(false)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-[var(--text)]">
+          <div className="card p-6 w-[95vw] max-w-3xl max-h-[90vh] overflow-auto relative" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-semibold text-[var(--text)]">
                 {selectedOutfitWear ? 'Edit' : 'Log'} Outfit — {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               </h3>
               <button onClick={() => setShowLogModal(false)} className="btn-ghost p-1 text-lg">&times;</button>
             </div>
 
             {/* Mode toggle */}
-            <div className="flex gap-2 mb-4">
-              <button onClick={() => { setLogMode('custom'); resetForm(); }} className={logMode === 'custom' ? 'btn-primary text-xs flex-1' : 'btn-secondary text-xs flex-1'}>Pick Items</button>
-              <button onClick={() => setLogMode('saved')} className={logMode === 'saved' ? 'btn-primary text-xs flex-1' : 'btn-secondary text-xs flex-1'}>From Saved</button>
+            <div className="flex gap-2 mb-5">
+              <button onClick={() => { setLogMode('custom'); resetForm(); }} className={logMode === 'custom' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'}>Pick Items</button>
+              <button onClick={() => setLogMode('saved')} className={logMode === 'saved' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'}>From Saved</button>
             </div>
 
             {logMode === 'saved' && (
-              <select value={selectedSavedOutfit} onChange={(e) => handleSavedOutfitSelect(e.target.value)} className="w-full mb-4">
+              <select value={selectedSavedOutfit} onChange={(e) => handleSavedOutfitSelect(e.target.value)} className="w-full mb-5">
                 <option value="">Select saved outfit...</option>
-                {savedOutfits.map((o) => <option key={o.id} value={o.id}>Outfit from {o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Unknown'}</option>)}
+                {savedOutfits.map((o, idx) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name || (o.created_at ? `Outfit from ${new Date(o.created_at).toLocaleDateString()}` : `Outfit #${idx + 1}`)}
+                  </option>
+                ))}
               </select>
             )}
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              {(['Tops', 'Bottoms', 'Shoes', 'Outerwear'] as const).map((section) => {
-                const val = section === 'Tops' ? selectedTop : section === 'Bottoms' ? selectedBottom : section === 'Shoes' ? selectedShoes : selectedOuterwear;
-                const setter = section === 'Tops' ? setSelectedTop : section === 'Bottoms' ? setSelectedBottom : section === 'Shoes' ? setSelectedShoes : setSelectedOuterwear;
+            <div className="space-y-5 mb-5">
+              {(['Tops', 'Bottoms', 'Shoes'] as const).map((section) => {
+                const val = section === 'Tops' ? selectedTop : section === 'Bottoms' ? selectedBottom : selectedShoes;
+                const setter = section === 'Tops' ? setSelectedTop : section === 'Bottoms' ? setSelectedBottom : setSelectedShoes;
+                const sectionItems = getItemsBySection(section);
                 return (
                   <div key={section}>
-                    <label className="text-xs font-medium text-[var(--text)] mb-1 block">{section}</label>
-                    <select value={val} onChange={(e) => setter(e.target.value)} className="w-full text-sm">
-                      <option value="">None</option>
-                      {getItemsBySection(section).map((i) => <option key={i.id} value={i.id}>{i.type}</option>)}
-                    </select>
+                    <label className="text-sm font-medium text-[var(--text)] mb-2 block">{section}</label>
+                    <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-4 max-h-48 overflow-y-auto p-1">
+                      {/* None option */}
+                      <button
+                        onClick={() => setter('')}
+                        className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
+                          val === '' ? 'border-[var(--accent)] bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        None
+                      </button>
+                      {sectionItems.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setter(item.id)}
+                          className={`w-20 h-20 rounded-xl border-2 overflow-hidden bg-white transition-all ${
+                            val === item.id ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]' : 'border-[var(--border)] hover:border-gray-400'
+                          }`}
+                        >
+                          <img src={item.image_url} alt={item.type} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
             </div>
 
             {/* Preview */}
-            <div className="flex gap-2 justify-center mb-4">
-              {[selectedTop, selectedBottom, selectedShoes, selectedOuterwear].map((id, i) => {
+            <div className="flex gap-3 justify-center mb-5">
+              {[selectedTop, selectedBottom, selectedShoes].filter(Boolean).map((id, i) => {
                 const url = getItemImage(id);
-                return url ? <img key={i} src={url} alt="" className="w-12 h-12 rounded-lg object-cover border border-[var(--border)]" /> : null;
+                return url ? <img key={i} src={url} alt="" className="w-16 h-16 rounded-xl object-cover border border-[var(--border)]" /> : null;
               })}
             </div>
 
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full mb-4 min-h-[60px]" />
+            {/* Rating */}
+            <div className="mb-5">
+              <StarRating value={rating} onChange={setRating} label="Outfit Rating" />
+            </div>
+
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full mb-5 min-h-[60px]" />
 
             <div className="flex gap-2 justify-end">
-              {selectedOutfitWear && <button onClick={handleDelete} className="btn-danger text-xs mr-auto">Delete</button>}
-              <button onClick={() => setShowLogModal(false)} className="btn-secondary text-xs">Cancel</button>
-              <button onClick={handleSave} className="btn-primary text-xs">{selectedOutfitWear ? 'Update' : 'Save'}</button>
+              {selectedOutfitWear && <button onClick={requestDelete} className="btn-danger text-sm mr-auto">Delete</button>}
+              <button onClick={() => setShowLogModal(false)} className="btn-secondary text-sm">Cancel</button>
+              <button onClick={handleSave} className="btn-primary text-sm">{selectedOutfitWear ? 'Update' : 'Save'}</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        message="Delete this calendar entry?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

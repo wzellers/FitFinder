@@ -5,12 +5,12 @@ import { X, Trash2 } from 'lucide-react';
 import { colorPalette } from '@/lib/constants';
 import { getColorStyle, getColorName, getContrastTextColor } from '@/lib/colorUtils';
 import type { ColorCombination } from '@/lib/types';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface ColorCombinationModalProps {
   isOpen: boolean;
   onClose: () => void;
   combination: ColorCombination | null;
-  isLiked: boolean;
   onUpdate: (updatedCombination: ColorCombination) => Promise<boolean> | boolean;
   onDelete: () => Promise<boolean> | boolean;
 }
@@ -19,13 +19,13 @@ export default function ColorCombinationModal({
   isOpen,
   onClose,
   combination,
-  isLiked,
   onUpdate,
   onDelete,
 }: ColorCombinationModalProps) {
   const [selectedTopColor, setSelectedTopColor] = useState('');
   const [selectedBottomColor, setSelectedBottomColor] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (combination) {
@@ -45,17 +45,28 @@ export default function ColorCombinationModal({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!combination) return;
-    if (window.confirm('Delete this color combination?')) {
-      const ok = await onDelete();
-      if (ok) setTimeout(onClose, 400);
-    }
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setConfirmOpen(false);
+    const ok = await onDelete();
+    if (ok) setTimeout(onClose, 400);
   };
 
   if (!isOpen || !combination) return null;
 
   return (
+    <>
+    <ConfirmDialog
+      isOpen={confirmOpen}
+      message="Delete this color combination?"
+      confirmLabel="Delete"
+      onConfirm={handleConfirmDelete}
+      onCancel={() => setConfirmOpen(false)}
+    />
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -158,5 +169,6 @@ export default function ColorCombinationModal({
         </div>
       </div>
     </div>
+    </>
   );
 }

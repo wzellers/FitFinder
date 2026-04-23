@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
-import { sectionNames } from '@/lib/constants';
-import { typeToSection } from '@/lib/types';
+import { sectionNames, typeToSection } from '@/lib/constants';
 import { getColorName, getColorStyle } from '@/lib/colorUtils';
+import { SkeletonStatCards } from '@/components/ui/Skeleton';
 import type { ClothingItem, OutfitWear } from '@/lib/types';
 
 interface WearCount {
@@ -31,6 +31,8 @@ interface Stats {
   avgRating: number;
   topRatedOutfits: OutfitWear[];
   avgDaysBetweenRepeat: number;
+  closetUtilization: number;
+  avgComfortRating: number;
 }
 
 type TimePeriod = 'week' | 'month' | 'all';
@@ -81,12 +83,14 @@ export default function WardrobeStats() {
     const cleanItems = items.filter((item) => !item.is_dirty).length;
 
     const wearCounts: Record<string, number> = {};
+    const wornItemIds = new Set<string>();
     outfitWears.forEach((wear) => {
-      if (wear.top_id) wearCounts[wear.top_id] = (wearCounts[wear.top_id] || 0) + 1;
-      if (wear.bottom_id) wearCounts[wear.bottom_id] = (wearCounts[wear.bottom_id] || 0) + 1;
-      if (wear.shoes_id) wearCounts[wear.shoes_id] = (wearCounts[wear.shoes_id] || 0) + 1;
-      if (wear.outerwear_id) wearCounts[wear.outerwear_id] = (wearCounts[wear.outerwear_id] || 0) + 1;
+      if (wear.top_id) { wearCounts[wear.top_id] = (wearCounts[wear.top_id] || 0) + 1; wornItemIds.add(wear.top_id); }
+      if (wear.bottom_id) { wearCounts[wear.bottom_id] = (wearCounts[wear.bottom_id] || 0) + 1; wornItemIds.add(wear.bottom_id); }
+      if (wear.shoes_id) { wearCounts[wear.shoes_id] = (wearCounts[wear.shoes_id] || 0) + 1; wornItemIds.add(wear.shoes_id); }
     });
+
+    const closetUtilization = items.length > 0 ? (wornItemIds.size / items.length) * 100 : 0;
 
     const wearCountsArray: WearCount[] = Object.entries(wearCounts)
       .map(([itemId, count]) => ({ itemId, item: items.find((i) => i.id === itemId)!, count }))
@@ -121,16 +125,21 @@ export default function WardrobeStats() {
       .sort((a, b) => (b.rating || 0) - (a.rating || 0))
       .slice(0, 5);
 
+    const comfortRated = outfitWears.filter((w) => w.comfort_rating != null);
+    const avgComfortRating = comfortRated.length > 0
+      ? comfortRated.reduce((sum, w) => sum + (w.comfort_rating || 0), 0) / comfortRated.length
+      : 0;
+
     let avgDaysBetweenRepeat = 0;
     if (outfitWears.length > 1) {
-      const outfitStrings = outfitWears.map((w) => `${w.top_id}-${w.bottom_id}-${w.shoes_id}-${w.outerwear_id}`);
+      const outfitStrings = outfitWears.map((w) => `${w.top_id}-${w.bottom_id}-${w.shoes_id}`);
       const repeatOccurrences = outfitStrings.filter((str, idx) => outfitStrings.indexOf(str) !== idx);
       avgDaysBetweenRepeat = repeatOccurrences.length > 0
         ? Math.round(outfitWears.length / repeatOccurrences.length)
         : 0;
     }
 
-    return { totalItems: items.length, totalWears: outfitWears.length, itemsByCategory, dirtyItems, cleanItems, mostWornItems, leastWornItems, colorDistribution, avgRating, topRatedOutfits, avgDaysBetweenRepeat };
+    return { totalItems: items.length, totalWears: outfitWears.length, itemsByCategory, dirtyItems, cleanItems, mostWornItems, leastWornItems, colorDistribution, avgRating, topRatedOutfits, avgDaysBetweenRepeat, closetUtilization, avgComfortRating };
   }, [items, outfitWears]);
 
   const getItemImage = (itemId: string | undefined): string | null => {
@@ -139,7 +148,14 @@ export default function WardrobeStats() {
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-[var(--text-secondary)] text-sm">Loading statistics...</div>;
+    return (
+      <div className="w-full max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="section-header border-0 mb-0 pb-0">Wardrobe Statistics</h2>
+        </div>
+        <SkeletonStatCards />
+      </div>
+    );
   }
 
   return (
@@ -226,6 +242,57 @@ export default function WardrobeStats() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Outfit Variety */}
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Outfit Variety</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--accent)]">{stats.totalWears}</div>
+              <div className="text-xs text-[var(--text-secondary)]">Outfits Logged</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--accent)]">
+                {stats.avgDaysBetweenRepeat > 0 ? stats.avgDaysBetweenRepeat : '-'}
+              </div>
+              <div className="text-xs text-[var(--text-secondary)]">Avg Days Between Repeats</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Closet Utilization */}
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Closet Utilization</h3>
+          <div className="text-center mb-3">
+            <div className="text-3xl font-bold text-[var(--accent)]">{Math.round(stats.closetUtilization)}%</div>
+            <div className="text-xs text-[var(--text-secondary)]">of items worn ({timePeriod === 'week' ? 'this week' : timePeriod === 'month' ? 'this month' : 'all time'})</div>
+          </div>
+          <div className="h-3 bg-[var(--muted)] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[var(--accent)] rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(stats.closetUtilization, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Comfort */}
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Comfort</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-500">
+                {stats.avgComfortRating > 0 ? stats.avgComfortRating.toFixed(1) : '-'}
+              </div>
+              <div className="text-xs text-[var(--text-secondary)]">Avg Comfort (1-10)</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--accent)]">
+                {outfitWears.filter((w) => w.comfort_rating != null).length}
+              </div>
+              <div className="text-xs text-[var(--text-secondary)]">Comfort Rated</div>
+            </div>
+          </div>
         </div>
 
         {/* Neglected Items */}

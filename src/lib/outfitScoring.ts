@@ -1,10 +1,11 @@
 // Outfit scoring engine — replaces random generation with weighted scoring
 
-import type { ClothingItem, ColorCombination, OutfitWear } from '@/lib/types';
+import type { ClothingItem, ColorCombination, OutfitWear, UserOccasionRules } from '@/lib/types';
 import type { TemperatureCategory } from '@/lib/weatherApi';
 import type { Occasion } from '@/lib/constants';
 import { typeToSection, occasionRules } from '@/lib/constants';
-import { isClothingAppropriateForWeather, isClothingSuggestedForWeather, isOuterwearRequired, isOuterwearSuggested } from '@/lib/types';
+import { getUserClothingWeatherRules } from '@/lib/weatherApi';
+import type { ClothingWeatherRules } from '@/lib/types';
 
 // ============================================================================
 // TYPES
@@ -12,18 +13,19 @@ import { isClothingAppropriateForWeather, isClothingSuggestedForWeather, isOuter
 
 export interface OutfitCandidate {
   top: ClothingItem;
-  outerwear: ClothingItem | null;
   bottom: ClothingItem;
   shoes: ClothingItem;
   score: number;
 }
 
-interface ScoringContext {
+export interface ScoringContext {
   likedCombinations: ColorCombination[];
   weather: TemperatureCategory | null;
   recentWears: OutfitWear[];
   occasion: Occasion | null;
   ratedOutfits: OutfitWear[];
+  weatherRules?: Record<string, ClothingWeatherRules>;
+  occasionRules?: UserOccasionRules;
 }
 
 // ============================================================================
@@ -42,10 +44,17 @@ const WEIGHT = {
 // SCORING FUNCTIONS
 // ============================================================================
 
+function pairMatchesLiked(colorA: string, colorB: string, liked: ColorCombination[]): boolean {
+  return liked.some(
+    (c) =>
+      (c.topColor.toLowerCase() === colorA && c.bottomColor.toLowerCase() === colorB) ||
+      (c.topColor.toLowerCase() === colorB && c.bottomColor.toLowerCase() === colorA),
+  );
+}
+
 function colorHarmonyScore(
   top: ClothingItem,
   bottom: ClothingItem,
-  outerwear: ClothingItem | null,
   liked: ColorCombination[],
 ): number {
   if (liked.length === 0) return 0.5; // neutral when no prefs set
@@ -54,43 +63,26 @@ function colorHarmonyScore(
   const bottomColor = bottom.colors[0]?.toLowerCase();
   if (!topColor || !bottomColor) return 0.3;
 
-  const isLiked = liked.some(
-    (c) => c.topColor.toLowerCase() === topColor && c.bottomColor.toLowerCase() === bottomColor,
-  );
-  let score = isLiked ? 1.0 : 0.3;
-
-  // Bonus if outerwear also harmonizes
-  if (outerwear && outerwear.colors[0]) {
-    const owColor = outerwear.colors[0].toLowerCase();
-    const owTopMatch = liked.some(
-      (c) => c.topColor.toLowerCase() === owColor && c.bottomColor.toLowerCase() === topColor,
-    );
-    if (owTopMatch) score = Math.min(1, score + 0.15);
-  }
-
-  return score;
+  return pairMatchesLiked(topColor, bottomColor, liked) ? 1.0 : 0.3;
 }
 
 function weatherScore(
   top: ClothingItem,
   bottom: ClothingItem,
-  outerwear: ClothingItem | null,
   weather: TemperatureCategory | null,
+  customRules?: Record<string, ClothingWeatherRules>,
 ): number {
   if (!weather) return 0.5;
 
+  const rules = getUserClothingWeatherRules(customRules);
   let score = 0.5;
-  const items = [top, bottom, outerwear].filter(Boolean) as ClothingItem[];
+  const items = [top, bottom];
 
   for (const item of items) {
-    if (!isClothingAppropriateForWeather(item.type, weather)) return 0; // hard filter
-    if (isClothingSuggestedForWeather(item.type, weather)) score += 0.15;
+    const r = rules[item.type];
+    if (r && r.blockedIn.includes(weather)) return 0; // hard filter
+    if (r && r.suggestedIn.includes(weather)) score += 0.15;
   }
-
-  // Outerwear bonus/penalty
-  if (isOuterwearRequired(weather) && !outerwear) score -= 0.3;
-  if (isOuterwearSuggested(weather) && outerwear) score += 0.1;
-  if (weather === 'hot' && outerwear) score -= 0.2;
 
   return Math.max(0, Math.min(1, score));
 }
@@ -99,18 +91,16 @@ function varietyScore(
   top: ClothingItem,
   bottom: ClothingItem,
   shoes: ClothingItem,
-  outerwear: ClothingItem | null,
   recentWears: OutfitWear[],
 ): number {
   if (recentWears.length === 0) return 0.5;
 
-  const itemIds = [top.id, bottom.id, shoes.id, outerwear?.id].filter(Boolean) as string[];
+  const itemIds = [top.id, bottom.id, shoes.id];
   const recentIds = new Set<string>();
   recentWears.forEach((w) => {
     if (w.top_id) recentIds.add(w.top_id);
     if (w.bottom_id) recentIds.add(w.bottom_id);
     if (w.shoes_id) recentIds.add(w.shoes_id);
-    if (w.outerwear_id) recentIds.add(w.outerwear_id);
   });
 
   const overlap = itemIds.filter((id) => recentIds.has(id)).length;
@@ -120,26 +110,22 @@ function varietyScore(
 function occasionScore(
   top: ClothingItem,
   bottom: ClothingItem,
-  outerwear: ClothingItem | null,
   occasion: Occasion | null,
+  userRules?: UserOccasionRules,
 ): number {
   if (!occasion) return 0.5;
 
-  const rules = occasionRules[occasion];
+  const rules = userRules?.[occasion] ?? occasionRules[occasion];
+  if (!rules) return 0.5;
+
   let score = 0;
   let count = 0;
 
-  const topSection = typeToSection[top.type];
-  if (topSection === 'Tops' && rules.tops.includes(top.type)) score += 1;
+  if (rules.tops.includes(top.type)) score += 1;
   count++;
 
   if (rules.bottoms.includes(bottom.type)) score += 1;
   count++;
-
-  if (outerwear) {
-    if (rules.outerwear.includes(outerwear.type)) score += 1;
-    count++;
-  }
 
   return count > 0 ? score / count : 0.5;
 }
@@ -175,15 +161,14 @@ function comfortScore(
 
 function scoreOutfit(
   top: ClothingItem,
-  outerwear: ClothingItem | null,
   bottom: ClothingItem,
   shoes: ClothingItem,
   ctx: ScoringContext,
 ): number {
-  const ch = colorHarmonyScore(top, bottom, outerwear, ctx.likedCombinations) * WEIGHT.COLOR_HARMONY;
-  const ws = weatherScore(top, bottom, outerwear, ctx.weather) * WEIGHT.WEATHER;
-  const vs = varietyScore(top, bottom, shoes, outerwear, ctx.recentWears) * WEIGHT.VARIETY;
-  const os = occasionScore(top, bottom, outerwear, ctx.occasion) * WEIGHT.OCCASION;
+  const ch = colorHarmonyScore(top, bottom, ctx.likedCombinations) * WEIGHT.COLOR_HARMONY;
+  const ws = weatherScore(top, bottom, ctx.weather, ctx.weatherRules) * WEIGHT.WEATHER;
+  const vs = varietyScore(top, bottom, shoes, ctx.recentWears) * WEIGHT.VARIETY;
+  const os = occasionScore(top, bottom, ctx.occasion, ctx.occasionRules) * WEIGHT.OCCASION;
   const cs = comfortScore(top, bottom, shoes, ctx.ratedOutfits) * WEIGHT.COMFORT;
 
   // If weather score is 0, the outfit is inappropriate — eliminate it
@@ -202,7 +187,6 @@ export function generateScoredOutfits(
   count: number = 5,
 ): OutfitCandidate[] {
   const tops = items.filter((i) => typeToSection[i.type] === 'Tops');
-  const outerwearItems = items.filter((i) => typeToSection[i.type] === 'Outerwear');
   const bottoms = items.filter((i) => typeToSection[i.type] === 'Bottoms');
   const shoesItems = items.filter((i) => typeToSection[i.type] === 'Shoes');
 
@@ -210,9 +194,8 @@ export function generateScoredOutfits(
 
   const candidates: OutfitCandidate[] = [];
 
-  // Enumerate up to ~500 random combos (fast enough for closet-sized wardrobes)
   const maxCombos = Math.min(
-    tops.length * bottoms.length * shoesItems.length * (outerwearItems.length + 1),
+    tops.length * bottoms.length * shoesItems.length,
     500,
   );
 
@@ -223,21 +206,13 @@ export function generateScoredOutfits(
     const bottom = bottoms[Math.floor(Math.random() * bottoms.length)];
     const shoes = shoesItems[Math.floor(Math.random() * shoesItems.length)];
 
-    // Decide outerwear: include ~40% of the time (if items exist)
-    const includeOuterwear =
-      outerwearItems.length > 0 &&
-      (ctx.weather === 'cold' || ctx.weather === 'cool' || Math.random() < 0.4);
-    const outerwear = includeOuterwear
-      ? outerwearItems[Math.floor(Math.random() * outerwearItems.length)]
-      : null;
-
-    const key = `${top.id}-${outerwear?.id ?? 'none'}-${bottom.id}-${shoes.id}`;
+    const key = `${top.id}-${bottom.id}-${shoes.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const score = scoreOutfit(top, outerwear, bottom, shoes, ctx);
+    const score = scoreOutfit(top, bottom, shoes, ctx);
     if (score > 0) {
-      candidates.push({ top, outerwear, bottom, shoes, score });
+      candidates.push({ top, bottom, shoes, score });
     }
   }
 

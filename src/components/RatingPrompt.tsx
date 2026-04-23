@@ -28,7 +28,6 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
         pendingRating.outfit_items.top_id,
         pendingRating.outfit_items.bottom_id,
         pendingRating.outfit_items.shoes_id,
-        pendingRating.outfit_items.outerwear_id,
       ].filter(Boolean) as string[];
 
       if (itemIds.length === 0) { setLoading(false); return; }
@@ -86,7 +85,6 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
               pendingRating.outfit_items.top_id,
               pendingRating.outfit_items.bottom_id,
               pendingRating.outfit_items.shoes_id,
-              pendingRating.outfit_items.outerwear_id,
             ].map((id, idx) => {
               const item = getItem(id);
               return item ? (

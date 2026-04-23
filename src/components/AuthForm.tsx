@@ -37,14 +37,8 @@ export default function AuthForm() {
           showToast('Check your email for a confirmation link, then log in.', 'info');
         }
       } else {
-        const { data, error } = await signIn(email, password);
+        const { error } = await signIn(email, password);
         if (error) { showToast(error.message, 'error'); return; }
-
-        if (data.user) {
-          await supabase
-            .from('profiles')
-            .upsert({ id: data.user.id, username: data.user.email, zip_code: null }, { onConflict: 'id' });
-        }
       }
     } catch {
       showToast('Something went wrong. Please try again.', 'error');

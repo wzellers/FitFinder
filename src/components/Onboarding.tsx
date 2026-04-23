@@ -191,7 +191,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <option value="">Select category...</option>
                 <option value="Tops">Tops</option>
                 <option value="Bottoms">Bottoms</option>
-                <option value="Outerwear">Outerwear</option>
                 <option value="Shoes">Shoes</option>
               </select>
               {selectedCategory && (

@@ -23,10 +23,14 @@ export const TEMPERATURE_THRESHOLDS = {
 
 export type TemperatureCategory = 'cold' | 'cool' | 'warm' | 'hot';
 
-export function getTemperatureCategory(temp: number): TemperatureCategory {
-  if (temp < TEMPERATURE_THRESHOLDS.COLD) return 'cold';
-  if (temp < TEMPERATURE_THRESHOLDS.COOL) return 'cool';
-  if (temp < TEMPERATURE_THRESHOLDS.WARM) return 'warm';
+export function getTemperatureCategory(
+  temp: number,
+  customThresholds?: { cold: number; cool: number; warm: number },
+): TemperatureCategory {
+  const t = customThresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM };
+  if (temp < t.cold) return 'cold';
+  if (temp < t.cool) return 'cool';
+  if (temp < t.warm) return 'warm';
   return 'hot';
 }
 
@@ -112,4 +116,46 @@ export function getWeatherIconUrl(iconCode: string): string {
 export function clearWeatherCache(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(WEATHER_CACHE_KEY);
+}
+
+// ============================================================================
+// CLOTHING WEATHER RULES
+// ============================================================================
+
+import type { ClothingWeatherRules } from '@/lib/types';
+
+/** Weather appropriateness rules for each clothing type */
+export const clothingWeatherRules: Record<string, ClothingWeatherRules> = {
+  'Tank Top': { blockedIn: ['cold', 'cool'], suggestedIn: ['hot'] },
+  'T-Shirt': { blockedIn: ['cold'], suggestedIn: ['warm', 'hot'] },
+  'Long Sleeve Shirt': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
+  'Polo': { blockedIn: ['cold'], suggestedIn: ['warm'] },
+  'Button-Up Shirt': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
+  'Jacket': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  'Sweatshirt': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  'Crewneck': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  'Sweater': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  'Shorts': { blockedIn: ['cold'], suggestedIn: ['hot', 'warm'] },
+  'Skirt': { blockedIn: ['cold'], suggestedIn: ['warm', 'hot'] },
+  'Jeans': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
+  'Pants': { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
+  'Sweats': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  'Leggings': { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
+};
+
+export function isClothingAppropriateForWeather(
+  clothingType: string,
+  temperatureCategory: TemperatureCategory,
+): boolean {
+  const rules = clothingWeatherRules[clothingType];
+  if (!rules) return true;
+  return !rules.blockedIn.includes(temperatureCategory);
+}
+
+/** Returns user-overridden rules merged with defaults, or just defaults if no overrides. */
+export function getUserClothingWeatherRules(
+  userRules?: Record<string, ClothingWeatherRules> | null,
+): Record<string, ClothingWeatherRules> {
+  if (!userRules) return clothingWeatherRules;
+  return { ...clothingWeatherRules, ...userRules };
 }

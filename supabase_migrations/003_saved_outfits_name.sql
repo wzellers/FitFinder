@@ -1,0 +1,1 @@
+ALTER TABLE saved_outfits ADD COLUMN IF NOT EXISTS name TEXT;

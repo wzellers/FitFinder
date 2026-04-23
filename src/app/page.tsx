@@ -14,6 +14,7 @@ import ImageUpload from '@/components/ImageUpload';
 import EditItem from '@/components/EditItem';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import type { DashboardTab, ClothingItem, PendingRating } from '@/lib/types';
 
 const tabs: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
@@ -88,7 +89,6 @@ export default function Page() {
           top_id: wear.top_id ?? undefined,
           bottom_id: wear.bottom_id ?? undefined,
           shoes_id: wear.shoes_id ?? undefined,
-          outerwear_id: wear.outerwear_id ?? undefined,
         },
       });
     }
@@ -121,11 +121,7 @@ export default function Page() {
   }
 
   if (!onboardingChecked) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
-        <div className="text-[var(--text-secondary)] text-sm">Loading...</div>
-      </div>
-    );
+    return <SkeletonFullScreen />;
   }
 
   if (showOnboarding) {
@@ -202,7 +198,7 @@ export default function Page() {
           />
         )}
         {activeTab === 'preferences' && <ColorPreferences />}
-        {activeTab === 'generator' && <OutfitGenerator />}
+        {activeTab === 'generator' && <OutfitGenerator onNavigateToCalendar={() => setActiveTab('calendar')} />}
         {activeTab === 'calendar' && <OutfitCalendar />}
         {activeTab === 'stats' && <WardrobeStats />}
       </main>

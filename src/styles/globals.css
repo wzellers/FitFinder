@@ -26,15 +26,22 @@
   }
 
   /* Reset default element styles so Tailwind classes take full control */
-  h1, h2, h3, h4, h5, h6, p, button, input, label, textarea, select {
+  h1, h2, h3, h4, h5, h6, p, label {
     all: unset;
     display: revert;
     box-sizing: border-box;
   }
 
-  button { cursor: pointer; }
+  button {
+    @apply bg-transparent border-0 p-0 m-0 text-inherit cursor-pointer;
+    font: inherit;
+    box-sizing: border-box;
+  }
+
   input, textarea, select {
     @apply bg-white border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none;
+    font: inherit;
+    box-sizing: border-box;
   }
   input:focus, textarea:focus, select:focus {
     @apply ring-2 ring-[var(--accent)] border-[var(--accent)];

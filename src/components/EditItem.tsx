@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes, colorPalette } from '@/lib/constants';
 import { getColorStyle } from '@/lib/colorUtils';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ClothingItem, ClothingSection } from '@/lib/types';
 
 interface EditItemProps {
@@ -25,6 +26,7 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
   const [selectedType, setSelectedType] = useState('');
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -58,7 +60,8 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
   };
 
   const handleDelete = async () => {
-    if (!item || !confirm('Delete this item?')) return;
+    if (!item) return;
+    setConfirmOpen(false);
     setUpdating(true);
     try {
       const { error } = await supabase.from('clothing_items').delete().eq('id', item.id);
@@ -104,7 +107,7 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
             >
               {isDirty ? 'Mark Clean' : 'Mark Dirty'}
             </button>
-            <button onClick={handleDelete} disabled={updating} className="btn-danger text-xs py-1 px-2">
+            <button onClick={() => setConfirmOpen(true)} disabled={updating} className="btn-danger text-xs py-1 px-2">
               <Trash2 size={14} />
             </button>
             <button onClick={onClose} className="btn-ghost p-1">
@@ -127,7 +130,6 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
             <option value="">Select category...</option>
             <option value="Tops">Tops</option>
             <option value="Bottoms">Bottoms</option>
-            <option value="Outerwear">Outerwear</option>
             <option value="Shoes">Shoes</option>
           </select>
           {selectedCategory && (
@@ -175,6 +177,17 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
           </button>
         </div>
       </div>
+
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        message="Delete this item? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

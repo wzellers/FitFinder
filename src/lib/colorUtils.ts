@@ -2,17 +2,9 @@
 
 import { colorMap, colorNameMap, lightColors } from '@/lib/constants';
 
-export type { ColorName } from '@/lib/constants';
-export { colorPalette, colorMap, colorNameMap } from '@/lib/constants';
-
 /** Returns CSS background-color style for a given color name */
 export function getColorStyle(color: string): { backgroundColor: string } {
   return { backgroundColor: colorMap[color] || color };
-}
-
-/** Returns hex value for a given color name */
-export function getColorHex(color: string): string {
-  return colorMap[color] || color;
 }
 
 /** Returns display name for a color value */
