@@ -273,31 +273,34 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                   const typeItems = getItemsForType(type);
                   const subsectionKey = `${section}:${type}`;
                   const isSubCollapsed = collapsedSubsections[subsectionKey] ?? false;
+                  const singleType = types.length === 1;
 
                   // Hide empty subsections if toggle is on
                   if (hideEmpty && typeItems.length === 0) return null;
 
                   return (
                     <div key={type}>
-                      {/* Subsection header */}
-                      <button
-                        onClick={() => toggleSubsection(subsectionKey)}
-                        className="flex items-center gap-2 mb-3 select-none cursor-pointer group"
-                      >
-                        {isSubCollapsed
-                          ? <ChevronRight size={16} className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors" />
-                          : <ChevronDown size={16} className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors" />
-                        }
-                        <span className="text-base font-semibold text-[var(--text-secondary)] group-hover:text-[var(--text)] transition-colors">
-                          {type}
-                        </span>
-                        <span className="text-xs text-[var(--text-secondary)] bg-[var(--muted)] px-2 py-0.5 rounded-full font-medium">
-                          {typeItems.length}
-                        </span>
-                      </button>
+                      {/* Subsection header — skip when section has only one type */}
+                      {!singleType && (
+                        <button
+                          onClick={() => toggleSubsection(subsectionKey)}
+                          className="flex items-center gap-2 mb-3 select-none cursor-pointer group"
+                        >
+                          {isSubCollapsed
+                            ? <ChevronRight size={16} className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors" />
+                            : <ChevronDown size={16} className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors" />
+                          }
+                          <span className="text-base font-semibold text-[var(--text-secondary)] group-hover:text-[var(--text)] transition-colors">
+                            {type}
+                          </span>
+                          <span className="text-xs text-[var(--text-secondary)] bg-[var(--muted)] px-2 py-0.5 rounded-full font-medium">
+                            {typeItems.length}
+                          </span>
+                        </button>
+                      )}
 
                       {/* Subsection content */}
-                      {!isSubCollapsed && (
+                      {(singleType || !isSubCollapsed) && (
                         <>
                           {typeItems.length === 0 ? (
                             <div className="flex items-center gap-3 ml-5 mb-2">

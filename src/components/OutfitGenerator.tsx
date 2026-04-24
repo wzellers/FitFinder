@@ -10,9 +10,8 @@ import { fetchWeather, getTemperatureCategory, getWeatherIconUrl, TEMPERATURE_TH
 import { generateScoredOutfits } from '@/lib/outfitScoring';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { SkeletonOutfitSlots } from '@/components/ui/Skeleton';
-import type { ClothingItem, ColorCombination, SavedOutfit, OutfitWear, UserWeatherPreferences } from '@/lib/types';
+import type { ClothingItem, ColorCombination, SavedOutfit, UserWeatherPreferences } from '@/lib/types';
 import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
-import type { OutfitCandidate } from '@/lib/outfitScoring';
 
 interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
@@ -26,8 +25,6 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [liked, setLiked] = useState<ColorCombination[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
-  const [recentWears, setRecentWears] = useState<OutfitWear[]>([]);
-  const [ratedOutfits, setRatedOutfits] = useState<OutfitWear[]>([]);
 
   // Weather
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -40,10 +37,6 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const [top, setTop] = useState<ClothingItem | null>(null);
   const [bottom, setBottom] = useState<ClothingItem | null>(null);
   const [shoes, setShoes] = useState<ClothingItem | null>(null);
-
-  // Scored results (not displayed to user — just used internally)
-  const scoredResultsRef = React.useRef<OutfitCandidate[]>([]);
-  const resultIndexRef = React.useRef(0);
 
   // Locks
   const [lockedTop, setLockedTop] = useState(false);
@@ -72,23 +65,16 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-
         const [
           { data: itemsData },
           { data: prefsData },
           { data: outfitsData },
-          { data: wearsData },
-          { data: ratedData },
           { data: profileData },
           { data: weatherPrefsData },
         ] = await Promise.all([
           supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
           supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
           supabase.from('saved_outfits').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-          supabase.from('outfit_wears').select('*').eq('user_id', user.id).gte('worn_date', weekAgo.toISOString().split('T')[0]),
-          supabase.from('outfit_wears').select('*').eq('user_id', user.id).not('rating', 'is', null).order('worn_date', { ascending: false }).limit(50),
           supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
           supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
         ]);
@@ -96,8 +82,6 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         setItems(itemsData || []);
         setLiked((prefsData?.liked_combinations ?? []) as ColorCombination[]);
         setSavedOutfits(outfitsData || []);
-        setRecentWears(wearsData || []);
-        setRatedOutfits(ratedData || []);
 
         const userWP: UserWeatherPreferences | null = weatherPrefsData ? {
           thresholds: weatherPrefsData.thresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM },
@@ -122,47 +106,25 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     fetchAll();
   }, [user]);
 
-  // Generate outfit
+  // Generate outfit — fresh random pick each click
   const pickOutfit = () => {
     setError('');
-
-    // If we have cached results, cycle to the next one
-    if (scoredResultsRef.current.length > 0) {
-      const next = (resultIndexRef.current + 1) % scoredResultsRef.current.length;
-      resultIndexRef.current = next;
-
-      // If we've cycled through all, regenerate fresh results
-      if (next === 0) {
-        scoredResultsRef.current = [];
-      } else {
-        applyOutfit(scoredResultsRef.current[next]);
-        return;
-      }
-    }
 
     const results = generateScoredOutfits(items, {
       likedCombinations: liked,
       weather: ignoreWeather ? null : tempCategory,
-      recentWears,
-      occasion: null,
-      ratedOutfits,
       weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
-    }, 10);
+    }, 1);
 
     if (results.length === 0) {
       setError('No valid outfits found. Try adding more items or adjusting your preferences.');
       return;
     }
 
-    scoredResultsRef.current = results;
-    resultIndexRef.current = 0;
-    applyOutfit(results[0]);
-  };
-
-  const applyOutfit = (candidate: OutfitCandidate) => {
-    if (!lockedTop) setTop(candidate.top);
-    if (!lockedBottom) setBottom(candidate.bottom);
-    if (!lockedShoes) setShoes(candidate.shoes);
+    const outfit = results[0];
+    if (!lockedTop) setTop(outfit.top);
+    if (!lockedBottom) setBottom(outfit.bottom);
+    if (!lockedShoes) setShoes(outfit.shoes);
   };
 
   // Save outfit with name
@@ -398,17 +360,57 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
           {/* ====== CENTER PANEL — Outfit Display ====== */}
           <div className="flex flex-col items-center">
-            {/* Outfit slots — 3 boxes stacked */}
-            <div className="flex flex-col items-start gap-3 mb-6 mx-auto">
-              <ItemSlot item={top} label="Top" locked={lockedTop} onToggleLock={() => setLockedTop(!lockedTop)} onClickSlot={() => setPickerSlot('top')} />
-              <ItemSlot item={bottom} label="Bottom" locked={lockedBottom} onToggleLock={() => setLockedBottom(!lockedBottom)} onClickSlot={() => setPickerSlot('bottom')} />
-              <ItemSlot item={shoes} label="Shoes" locked={lockedShoes} onToggleLock={() => setLockedShoes(!lockedShoes)} onClickSlot={() => setPickerSlot('shoes')} />
-            </div>
+            <div className="flex gap-3 mb-6 mx-auto">
+              {/* Image column — generate button aligns under these */}
+              <div className="flex flex-col items-center gap-3">
+                {[
+                  { item: top, label: 'Top', onClick: () => setPickerSlot('top') },
+                  { item: bottom, label: 'Bottom', onClick: () => setPickerSlot('bottom') },
+                  { item: shoes, label: 'Shoes', onClick: () => setPickerSlot('shoes') },
+                ].map(({ item, label, onClick }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={onClick}
+                    className={`w-32 h-32 sm:w-36 sm:h-36 rounded-xl border bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[var(--accent)] transition-colors shrink-0 ${
+                      item ? 'border-[var(--border)]' : 'border-2 border-dashed border-gray-300'
+                    }`}
+                    title={`Click to choose ${label.toLowerCase()}`}
+                  >
+                    {item ? (
+                      <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-2" />
+                    ) : (
+                      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
+                    )}
+                  </button>
+                ))}
 
-            {/* Generate button — centered under outfit display */}
-            <button onClick={pickOutfit} disabled={loading} className="btn-primary text-base px-6 py-2.5 mx-auto">
-              <Sparkles size={18} /> Generate
-            </button>
+                <button onClick={pickOutfit} disabled={loading} className="btn-primary text-xl px-10 py-4 mt-6">
+                  <Sparkles size={20} /> Generate
+                </button>
+              </div>
+
+              {/* Labels + locks column */}
+              <div className="flex flex-col gap-3">
+                {[
+                  { item: top, label: 'Top', locked: lockedTop, toggle: () => setLockedTop(!lockedTop) },
+                  { item: bottom, label: 'Bottom', locked: lockedBottom, toggle: () => setLockedBottom(!lockedBottom) },
+                  { item: shoes, label: 'Shoes', locked: lockedShoes, toggle: () => setLockedShoes(!lockedShoes) },
+                ].map(({ item, label, locked, toggle }) => (
+                  <div key={label} className="flex flex-col items-start gap-1 h-32 sm:h-36 justify-center">
+                    <span className="text-sm font-medium text-[var(--text)]">{label}</span>
+                    <span className="text-xs text-[var(--text-secondary)]">{item ? item.type : '\u00A0'}</span>
+                    <button
+                      onClick={toggle}
+                      className={`p-1.5 rounded-md border transition-colors ${locked ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]'}`}
+                      title={locked ? `Unlock ${label}` : `Lock ${label}`}
+                    >
+                      {locked ? <Lock size={12} /> : <Unlock size={12} />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* ====== RIGHT PANEL — Actions ====== */}
@@ -530,7 +532,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     onClick={() => handlePickItem(item)}
                     className="flex flex-col items-center gap-1 p-2 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
                   >
-                    <div className="w-16 h-16 rounded-lg bg-white overflow-hidden border border-[var(--border)]">
+                    <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
                       <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-1" />
                     </div>
                     <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-center">{item.type}</span>

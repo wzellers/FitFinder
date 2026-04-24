@@ -60,13 +60,6 @@ export default function ColorCombinationModal({
 
   return (
     <>
-    <ConfirmDialog
-      isOpen={confirmOpen}
-      message="Delete this color combination?"
-      confirmLabel="Delete"
-      onConfirm={handleConfirmDelete}
-      onCancel={() => setConfirmOpen(false)}
-    />
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -169,6 +162,13 @@ export default function ColorCombinationModal({
         </div>
       </div>
     </div>
+    <ConfirmDialog
+      isOpen={confirmOpen}
+      message="Delete this color combination?"
+      confirmLabel="Delete"
+      onConfirm={handleConfirmDelete}
+      onCancel={() => setConfirmOpen(false)}
+    />
     </>
   );
 }

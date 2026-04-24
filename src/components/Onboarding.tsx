@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { MapPin, Upload, Palette, ChevronRight, Check } from 'lucide-react';
+import ImageUpload from '@/components/ImageUpload';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
-import { clothingTypes, colorPalette } from '@/lib/constants';
-import { getColorStyle } from '@/lib/colorUtils';
-import type { ClothingSection } from '@/lib/types';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -24,56 +22,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [zipCode, setZipCode] = useState('');
 
   // Upload step
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [uploadedCount, setUploadedCount] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
-  };
-
-  const handleUploadItem = async () => {
-    if (!selectedFile || !selectedType || selectedColors.length === 0 || !user) return;
-    setUploading(true);
-    try {
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('clothing-images').upload(fileName, selectedFile);
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage.from('clothing-images').getPublicUrl(fileName);
-      const { error } = await supabase.from('clothing_items').insert([
-        { user_id: user.id, type: selectedType, colors: selectedColors, image_url: urlData.publicUrl, is_dirty: false },
-      ]).select();
-      if (error) throw error;
-
-      setUploadedCount((c) => c + 1);
-      showToast('Item added!', 'success');
-      resetUploadForm();
-    } catch {
-      showToast('Upload failed', 'error');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const resetUploadForm = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setSelectedCategory('');
-    setSelectedType('');
-    setSelectedColors([]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
+  const [showImageUpload, setShowImageUpload] = useState(false);
 
   const handleSaveZipCode = async () => {
     if (!user || !zipCode.trim()) return;
@@ -167,70 +117,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               )}
             </p>
 
-            {/* File upload */}
             <div className="flex flex-col items-center gap-3 mb-4">
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} className="btn-secondary">
-                <Upload size={16} /> Choose Photo
+              <button onClick={() => setShowImageUpload(true)} className="btn-primary">
+                <Upload size={16} /> Add Clothing Item
               </button>
-              {selectedFile && <span className="text-xs text-[var(--text-secondary)]">{selectedFile.name}</span>}
             </div>
-
-            {/* Preview */}
-            {previewUrl && (
-              <div className="flex justify-center mb-4">
-                <div className="w-24 h-24 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
-                  <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
-                </div>
-              </div>
-            )}
-
-            {/* Category / type */}
-            <div className="flex flex-col items-center gap-2 mb-4">
-              <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setSelectedType(''); }} className="w-48 text-center text-sm">
-                <option value="">Select category...</option>
-                <option value="Tops">Tops</option>
-                <option value="Bottoms">Bottoms</option>
-                <option value="Shoes">Shoes</option>
-              </select>
-              {selectedCategory && (
-                <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="w-48 text-center text-sm">
-                  <option value="">Select type...</option>
-                  {clothingTypes[selectedCategory as ClothingSection]?.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Color selection */}
-            <div className="mb-4">
-              <label className="text-xs font-medium text-[var(--text)] block text-center mb-2">Select main color</label>
-              <div className="grid grid-cols-6 gap-1.5 justify-center mx-auto w-fit">
-                {colorPalette.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColors([color])}
-                    className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                      selectedColors.includes(color)
-                        ? 'border-[var(--accent)] ring-2 ring-[var(--accent)] scale-110'
-                        : 'border-gray-200 hover:border-gray-400'
-                    }`}
-                    style={{ backgroundColor: getColorStyle(color).backgroundColor }}
-                    title={color}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Upload button */}
-            <button
-              onClick={handleUploadItem}
-              disabled={uploading || !selectedFile || !selectedType || selectedColors.length === 0}
-              className="btn-primary w-full mb-3 disabled:opacity-50"
-            >
-              {uploading ? 'Uploading...' : 'Add Item'}
-            </button>
 
             <button
               onClick={() => setStep('preferences')}
@@ -263,6 +154,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
         )}
       </div>
+
+      <ImageUpload
+        isOpen={showImageUpload}
+        onClose={() => setShowImageUpload(false)}
+        onItemUploaded={() => setUploadedCount((c) => c + 1)}
+      />
     </div>
   );
 }
