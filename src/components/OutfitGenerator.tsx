@@ -7,10 +7,20 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
 import { fetchWeather, getTemperatureCategory, getWeatherIconUrl, TEMPERATURE_THRESHOLDS } from '@/lib/weatherApi';
-import { generateScoredOutfits } from '@/lib/outfitScoring';
+import { buildCandidates, featureVector } from '@/lib/outfitScoring';
+import { getUserClothingWeatherRules } from '@/lib/weatherApi';
+import { occasionRules as defaultOccasionRules } from '@/lib/constants';
+import {
+  deserializeModel,
+  serializeModel,
+  selectOutfits,
+  updateWeights,
+  SAVED_OUTFIT_REWARD,
+  type BanditModel,
+} from '@/lib/banditModel';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { SkeletonOutfitSlots } from '@/components/ui/Skeleton';
-import type { ClothingItem, ColorCombination, SavedOutfit, UserWeatherPreferences } from '@/lib/types';
+import type { ClothingItem, ColorCombination, SavedOutfit, UserWeatherPreferences, OutfitWear } from '@/lib/types';
 import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
 
 interface OutfitGeneratorProps {
@@ -25,6 +35,9 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [liked, setLiked] = useState<ColorCombination[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
+  const [recentWears, setRecentWears] = useState<OutfitWear[]>([]);
+  const [ratedOutfits, setRatedOutfits] = useState<OutfitWear[]>([]);
+  const [model, setModel] = useState<BanditModel | null>(null);
 
   // Weather
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -65,23 +78,37 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     const fetchAll = async () => {
       setLoading(true);
       try {
+        // Recent wears for the variety feature: last RECENCY_WINDOW_DAYS days.
+        const recencyCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+
         const [
           { data: itemsData },
           { data: prefsData },
           { data: outfitsData },
           { data: profileData },
           { data: weatherPrefsData },
+          { data: recentWearsData },
+          { data: ratedOutfitsData },
+          { data: modelData },
         ] = await Promise.all([
           supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
           supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
           supabase.from('saved_outfits').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
           supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
           supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+          supabase.from('outfit_wears').select('*').eq('user_id', user.id).gte('worn_date', recencyCutoff),
+          supabase.from('outfit_wears').select('*').eq('user_id', user.id).not('rating', 'is', null).order('worn_date', { ascending: false }).limit(100),
+          supabase.from('outfit_model_weights').select('weights, feature_meta').eq('user_id', user.id).maybeSingle(),
         ]);
 
         setItems(itemsData || []);
         setLiked((prefsData?.liked_combinations ?? []) as ColorCombination[]);
         setSavedOutfits(outfitsData || []);
+        setRecentWears((recentWearsData ?? []) as OutfitWear[]);
+        setRatedOutfits((ratedOutfitsData ?? []) as OutfitWear[]);
+        setModel(deserializeModel(modelData));
 
         const userWP: UserWeatherPreferences | null = weatherPrefsData ? {
           thresholds: weatherPrefsData.thresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM },
@@ -106,25 +133,75 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     fetchAll();
   }, [user]);
 
-  // Generate outfit — fresh random pick each click
+  // Generate outfit — featurize candidates, then let the bandit select via
+  // ε-greedy (explore/exploit) using the user's learned weights. Locked slots
+  // constrain the candidate pool to the frozen item before scoring.
   const pickOutfit = () => {
     setError('');
 
-    const results = generateScoredOutfits(items, {
+    let candidates = buildCandidates(items, {
       likedCombinations: liked,
       weather: ignoreWeather ? null : tempCategory,
       weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
-    }, 1);
+      recentWears,
+      ratedOutfits,
+    });
 
-    if (results.length === 0) {
+    // Respect locked slots: only consider candidates that keep the frozen items.
+    if (lockedTop && top) candidates = candidates.filter((c) => c.top.id === top.id);
+    if (lockedBottom && bottom) candidates = candidates.filter((c) => c.bottom.id === bottom.id);
+    if (lockedShoes && shoes) candidates = candidates.filter((c) => c.shoes.id === shoes.id);
+
+    if (candidates.length === 0) {
       setError('No valid outfits found. Try adding more items or adjusting your preferences.');
       return;
     }
 
-    const outfit = results[0];
-    if (!lockedTop) setTop(outfit.top);
-    if (!lockedBottom) setBottom(outfit.bottom);
-    if (!lockedShoes) setShoes(outfit.shoes);
+    const params = (model ?? deserializeModel(null)).params;
+    const selected = selectOutfits(
+      candidates.map((c) => ({ candidate: c, features: c.features })),
+      params,
+      { count: 5 },
+    );
+
+    // selectOutfits already explores/exploits; sample among its returned best so
+    // repeated clicks stay fresh.
+    const pick = selected[Math.floor(Math.random() * selected.length)].candidate;
+    if (!lockedTop) setTop(pick.top);
+    if (!lockedBottom) setBottom(pick.bottom);
+    if (!lockedShoes) setShoes(pick.shoes);
+  };
+
+  // Apply an online learning update for a given outfit + reward, then persist the
+  // new weights. Features are recomputed from the current context (weather and
+  // occasion default to neutral, matching the rating-time path).
+  const applyReward = async (
+    outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
+    reward: number,
+  ) => {
+    if (!user) return;
+    const rules = getUserClothingWeatherRules(userWeatherPrefs?.clothingRules ?? undefined);
+    const features = featureVector(
+      outfit,
+      {
+        likedCombinations: liked,
+        weather: ignoreWeather ? null : tempCategory,
+        weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
+        recentWears,
+        ratedOutfits,
+      },
+      rules,
+      defaultOccasionRules,
+    );
+    const updated = updateWeights(model ?? deserializeModel(null), features, reward);
+    setModel(updated);
+    const serialized = serializeModel(updated);
+    await supabase.from('outfit_model_weights').upsert({
+      user_id: user.id,
+      weights: serialized.weights,
+      feature_meta: serialized.feature_meta,
+      updated_at: new Date().toISOString(),
+    });
   };
 
   // Save outfit with name
@@ -146,6 +223,8 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       }).select().single();
       if (err) throw err;
       showToast('Outfit saved!', 'success');
+      // Saving signals mild approval — nudge the model toward this outfit.
+      void applyReward({ top, bottom, shoes }, SAVED_OUTFIT_REWARD);
       const { data } = await supabase.from('saved_outfits').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
       setSavedOutfits(data || []);
     } catch {

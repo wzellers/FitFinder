@@ -32,7 +32,6 @@ interface Stats {
   topRatedOutfits: OutfitWear[];
   avgDaysBetweenRepeat: number;
   closetUtilization: number;
-  avgComfortRating: number;
 }
 
 type TimePeriod = 'week' | 'month' | 'all';
@@ -125,11 +124,6 @@ export default function WardrobeStats() {
       .sort((a, b) => (b.rating || 0) - (a.rating || 0))
       .slice(0, 5);
 
-    const comfortRated = outfitWears.filter((w) => w.comfort_rating != null);
-    const avgComfortRating = comfortRated.length > 0
-      ? comfortRated.reduce((sum, w) => sum + (w.comfort_rating || 0), 0) / comfortRated.length
-      : 0;
-
     let avgDaysBetweenRepeat = 0;
     if (outfitWears.length > 1) {
       const outfitStrings = outfitWears.map((w) => `${w.top_id}-${w.bottom_id}-${w.shoes_id}`);
@@ -139,7 +133,7 @@ export default function WardrobeStats() {
         : 0;
     }
 
-    return { totalItems: items.length, totalWears: outfitWears.length, itemsByCategory, dirtyItems, cleanItems, mostWornItems, leastWornItems, colorDistribution, avgRating, topRatedOutfits, avgDaysBetweenRepeat, closetUtilization, avgComfortRating };
+    return { totalItems: items.length, totalWears: outfitWears.length, itemsByCategory, dirtyItems, cleanItems, mostWornItems, leastWornItems, colorDistribution, avgRating, topRatedOutfits, avgDaysBetweenRepeat, closetUtilization };
   }, [items, outfitWears]);
 
   const getItemImage = (itemId: string | undefined): string | null => {
@@ -273,25 +267,6 @@ export default function WardrobeStats() {
               className="h-full bg-[var(--accent)] rounded-full transition-all duration-300"
               style={{ width: `${Math.min(stats.closetUtilization, 100)}%` }}
             />
-          </div>
-        </div>
-
-        {/* Comfort */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Comfort</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-500">
-                {stats.avgComfortRating > 0 ? stats.avgComfortRating.toFixed(1) : '-'}
-              </div>
-              <div className="text-xs text-[var(--text-secondary)]">Avg Comfort (1-10)</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--accent)]">
-                {outfitWears.filter((w) => w.comfort_rating != null).length}
-              </div>
-              <div className="text-xs text-[var(--text-secondary)]">Comfort Rated</div>
-            </div>
           </div>
         </div>
 

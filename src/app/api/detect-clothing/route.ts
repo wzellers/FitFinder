@@ -42,9 +42,9 @@ export async function POST(req: NextRequest) {
             {
               type: 'text',
               text: `Identify this clothing item. Respond with ONLY a JSON object, no other text:
-{"type": "<one of: ${VALID_TYPES.join(', ')}>", "color": "<one of: ${VALID_COLORS.join(', ')}>"}
+{"type": "<one of: ${VALID_TYPES.join(', ')}>", "color": "<one of: ${VALID_COLORS.join(', ')}>", "secondaryColor": "<one of: ${VALID_COLORS.join(', ')} or null>"}
 
-Pick the single best match for type and the dominant color. If unsure, make your best guess.`,
+Pick the single best match for type and the dominant color. For secondaryColor, give a clearly present second color if the item has one, otherwise null. If unsure, make your best guess.`,
             },
           ],
         },
@@ -60,8 +60,12 @@ Pick the single best match for type and the dominant color. If unsure, make your
     const parsed = JSON.parse(jsonMatch[0]);
     const detectedType = VALID_TYPES.includes(parsed.type) ? parsed.type : null;
     const detectedColor = VALID_COLORS.includes(parsed.color) ? parsed.color : null;
+    const detectedSecondary =
+      VALID_COLORS.includes(parsed.secondaryColor) && parsed.secondaryColor !== detectedColor
+        ? parsed.secondaryColor
+        : null;
 
-    return NextResponse.json({ type: detectedType, color: detectedColor });
+    return NextResponse.json({ type: detectedType, color: detectedColor, secondaryColor: detectedSecondary });
   } catch (err) {
     console.error('Clothing detection error:', err);
     return NextResponse.json({ error: 'Detection failed' }, { status: 500 });

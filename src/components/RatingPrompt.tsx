@@ -8,7 +8,7 @@ import type { PendingRating, ClothingItem } from '@/lib/types';
 
 interface RatingPromptProps {
   pendingRating: PendingRating;
-  onSubmit: (wearId: string, rating: number, comfortRating?: number) => void;
+  onSubmit: (wearId: string, rating: number) => void;
   onSkip: () => void;
   onMinimize: () => void;
 }
@@ -16,8 +16,6 @@ interface RatingPromptProps {
 export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimize }: RatingPromptProps) {
   const { user } = useAuth();
   const [rating, setRating] = useState<number>(5);
-  const [comfortRating, setComfortRating] = useState<number>(5);
-  const [showComfort, setShowComfort] = useState(false);
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +53,7 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
   };
 
   const handleSubmit = () => {
-    onSubmit(pendingRating.wear_id, rating, showComfort ? comfortRating : undefined);
+    onSubmit(pendingRating.wear_id, rating);
   };
 
   return (
@@ -121,41 +119,6 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
             <span>Not great</span>
             <span>Amazing</span>
           </div>
-        </div>
-
-        {/* Comfort Rating Toggle */}
-        <div className="mb-5">
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text)]">
-            <input
-              type="checkbox"
-              checked={showComfort}
-              onChange={(e) => setShowComfort(e.target.checked)}
-              className="w-4 h-4 rounded border-[var(--border)] accent-[var(--accent)] cursor-pointer p-0"
-            />
-            Add comfort rating (optional)
-          </label>
-
-          {showComfort && (
-            <div className="mt-3">
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={comfortRating}
-                  onChange={(e) => setComfortRating(Number(e.target.value))}
-                  className="flex-1 h-2 accent-green-600 cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
-                />
-                <span className="text-xl font-bold text-green-600 min-w-[40px] text-center">
-                  {comfortRating}
-                </span>
-              </div>
-              <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
-                <span>Uncomfortable</span>
-                <span>Super comfy</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Action Buttons */}

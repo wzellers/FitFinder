@@ -17,6 +17,10 @@ dist/
 *.log
 .DS_Store
 
+# Test / build artifacts
+coverage/
+tsconfig.tsbuildinfo
+
 # Editor / IDE
 .vscode/
 .cursor/

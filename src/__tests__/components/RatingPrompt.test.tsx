@@ -117,37 +117,7 @@ describe('RatingPrompt', () => {
       />,
     );
     fireEvent.click(screen.getByText('Submit Rating'));
-    expect(onSubmit).toHaveBeenCalledWith('wear-1', 5, undefined);
-  });
-
-  it('shows comfort rating section when checkbox is toggled', () => {
-    render(
-      <RatingPrompt
-        pendingRating={pendingRating}
-        onSubmit={vi.fn()}
-        onSkip={vi.fn()}
-        onMinimize={vi.fn()}
-      />,
-    );
-    const checkbox = screen.getByRole('checkbox');
-    fireEvent.click(checkbox);
-    expect(screen.getByText('Super comfy')).toBeTruthy();
-  });
-
-  it('includes comfort rating in submit when enabled', () => {
-    const onSubmit = vi.fn();
-    render(
-      <RatingPrompt
-        pendingRating={pendingRating}
-        onSubmit={onSubmit}
-        onSkip={vi.fn()}
-        onMinimize={vi.fn()}
-      />,
-    );
-    const checkbox = screen.getByRole('checkbox');
-    fireEvent.click(checkbox);
-    fireEvent.click(screen.getByText('Submit Rating'));
-    expect(onSubmit).toHaveBeenCalledWith('wear-1', 5, 5);
+    expect(onSubmit).toHaveBeenCalledWith('wear-1', 5);
   });
 
   it('loads items from supabase', async () => {
