@@ -175,7 +175,7 @@ describe('generateScoredOutfits', () => {
     });
   });
 
-  describe('comfort scoring', () => {
+  describe('rating-based scoring', () => {
     it('high-rated similar outfits boost score', () => {
       const top = makeTop({ id: 'top-rated' });
       const bottom = makeBottom({ id: 'bottom-rated' });
@@ -188,7 +188,6 @@ describe('generateScoredOutfits', () => {
         top_id: top.id,
         bottom_id: bottom.id,
         shoes_id: shoes.id,
-        comfort_rating: 9,
         rating: 9,
       }];
 

@@ -15,7 +15,11 @@ import EditItem from '@/components/EditItem';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
-import type { DashboardTab, ClothingItem, PendingRating } from '@/lib/types';
+import { featureVector } from '@/lib/outfitScoring';
+import { getUserClothingWeatherRules } from '@/lib/weatherApi';
+import { occasionRules as defaultOccasionRules } from '@/lib/constants';
+import { deserializeModel, serializeModel, updateWeights, computeReward } from '@/lib/banditModel';
+import type { DashboardTab, ClothingItem, PendingRating, ColorCombination } from '@/lib/types';
 
 const tabs: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
   { key: 'closet', label: 'Closet', icon: Shirt },
@@ -98,12 +102,71 @@ export default function Page() {
     if (user && onboardingChecked && !showOnboarding) checkPendingRatings();
   }, [user, onboardingChecked, showOnboarding, checkPendingRatings]);
 
-  const handleRatingSubmit = async (wearId: string, rating: number, comfortRating?: number) => {
+  const handleRatingSubmit = async (wearId: string, rating: number) => {
     await supabase
       .from('outfit_wears')
-      .update({ rating, comfort_rating: comfortRating ?? null })
+      .update({ rating })
       .eq('id', wearId);
+
+    // Online learning: turn the rating into a reward and nudge the user's model.
+    if (user && pendingRating) {
+      void applyRatingReward(user.id, pendingRating, rating);
+    }
+
     setPendingRating(null);
+  };
+
+  // Recompute the rated outfit's feature vector and apply an online weight update.
+  // Per the Phase 4 design, weather/occasion default to neutral here (they aren't
+  // stored on the wear); color/variety/rating reconstruct from current data.
+  const applyRatingReward = async (
+    userId: string,
+    rating: PendingRating,
+    score: number,
+  ) => {
+    const itemIds = [
+      rating.outfit_items.top_id,
+      rating.outfit_items.bottom_id,
+      rating.outfit_items.shoes_id,
+    ].filter(Boolean) as string[];
+    if (itemIds.length < 3) return;
+
+    try {
+      const [{ data: itemsData }, { data: prefsData }, { data: modelData }] = await Promise.all([
+        supabase.from('clothing_items').select('*').in('id', itemIds),
+        supabase.from('color_preferences').select('liked_combinations').eq('user_id', userId).maybeSingle(),
+        supabase.from('outfit_model_weights').select('weights, feature_meta').eq('user_id', userId).maybeSingle(),
+      ]);
+
+      const byId = new Map((itemsData ?? []).map((i: ClothingItem) => [i.id, i]));
+      const top = byId.get(rating.outfit_items.top_id ?? '');
+      const bottom = byId.get(rating.outfit_items.bottom_id ?? '');
+      const shoes = byId.get(rating.outfit_items.shoes_id ?? '');
+      if (!top || !bottom || !shoes) return;
+
+      const features = featureVector(
+        { top, bottom, shoes },
+        {
+          likedCombinations: (prefsData?.liked_combinations ?? []) as ColorCombination[],
+          weather: null,
+          recentWears: [],
+          ratedOutfits: [],
+        },
+        getUserClothingWeatherRules(null),
+        defaultOccasionRules,
+      );
+
+      const updated = updateWeights(deserializeModel(modelData), features, computeReward(score));
+      const serialized = serializeModel(updated);
+      await supabase.from('outfit_model_weights').upsert({
+        user_id: userId,
+        weights: serialized.weights,
+        feature_meta: serialized.feature_meta,
+        updated_at: new Date().toISOString(),
+      });
+    } catch {
+      // Learning is best-effort; never block the rating flow.
+    }
   };
 
   if (!user) {

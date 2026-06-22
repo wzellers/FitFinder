@@ -62,7 +62,6 @@ export interface OutfitWear {
   worn_date: string;
   notes?: string;
   rating?: number;
-  comfort_rating?: number;
   created_at?: string;
 }
 

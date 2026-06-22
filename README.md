@@ -18,7 +18,6 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   - **Weather** (25%) — filters by temperature using your local forecast
   - **Variety** (20%) — avoids items you've worn in the past week
   - **Occasion** (15%) — matches clothing types to Casual, Work, Date, or Active
-  - **Comfort** (10%) — boosts items from your highest-rated past outfits
 - Lock individual pieces and regenerate around them
 - Cycle through the top 10 scored results
 - Save outfits for later or log them as today's wear
@@ -116,7 +115,6 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
      outerwear_id UUID REFERENCES clothing_items(id),
      outfit_id UUID REFERENCES saved_outfits(id),
      rating INTEGER,
-     comfort_rating INTEGER,
      notes TEXT,
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
    );
