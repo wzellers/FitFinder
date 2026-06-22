@@ -17,7 +17,7 @@ import type { ClothingWeatherRules } from '@/lib/types';
 // TYPES
 // ============================================================================
 
-export interface OutfitCandidate {
+interface OutfitCandidate {
   top: ClothingItem;
   bottom: ClothingItem;
   shoes: ClothingItem;
@@ -81,7 +81,7 @@ function daysSince(dateStr: string): number {
 // ============================================================================
 
 /** Color harmony: 1 if the top/bottom colors form a liked combination. */
-export function colorFeature(top: ClothingItem, bottom: ClothingItem, liked: ColorCombination[]): number {
+function colorFeature(top: ClothingItem, bottom: ClothingItem, liked: ColorCombination[]): number {
   if (liked.length === 0) return 0.5; // neutral when the user has no preferences
   const tc = top.colors[0]?.toLowerCase();
   const bc = bottom.colors[0]?.toLowerCase();
@@ -94,7 +94,7 @@ export function colorFeature(top: ClothingItem, bottom: ClothingItem, liked: Col
  * suggestedIn → 1, neither suggested nor blocked → 0.5 (blocked items are
  * filtered out before scoring, so they never reach here).
  */
-export function weatherFeature(
+function weatherFeature(
   outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
   weather: TemperatureCategory | null,
   rules: Record<string, ClothingWeatherRules>,
@@ -114,7 +114,7 @@ export function weatherFeature(
  * Variety: 1 when none of the items were worn recently; lower as items appear
  * in more recent wears (linear decay over RECENCY_WINDOW_DAYS).
  */
-export function varietyFeature(
+function varietyFeature(
   outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
   recentWears: OutfitWear[],
 ): number {
@@ -135,7 +135,7 @@ export function varietyFeature(
  * Occasion fit: averages whether each item's type is allowed for the occasion.
  * Returns neutral 0.5 when no occasion is set or the occasion is unknown.
  */
-export function occasionFeature(
+function occasionFeature(
   outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
   occasion: string | null | undefined,
   rules: OccasionRules,
@@ -153,7 +153,7 @@ export function occasionFeature(
  * Rating affinity: blends the normalized ratings of past wears that share items
  * with this outfit, weighted by how many items overlap. Neutral 0.5 with no data.
  */
-export function ratingFeature(
+function ratingFeature(
   outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
   ratedOutfits: OutfitWear[],
 ): number {
@@ -173,7 +173,7 @@ export function ratingFeature(
 }
 
 // ============================================================================
-// FEATURE VECTOR + SCORING
+// FEATURE VECTOR
 // ============================================================================
 
 /** Ordered feature names — the index order of `featureVector`. */
@@ -200,29 +200,12 @@ export function featureVector(
   };
 }
 
-/** Linear combination of the five feature components; result in [0, 1]. */
-export function scoreOutfit(
-  outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
-  ctx: ScoringContext,
-  rules: Record<string, ClothingWeatherRules>,
-  occasionRules: OccasionRules,
-): number {
-  const f = featureVector(outfit, ctx, rules, occasionRules);
-  return (
-    FEATURE_WEIGHTS.color * f.color +
-    FEATURE_WEIGHTS.weather * f.weather +
-    FEATURE_WEIGHTS.variety * f.variety +
-    FEATURE_WEIGHTS.occasion * f.occasion +
-    FEATURE_WEIGHTS.rating * f.rating
-  );
-}
-
 // ============================================================================
 // GENERATION
 // ============================================================================
 
 /** An outfit candidate paired with its feature vector (before scoring). */
-export interface FeaturizedCandidate {
+interface FeaturizedCandidate {
   top: ClothingItem;
   bottom: ClothingItem;
   shoes: ClothingItem;

@@ -12,7 +12,7 @@ export const SECONDARY_COVERAGE_THRESHOLD = 0.15;
 
 const SAMPLE_SIZE = 64; // downsample for speed
 
-export interface ColorRank {
+interface ColorRank {
   color: string;
   count: number;
   fraction: number; // share of all counted (non-background) pixels
@@ -55,7 +55,7 @@ function nearestPaletteColor(r: number, g: number, b: number): string {
  * Return palette colors ranked by frequency among non-background pixels.
  * Background = transparent or near-white pixels (matching the prior heuristic).
  */
-export function rankColors(blob: Blob): Promise<ColorRank[]> {
+function rankColors(blob: Blob): Promise<ColorRank[]> {
   return new Promise((resolve) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(blob);

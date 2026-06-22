@@ -17,9 +17,6 @@ export interface ColorCombination {
   bottomColor: string;
 }
 
-// User-defined occasion rules (mirrors shape of occasionRules in constants)
-export type UserOccasionRules = Record<string, { tops: string[]; bottoms: string[]; shoes: string[] }>;
-
 // Represents a saved outfit configuration
 export interface SavedOutfit {
   id?: string;

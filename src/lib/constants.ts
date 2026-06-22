@@ -13,8 +13,6 @@ export const colorPalette = [
   'orange', 'red', 'pink', 'purple',
 ] as const;
 
-export type ColorName = (typeof colorPalette)[number];
-
 /** Color name → hex value */
 export const colorMap: Record<string, string> = {
   black: '#000000',
