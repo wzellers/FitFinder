@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapPin, Thermometer, RotateCcw, Sun, Palette } from 'lucide-react';
+import { MapPin, Thermometer, RotateCcw, Sun, Palette, Briefcase } from 'lucide-react';
 import ColorCombinationModal from '@/components/ColorCombinationModal';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
-import { colorPalette } from '@/lib/constants';
+import { colorPalette, occasions, occasionRules as defaultOccasionRules, typeToSection } from '@/lib/constants';
+import type { Occasion } from '@/lib/constants';
 import { getColorStyle, getColorName, getContrastTextColor } from '@/lib/colorUtils';
 import { clearWeatherCache, TEMPERATURE_THRESHOLDS, clothingWeatherRules } from '@/lib/weatherApi';
+import type { OccasionRules } from '@/lib/outfitScoring';
 import type { ColorCombination, ClothingWeatherRules } from '@/lib/types';
 import type { TemperatureCategory } from '@/lib/weatherApi';
 
@@ -29,12 +31,19 @@ export default function ColorPreferences() {
 
   // Weather preferences
   const [thresholds, setThresholds] = useState({ cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM });
-  const [activeSection, setActiveSection] = useState<'weather' | 'colors'>('weather');
+  const [activeSection, setActiveSection] = useState<'weather' | 'colors' | 'occasions'>('weather');
   const [clothingRulesState, setClothingRulesState] = useState<Record<string, ClothingWeatherRules>>({});
   const [savingWeather, setSavingWeather] = useState(false);
 
+  // Occasion preferences — valid clothing types per occasion.
+  const cloneDefaultOccasionRules = (): OccasionRules =>
+    JSON.parse(JSON.stringify(defaultOccasionRules)) as OccasionRules;
+  const [occasionRulesState, setOccasionRulesState] = useState<OccasionRules>(cloneDefaultOccasionRules);
+  const [savingOccasion, setSavingOccasion] = useState(false);
+
   const tempCategories: TemperatureCategory[] = ['cold', 'cool', 'warm', 'hot'];
   const allClothingTypes = Object.keys(clothingWeatherRules);
+  const allOccasionTypes = Object.keys(typeToSection);
 
   const normalizedKey = (combo: { topColor: string; bottomColor: string }) =>
     `${combo.topColor.toLowerCase()}__${combo.bottomColor.toLowerCase()}`;
@@ -48,10 +57,11 @@ export default function ColorPreferences() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [{ data: prefs }, { data: profile }, { data: weatherPrefs }] = await Promise.all([
+      const [{ data: prefs }, { data: profile }, { data: weatherPrefs }, { data: occasionPrefs }] = await Promise.all([
         supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
         supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('occasion_preferences').select('rules').eq('user_id', user.id).maybeSingle(),
       ]);
 
       if (prefs) {
@@ -69,11 +79,16 @@ export default function ColorPreferences() {
           setClothingRulesState(JSON.parse(JSON.stringify(weatherPrefs.clothing_rules)) as Record<string, ClothingWeatherRules>);
         }
       }
+      if (occasionPrefs?.rules) {
+        // Merge saved rules over defaults so newly-added occasions/types still appear.
+        const saved = occasionPrefs.rules as OccasionRules;
+        setOccasionRulesState({ ...cloneDefaultOccasionRules(), ...saved });
+      }
     };
     load();
   }, [user]);
 
-  // Helper to persist color_preferences (liked combos only)
+  // Helper to persist color_preferences (liked top/bottom combinations).
   const persistColorPrefs = async (nextLiked: ColorCombination[]) => {
     if (!user) return false;
     const { error } = await supabase.from('color_preferences').upsert(
@@ -248,8 +263,71 @@ export default function ColorPreferences() {
   const customizedTypes = allClothingTypes.filter((t) => hasCustomRule(t));
   const availableTypes = allClothingTypes.filter((t) => !hasCustomRule(t));
 
+  // ─── Occasion rule helpers ───
+
+  // Is `type` currently valid for `occasion`? Routes to the right sub-array.
+  const isTypeValidForOccasion = (occasion: Occasion, type: string): boolean => {
+    const rule = occasionRulesState[occasion];
+    if (!rule) return false;
+    const section = typeToSection[type];
+    if (section === 'Tops') return rule.tops.includes(type);
+    if (section === 'Bottoms') return rule.bottoms.includes(type);
+    return rule.shoes.includes(type);
+  };
+
+  // Toggle whether `type` is valid for `occasion`.
+  const toggleOccasionType = (occasion: Occasion, type: string) => {
+    const section = typeToSection[type];
+    const key = section === 'Tops' ? 'tops' : section === 'Bottoms' ? 'bottoms' : 'shoes';
+    setOccasionRulesState((prev) => {
+      const rule = prev[occasion] ?? { tops: [], bottoms: [], shoes: [] };
+      const list = rule[key];
+      const next = list.includes(type) ? list.filter((t) => t !== type) : [...list, type];
+      return { ...prev, [occasion]: { ...rule, [key]: next } };
+    });
+  };
+
+  const saveOccasionPrefs = async () => {
+    if (!user) return;
+    setSavingOccasion(true);
+    try {
+      const { error } = await supabase.from('occasion_preferences').upsert({
+        user_id: user.id,
+        rules: occasionRulesState,
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+      showToast('Occasion preferences saved', 'success');
+    } catch (err) {
+      const msg = err instanceof Error && err.message?.includes('relation')
+        ? 'Occasion preferences table not found — run migration 005'
+        : 'Failed to save occasion preferences';
+      showToast(msg, 'error');
+    } finally {
+      setSavingOccasion(false);
+    }
+  };
+
+  const resetOccasionDefaults = async () => {
+    setOccasionRulesState(cloneDefaultOccasionRules());
+    if (!user) return;
+    setSavingOccasion(true);
+    try {
+      const { error } = await supabase.from('occasion_preferences').upsert({
+        user_id: user.id,
+        rules: null,
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+      showToast('Reset to defaults', 'success');
+    } catch {
+      showToast('Failed to reset', 'error');
+    } finally {
+      setSavingOccasion(false);
+    }
+  };
+
   const sidebarItems = [
     { key: 'weather' as const, label: 'Weather', icon: Sun },
+    { key: 'occasions' as const, label: 'Occasions', icon: Briefcase },
     { key: 'colors' as const, label: 'Colors', icon: Palette },
   ];
 
@@ -510,6 +588,77 @@ export default function ColorPreferences() {
     </>
   );
 
+  /* ─── Occasions Section ─── */
+  const occasionsContent = (
+    <div className="card p-5 mb-6">
+      <h3 className="text-sm font-semibold text-[var(--text)] mb-2 flex items-center gap-2">
+        <Briefcase size={16} className="text-[var(--accent)]" /> Valid Items per Occasion
+      </h3>
+      <p className="text-xs text-[var(--text-secondary)] mb-3">
+        Choose which clothing types are allowed for each occasion. When you pick an occasion in the
+        Generator, only its allowed types are used.
+      </p>
+      <p className="text-xs text-[var(--text-secondary)] mb-4 flex items-center gap-1">
+        <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">&#10003;</span>
+        = allowed &nbsp;&middot;&nbsp;
+        <span className="inline-block w-4 h-4 rounded bg-gray-100 text-gray-400 text-center leading-4 text-[10px] font-bold">&#10005;</span>
+        = not allowed
+      </p>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr>
+              <th className="text-left py-1.5 pr-4 font-medium text-[var(--text-secondary)]">Type</th>
+              {occasions.map((o) => (
+                <th key={o} className="text-center py-1.5 px-2 font-medium text-[var(--text-secondary)]">{o}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {allOccasionTypes.map((type) => (
+              <tr key={type} className="border-t border-[var(--border)]">
+                <td className="py-1.5 pr-4 text-[var(--text)] whitespace-nowrap">{type}</td>
+                {occasions.map((o) => {
+                  const valid = isTypeValidForOccasion(o, type);
+                  return (
+                    <td key={o} className="text-center py-1.5 px-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleOccasionType(o, type)}
+                        className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
+                          valid
+                            ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                        }`}
+                      >
+                        {valid ? '\u2713' : '\u2715'}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex gap-2 mt-4">
+        <button onClick={saveOccasionPrefs} disabled={savingOccasion} className="btn-primary text-xs">
+          {savingOccasion ? 'Saving...' : 'Save Occasion Rules'}
+        </button>
+        <button onClick={resetOccasionDefaults} disabled={savingOccasion} className="btn-secondary text-xs flex items-center gap-1">
+          <RotateCcw size={12} /> Reset to Defaults
+        </button>
+      </div>
+    </div>
+  );
+
+  const sectionContent =
+    activeSection === 'weather' ? weatherContent :
+    activeSection === 'occasions' ? occasionsContent :
+    colorsContent;
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Mobile tabs */}
@@ -552,7 +701,7 @@ export default function ColorPreferences() {
 
         {/* Content panel */}
         <div className="flex-1 min-w-0">
-          {activeSection === 'weather' ? weatherContent : colorsContent}
+          {sectionContent}
         </div>
       </div>
 

@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { generateScoredOutfits, type ScoringContext } from '@/lib/outfitScoring';
+import {
+  generateScoredOutfits,
+  featureVector,
+  FEATURE_WEIGHTS,
+  type ScoringContext,
+} from '@/lib/outfitScoring';
+import { getUserClothingWeatherRules } from '@/lib/weatherApi';
+import { getUserOccasionRules } from '@/lib/occasionRules';
 import { makeTop, makeBottom, makeShoes } from '../factories/clothingItem';
 
-const WEIGHT_SUM = 0.30 + 0.25 + 0.20 + 0.15 + 0.10;
+const WEIGHT_SUM = Object.values(FEATURE_WEIGHTS).reduce((a, b) => a + b, 0);
 
 function baseCtx(overrides: Partial<ScoringContext> = {}): ScoringContext {
   return {
@@ -13,6 +20,19 @@ function baseCtx(overrides: Partial<ScoringContext> = {}): ScoringContext {
     ratedOutfits: [],
     ...overrides,
   };
+}
+
+// featureVector helper that wires the default weather/occasion rule loaders.
+function featuresFor(
+  outfit: Parameters<typeof featureVector>[0],
+  ctx: ScoringContext,
+) {
+  return featureVector(
+    outfit,
+    ctx,
+    getUserClothingWeatherRules(ctx.weatherRules ?? null),
+    getUserOccasionRules(ctx.occasionRules ?? null),
+  );
 }
 
 function baseItems() {
@@ -158,20 +178,46 @@ describe('generateScoredOutfits', () => {
     });
   });
 
-  describe('occasion scoring', () => {
-    it('T-Shirt in Work context has lower occasion contribution', () => {
+  describe('occasion hard filter', () => {
+    it('drops items whose type is invalid for the occasion', () => {
+      // T-Shirt is not a valid Work top by default → filtered out → no outfits.
       const tshirt = makeTop({ type: 'T-Shirt', id: 'ts1' });
+      const bottom = makeBottom({ type: 'Pants' });
+      const shoes = makeShoes();
+
+      const results = generateScoredOutfits([tshirt, bottom, shoes], baseCtx({ occasion: 'Work' }), 1);
+      expect(results).toHaveLength(0);
+    });
+
+    it('keeps items whose type is valid for the occasion', () => {
+      // Button-Up Shirt IS a valid Work top by default → outfit survives.
       const buttonUp = makeTop({ type: 'Button-Up Shirt', id: 'bu1' });
       const bottom = makeBottom({ type: 'Pants' });
       const shoes = makeShoes();
 
-      const ctx = baseCtx({ occasion: 'Work' });
-      const tshirtResults = generateScoredOutfits([tshirt, bottom, shoes], ctx, 1);
-      const buttonUpResults = generateScoredOutfits([buttonUp, bottom, shoes], ctx, 1);
+      const results = generateScoredOutfits([buttonUp, bottom, shoes], baseCtx({ occasion: 'Work' }), 1);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].top.type).toBe('Button-Up Shirt');
+    });
 
-      if (tshirtResults.length > 0 && buttonUpResults.length > 0) {
-        expect(buttonUpResults[0].score).toBeGreaterThan(tshirtResults[0].score);
-      }
+    it('no occasion (null) applies no filtering', () => {
+      // T-Shirt would be dropped for Work, but with no occasion it stays.
+      const tshirt = makeTop({ type: 'T-Shirt' });
+      const bottom = makeBottom({ type: 'Pants' });
+      const shoes = makeShoes();
+
+      const results = generateScoredOutfits([tshirt, bottom, shoes], baseCtx({ occasion: null }), 1);
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('returns [] when the filter empties a section', () => {
+      // Only a T-Shirt top is available, but Work disallows it → no valid tops.
+      const tshirt = makeTop({ type: 'T-Shirt' });
+      const bottom = makeBottom({ type: 'Pants' });
+      const shoes = makeShoes();
+
+      const results = generateScoredOutfits([tshirt, bottom, shoes], baseCtx({ occasion: 'Work' }));
+      expect(results).toHaveLength(0);
     });
   });
 
@@ -219,7 +265,8 @@ describe('generateScoredOutfits', () => {
   });
 
   describe('custom occasionRules', () => {
-    it('custom occasion rules are applied', () => {
+    it('custom rules override defaults for the hard filter', () => {
+      // Default Work disallows T-Shirt tops, but a custom rule allows them.
       const customOccasionRules = {
         Work: {
           tops: ['T-Shirt', 'Button-Up Shirt'],
@@ -231,15 +278,16 @@ describe('generateScoredOutfits', () => {
       const bottom = makeBottom({ type: 'Pants' });
       const shoes = makeShoes();
 
-      const ctxDefault = baseCtx({ occasion: 'Work' });
-      const ctxCustom = baseCtx({ occasion: 'Work', occasionRules: customOccasionRules });
+      const defaultResults = generateScoredOutfits([tshirt, bottom, shoes], baseCtx({ occasion: 'Work' }), 1);
+      const customResults = generateScoredOutfits(
+        [tshirt, bottom, shoes],
+        baseCtx({ occasion: 'Work', occasionRules: customOccasionRules }),
+        1,
+      );
 
-      const defaultResults = generateScoredOutfits([tshirt, bottom, shoes], ctxDefault, 1);
-      const customResults = generateScoredOutfits([tshirt, bottom, shoes], ctxCustom, 1);
-
-      if (defaultResults.length > 0 && customResults.length > 0) {
-        expect(customResults[0].score).toBeGreaterThanOrEqual(defaultResults[0].score);
-      }
+      // Default filters the T-Shirt out; the custom rule keeps it.
+      expect(defaultResults).toHaveLength(0);
+      expect(customResults.length).toBeGreaterThan(0);
     });
   });
 

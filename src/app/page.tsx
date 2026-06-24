@@ -17,7 +17,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import { featureVector } from '@/lib/outfitScoring';
 import { getUserClothingWeatherRules } from '@/lib/weatherApi';
-import { occasionRules as defaultOccasionRules } from '@/lib/constants';
+import { getUserOccasionRules } from '@/lib/occasionRules';
+import type { OccasionRules } from '@/lib/outfitScoring';
 import { deserializeModel, serializeModel, updateWeights, computeReward } from '@/lib/banditModel';
 import type { DashboardTab, ClothingItem, PendingRating, ColorCombination } from '@/lib/types';
 
@@ -89,6 +90,7 @@ export default function Page() {
       setPendingRating({
         wear_id: wear.id,
         worn_date: wear.worn_date,
+        occasion: wear.occasion ?? null,
         outfit_items: {
           top_id: wear.top_id ?? undefined,
           bottom_id: wear.bottom_id ?? undefined,
@@ -117,8 +119,9 @@ export default function Page() {
   };
 
   // Recompute the rated outfit's feature vector and apply an online weight update.
-  // Per the Phase 4 design, weather/occasion default to neutral here (they aren't
-  // stored on the wear); color/variety/rating reconstruct from current data.
+  // Weather defaults to neutral (not stored on the wear); occasion is read back
+  // from the wear so the model learns occasion fit; color/variety/rating
+  // reconstruct from current data.
   const applyRatingReward = async (
     userId: string,
     rating: PendingRating,
@@ -132,10 +135,11 @@ export default function Page() {
     if (itemIds.length < 3) return;
 
     try {
-      const [{ data: itemsData }, { data: prefsData }, { data: modelData }] = await Promise.all([
+      const [{ data: itemsData }, { data: prefsData }, { data: modelData }, { data: occPrefsData }] = await Promise.all([
         supabase.from('clothing_items').select('*').in('id', itemIds),
         supabase.from('color_preferences').select('liked_combinations').eq('user_id', userId).maybeSingle(),
         supabase.from('outfit_model_weights').select('weights, feature_meta').eq('user_id', userId).maybeSingle(),
+        supabase.from('occasion_preferences').select('rules').eq('user_id', userId).maybeSingle(),
       ]);
 
       const byId = new Map((itemsData ?? []).map((i: ClothingItem) => [i.id, i]));
@@ -144,6 +148,7 @@ export default function Page() {
       const shoes = byId.get(rating.outfit_items.shoes_id ?? '');
       if (!top || !bottom || !shoes) return;
 
+      const userOccasionRules = (occPrefsData?.rules ?? null) as OccasionRules | null;
       const features = featureVector(
         { top, bottom, shoes },
         {
@@ -151,9 +156,11 @@ export default function Page() {
           weather: null,
           recentWears: [],
           ratedOutfits: [],
+          occasion: rating.occasion ?? null,
+          occasionRules: userOccasionRules ?? undefined,
         },
         getUserClothingWeatherRules(null),
-        defaultOccasionRules,
+        getUserOccasionRules(userOccasionRules),
       );
 
       const updated = updateWeights(deserializeModel(modelData), features, computeReward(score));

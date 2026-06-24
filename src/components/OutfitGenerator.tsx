@@ -8,8 +8,11 @@ import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
 import { fetchWeather, getTemperatureCategory, getWeatherIconUrl, TEMPERATURE_THRESHOLDS } from '@/lib/weatherApi';
 import { buildCandidates, featureVector } from '@/lib/outfitScoring';
+import type { OccasionRules } from '@/lib/outfitScoring';
 import { getUserClothingWeatherRules } from '@/lib/weatherApi';
-import { occasionRules as defaultOccasionRules } from '@/lib/constants';
+import { getUserOccasionRules } from '@/lib/occasionRules';
+import { occasions } from '@/lib/constants';
+import type { Occasion } from '@/lib/constants';
 import {
   deserializeModel,
   serializeModel,
@@ -45,6 +48,10 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const [tempCategory, setTempCategory] = useState<TemperatureCategory | null>(null);
   const [ignoreWeather, setIgnoreWeather] = useState(false);
   const [userWeatherPrefs, setUserWeatherPrefs] = useState<UserWeatherPreferences | null>(null);
+
+  // Occasion — null means "Any" (no occasion filter).
+  const [occasion, setOccasion] = useState<Occasion | null>(null);
+  const [userOccasionRules, setUserOccasionRules] = useState<OccasionRules | null>(null);
 
   // Current outfit display
   const [top, setTop] = useState<ClothingItem | null>(null);
@@ -92,6 +99,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           { data: recentWearsData },
           { data: ratedOutfitsData },
           { data: modelData },
+          { data: occPrefsData },
         ] = await Promise.all([
           supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
           supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
@@ -101,6 +109,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           supabase.from('outfit_wears').select('*').eq('user_id', user.id).gte('worn_date', recencyCutoff),
           supabase.from('outfit_wears').select('*').eq('user_id', user.id).not('rating', 'is', null).order('worn_date', { ascending: false }).limit(100),
           supabase.from('outfit_model_weights').select('weights, feature_meta').eq('user_id', user.id).maybeSingle(),
+          supabase.from('occasion_preferences').select('rules').eq('user_id', user.id).maybeSingle(),
         ]);
 
         setItems(itemsData || []);
@@ -109,6 +118,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         setRecentWears((recentWearsData ?? []) as OutfitWear[]);
         setRatedOutfits((ratedOutfitsData ?? []) as OutfitWear[]);
         setModel(deserializeModel(modelData));
+        setUserOccasionRules((occPrefsData?.rules ?? null) as OccasionRules | null);
 
         const userWP: UserWeatherPreferences | null = weatherPrefsData ? {
           thresholds: weatherPrefsData.thresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM },
@@ -145,6 +155,8 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
       recentWears,
       ratedOutfits,
+      occasion,
+      occasionRules: userOccasionRules ?? undefined,
     });
 
     // Respect locked slots: only consider candidates that keep the frozen items.
@@ -153,7 +165,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (lockedShoes && shoes) candidates = candidates.filter((c) => c.shoes.id === shoes.id);
 
     if (candidates.length === 0) {
-      setError('No valid outfits found. Try adding more items or adjusting your preferences.');
+      setError(
+        occasion
+          ? `No outfits fit "${occasion}". Try "Any", add more items for this occasion, or adjust occasion rules in Preferences.`
+          : 'No valid outfits found. Try adding more items or adjusting your preferences.',
+      );
       return;
     }
 
@@ -176,7 +192,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   // new weights. Features are recomputed from the current context (weather and
   // occasion default to neutral, matching the rating-time path).
   const applyReward = async (
-    outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
+    outfit: {
+      top: ClothingItem;
+      bottom: ClothingItem;
+      shoes: ClothingItem;
+    },
     reward: number,
   ) => {
     if (!user) return;
@@ -189,9 +209,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
         recentWears,
         ratedOutfits,
+        occasion,
+        occasionRules: userOccasionRules ?? undefined,
       },
       rules,
-      defaultOccasionRules,
+      getUserOccasionRules(userOccasionRules),
     );
     const updated = updateWeights(model ?? deserializeModel(null), features, reward);
     setModel(updated);
@@ -219,7 +241,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       const { error: err } = await supabase.from('saved_outfits').insert({
         user_id: user.id,
         name: pendingSaveName.trim() || null,
-        outfit_items: { top_id: top.id, bottom_id: bottom.id, shoes_id: shoes.id },
+        outfit_items: {
+          top_id: top.id,
+          bottom_id: bottom.id,
+          shoes_id: shoes.id,
+        },
       }).select().single();
       if (err) throw err;
       showToast('Outfit saved!', 'success');
@@ -255,6 +281,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         top_id: top.id,
         bottom_id: bottom.id,
         shoes_id: shoes.id,
+        occasion,
       });
       showToast('Logged as today\'s outfit!', 'success');
     } catch {
@@ -291,17 +318,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     setActiveTab('generator');
   };
 
-  // Picker helpers
-  const getPickerSection = (slot: typeof pickerSlot): string[] => {
-    if (!slot) return [];
-    if (slot === 'top') return ['Tops'];
-    if (slot === 'bottom') return ['Bottoms'];
-    return ['Shoes'];
-  };
-
-  const pickerItems = pickerSlot
-    ? items.filter((i) => getPickerSection(pickerSlot).includes(typeToSection[i.type] ?? ''))
-    : [];
+  const pickerItems = (() => {
+    if (!pickerSlot) return [];
+    const section = pickerSlot === 'top' ? 'Tops' : pickerSlot === 'bottom' ? 'Bottoms' : 'Shoes';
+    return items.filter((i) => typeToSection[i.type] === section);
+  })();
 
   const handlePickItem = (item: ClothingItem) => {
     if (!pickerSlot) return;
@@ -375,8 +396,42 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
       {activeTab === 'generator' && (
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_240px] gap-6">
-          {/* ====== LEFT PANEL — Weather ====== */}
+          {/* ====== LEFT PANEL — Occasion + Weather ====== */}
           <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-[var(--text)]">Occasion</h3>
+            <div className="card p-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setOccasion(null)}
+                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                    occasion === null
+                      ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
+                      : 'bg-white text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--accent)]'
+                  }`}
+                >
+                  Any
+                </button>
+                {occasions.map((o) => (
+                  <button
+                    key={o}
+                    onClick={() => setOccasion(o)}
+                    className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                      occasion === o
+                        ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
+                        : 'bg-white text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--accent)]'
+                    }`}
+                  >
+                    {o}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-[var(--text-secondary)]">
+                {occasion
+                  ? 'Only items that fit this occasion will be used.'
+                  : 'Filters generated outfits to items that fit the occasion. Customize rules in Preferences.'}
+              </p>
+            </div>
+
             <h3 className="text-lg font-semibold text-[var(--text)]">Weather</h3>
 
             {weatherLoading && (

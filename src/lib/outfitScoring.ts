@@ -186,7 +186,11 @@ export type FeatureName = (typeof FEATURE_NAMES)[number];
  * (below) and the learned bandit model (`banditModel.ts`).
  */
 export function featureVector(
-  outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
+  outfit: {
+    top: ClothingItem;
+    bottom: ClothingItem;
+    shoes: ClothingItem;
+  },
   ctx: ScoringContext,
   rules: Record<string, ClothingWeatherRules>,
   occasionRules: OccasionRules,
@@ -239,7 +243,19 @@ export function buildCandidates(items: ClothingItem[], ctx: ScoringContext): Fea
 
   if (tops.length === 0 || bottoms.length === 0 || shoesItems.length === 0) return [];
 
+  // Occasion filter — hard-constrain each slot to the types valid for the
+  // selected occasion, so a generated outfit always matches it. No-op when no
+  // occasion is selected (the "Any" case).
   const occasionRules: OccasionRules = { ...defaultOccasionRules, ...(ctx.occasionRules ?? {}) };
+  if (ctx.occasion) {
+    const rule = occasionRules[ctx.occasion];
+    if (rule) {
+      tops = tops.filter((i) => rule.tops.includes(i.type));
+      bottoms = bottoms.filter((i) => rule.bottoms.includes(i.type));
+      shoesItems = shoesItems.filter((i) => rule.shoes.includes(i.type));
+      if (tops.length === 0 || bottoms.length === 0 || shoesItems.length === 0) return [];
+    }
+  }
 
   const candidates: FeaturizedCandidate[] = [];
   const seen = new Set<string>();

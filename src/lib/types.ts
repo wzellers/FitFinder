@@ -59,12 +59,14 @@ export interface OutfitWear {
   worn_date: string;
   notes?: string;
   rating?: number;
+  occasion?: string | null;
   created_at?: string;
 }
 
 export interface PendingRating {
   wear_id: string;
   worn_date: string;
+  occasion?: string | null;
   outfit_items: {
     top_id?: string;
     bottom_id?: string;
