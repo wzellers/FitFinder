@@ -153,16 +153,16 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
   }
 
   return (
-    <div className="w-full flex gap-6">
+    <div className="w-full flex gap-12">
       {/* Left sidebar — action buttons */}
-      <div className="hidden sm:flex flex-col gap-2 shrink-0 w-[140px]">
-        <button onClick={onAddItem} className="btn-primary text-sm">
-          <Plus size={16} /> Add Item
+      <div className="hidden sm:flex flex-col gap-3 shrink-0 w-[180px]">
+        <button onClick={onAddItem} className="btn-primary text-base py-3 px-5">
+          <Plus size={20} /> Add Item
         </button>
-        <button onClick={() => bulkMarkAllDirty(true)} className="btn-secondary text-amber-600 text-sm">
+        <button onClick={() => bulkMarkAllDirty(true)} className="btn-secondary text-amber-600 text-base py-3 px-5">
           Mark All Dirty
         </button>
-        <button onClick={() => bulkMarkAllDirty(false)} className="btn-secondary text-green-600 text-sm">
+        <button onClick={() => bulkMarkAllDirty(false)} className="btn-secondary text-green-600 text-base py-3 px-5">
           Mark All Clean
         </button>
       </div>

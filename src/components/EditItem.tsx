@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes, colorPalette } from '@/lib/constants';
@@ -19,7 +18,6 @@ interface EditItemProps {
 }
 
 export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemDeleted }: EditItemProps) {
-  const { user } = useAuth();
   const { showToast } = useToast();
   const [updating, setUpdating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -116,8 +114,8 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
           </div>
         </div>
 
-        {/* Current image */}
-        <div className="flex justify-center mb-5">
+        {/* Image */}
+        <div className="flex flex-col items-center gap-3 mb-5">
           <div className="w-32 h-32 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
             <img src={item.image_url} alt={item.type} className="w-full h-full object-contain" />
           </div>

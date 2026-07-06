@@ -398,7 +398,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_240px] gap-6">
           {/* ====== LEFT PANEL — Occasion + Weather ====== */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-[var(--text)]">Occasion</h3>
+            <h3 className="text-lg font-semibold text-[var(--text)] text-center">Occasion</h3>
             <div className="card p-4 space-y-3">
               <div className="flex flex-wrap gap-2">
                 <button
@@ -432,7 +432,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
               </p>
             </div>
 
-            <h3 className="text-lg font-semibold text-[var(--text)]">Weather</h3>
+            <h3 className="text-lg font-semibold text-[var(--text)] text-center">Weather</h3>
 
             {weatherLoading && (
               <div className="card p-4 animate-pulse">
@@ -549,7 +549,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
           {/* ====== RIGHT PANEL — Actions ====== */}
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-[var(--text)]">Actions</h3>
+            <h3 className="text-lg font-semibold text-[var(--text)] text-center">Actions</h3>
 
             <button
               onClick={openSaveModal}

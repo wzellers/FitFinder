@@ -34,7 +34,7 @@ beforeEach(() => {
   vi.mocked(supabase.auth.getSession).mockResolvedValue({
     data: { session: null },
     error: null,
-  } as unknown as ReturnType<typeof supabase.auth.getSession>);
+  } as unknown as Awaited<ReturnType<typeof supabase.auth.getSession>>);
 
   vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((cb) => {
     authStateCallback = cb as typeof authStateCallback;
@@ -53,7 +53,7 @@ describe('useAuth', () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
       data: { session: { user: mockUser } },
       error: null,
-    } as unknown as ReturnType<typeof supabase.auth.getSession>);
+    } as unknown as Awaited<ReturnType<typeof supabase.auth.getSession>>);
 
     const { result } = renderHook(() => useAuth());
     await act(async () => {});
@@ -88,7 +88,7 @@ describe('useAuth', () => {
     vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
       data: { session: { user: mockUser } },
       error: null,
-    } as unknown as ReturnType<typeof supabase.auth.getSession>);
+    } as unknown as Awaited<ReturnType<typeof supabase.auth.getSession>>);
 
     const { result } = renderHook(() => useAuth());
     await act(async () => {});
@@ -105,7 +105,7 @@ describe('useAuth', () => {
     vi.mocked(supabase.auth.signUp).mockResolvedValueOnce({
       data: { user: mockUser, session: null },
       error: null,
-    } as unknown as ReturnType<typeof supabase.auth.signUp>);
+    } as unknown as Awaited<ReturnType<typeof supabase.auth.signUp>>);
 
     const { result } = renderHook(() => useAuth());
     await act(async () => {
@@ -122,7 +122,7 @@ describe('useAuth', () => {
     vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce({
       data: { user: mockUser, session: null },
       error: null,
-    } as unknown as ReturnType<typeof supabase.auth.signInWithPassword>);
+    } as unknown as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>);
 
     const { result } = renderHook(() => useAuth());
     await act(async () => {

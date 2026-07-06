@@ -29,3 +29,7 @@ tsconfig.tsbuildinfo
 # Personal data
 FitFinder.clothes/
 notes.txt
+
+# Planning / design scratch docs (not part of the app)
+PLAN.md
+CLAUDE_DESIGN_BRIEF.md

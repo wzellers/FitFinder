@@ -8,18 +8,26 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 
 ### Closet Management
 - Upload clothing photos organized into Tops, Bottoms, Outerwear, and Shoes
-- Tag items by type and color for accurate outfit matching
+- **Automatic type and color detection** — Claude Vision classifies each uploaded
+  photo, and background removal runs on-device so items appear cleanly cut out.
+  Detected type and colors are pre-filled and remain editable.
 - Track laundry status (clean/dirty) — dirty items are excluded from generation
-- Edit or delete items anytime
+- Edit an item's type, colors, and laundry status, or delete it anytime
 
 ### Smart Outfit Generation
-- Weighted scoring algorithm considers five factors:
+- Candidates are filtered by weather, then scored by a linear model over five
+  features whose cold-start weights are:
   - **Color harmony** (30%) — favors your liked color combinations
   - **Weather** (25%) — filters by temperature using your local forecast
-  - **Variety** (20%) — avoids items you've worn in the past week
+  - **Variety** (20%) — avoids items worn in the last 14 days
   - **Occasion** (15%) — matches clothing types to Casual, Work, Date, or Active
+  - **Rating** (10%) — favors pieces from your higher-rated past outfits
+- **Learns from your feedback**: a client-side contextual bandit updates the
+  feature weights online from your ratings and wear history using ε-greedy
+  explore/exploit. Learned weights persist per user in Supabase; before any
+  rating it reproduces the fixed-weight scorer (cold start).
 - Lock individual pieces and regenerate around them
-- Cycle through the top 10 scored results
+- Cycle through the top scored results
 - Save outfits for later or log them as today's wear
 
 ### Outfit Calendar
@@ -49,8 +57,12 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 - **Framework**: Next.js 15 (App Router)
 - **UI**: React 19, TypeScript (strict mode), Tailwind CSS 3
 - **Backend**: Supabase (PostgreSQL, Auth, Storage)
+- **Clothing detection**: Anthropic Claude Vision (`@anthropic-ai/sdk`) via a
+  server route; background removal with `@imgly/background-removal`; cropping
+  with `react-easy-crop`
 - **Icons**: Lucide React
 - **Weather**: OpenWeatherMap API
+- **Testing**: Vitest + Testing Library (unit/component), Playwright (e2e)
 
 ## Getting Started
 
@@ -72,62 +84,27 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    npm install
    ```
 
-3. Create a `.env.local` file
+3. Create a `.env.local` file (see `.env.example` for the full list)
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    NEXT_PUBLIC_OPENWEATHERMAP_API_KEY=your_openweathermap_key
+   # Server-side; used by the /api/detect-clothing route for auto-detection
+   ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
 
-4. Set up the Supabase database. Create these tables:
+4. Set up the Supabase database. Run the migrations in `supabase_migrations/` in
+   order (001, 002, …) using the Supabase SQL Editor. They create and evolve the
+   full schema:
 
-   ```sql
-   CREATE TABLE clothing_items (
-     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-     type TEXT NOT NULL,
-     colors TEXT[] NOT NULL,
-     image_url TEXT NOT NULL,
-     is_dirty BOOLEAN DEFAULT false,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
+   - `clothing_items` — wardrobe items (type, colors, image, laundry status)
+   - `saved_outfits` — saved outfit combinations
+   - `color_preferences` — liked color combinations per user
+   - `outfit_wears` — daily wear log with ratings and occasion
+   - `profiles` — zip code and onboarding state
+   - `outfit_model_weights` — persisted per-user contextual-bandit weights
 
-   CREATE TABLE saved_outfits (
-     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-     outfit_items JSONB NOT NULL,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
-
-   CREATE TABLE color_preferences (
-     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-     liked_combinations JSONB DEFAULT '[]',
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
-
-   CREATE TABLE outfit_wears (
-     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-     worn_date DATE NOT NULL,
-     top_id UUID REFERENCES clothing_items(id),
-     bottom_id UUID REFERENCES clothing_items(id),
-     shoes_id UUID REFERENCES clothing_items(id),
-     outerwear_id UUID REFERENCES clothing_items(id),
-     outfit_id UUID REFERENCES saved_outfits(id),
-     rating INTEGER,
-     notes TEXT,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
-
-   CREATE TABLE profiles (
-     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-     zip_code TEXT,
-     onboarding_completed BOOLEAN DEFAULT false,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
-   ```
-
-   Also create a `clothing-images` storage bucket in Supabase with public access.
+   Then create a `clothing-images` storage bucket in Supabase with public access.
 
 5. Run the dev server
    ```bash
@@ -141,33 +118,43 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 ```
 src/
   app/
+    api/detect-clothing/route.ts # Server route: Claude Vision type/color detection
     layout.tsx          # Root layout with Inter font and ToastProvider
     page.tsx            # Main page with tab navigation and modal management
   components/
     AuthForm.tsx        # Login / signup form
     Closet.tsx          # Wardrobe grid with section filters
     ColorPreferences.tsx # Color combo builder + zip code settings
-    ColorCombinationModal.tsx # Modal for adding color pairings
-    EditItem.tsx        # Edit item type, color, laundry status
-    ImageUpload.tsx     # Upload new clothing items
+    ColorCombinationModal.tsx # Modal for editing color pairings
+    EditItem.tsx        # Edit item type, colors, and laundry status
+    ImageUpload.tsx     # Upload new items (detect, crop, background removal)
     Onboarding.tsx      # New user guided setup
     OutfitCalendar.tsx  # Monthly calendar with outfit logging
-    OutfitGenerator.tsx # Scoring-based outfit generation + saved outfits
+    OutfitGenerator.tsx # Outfit generation + saved outfits
     RatingPrompt.tsx    # Rate yesterday's outfit modal
     ToastProvider.tsx   # Toast notification system
     WardrobeStats.tsx   # Wardrobe analytics dashboard
-    ui/Skeleton.tsx     # Loading skeleton components
+    ui/ConfirmDialog.tsx # Reusable confirm/cancel dialog
+    ui/ImageCropper.tsx  # Crop UI used during upload review
+    ui/Skeleton.tsx      # Loading skeleton components
   hooks/
     useAuth.ts          # Supabase auth state hook
   lib/
+    banditModel.ts      # Contextual-bandit online learning model
     colorUtils.ts       # Color display helpers
     constants.ts        # Shared constants (types, palettes, occasion rules)
-    outfitScoring.ts    # Weighted outfit scoring engine
+    imageColor.ts       # Local dominant-color detection
+    imageCrop.ts        # Crop an image region to a PNG blob
+    occasionRules.ts    # Per-occasion clothing-type rules
+    outfitScoring.ts    # Weighted outfit scoring engine (bandit cold-start priors)
     supabaseClient.ts   # Supabase client instance
     types.ts            # TypeScript interfaces and weather rules
+    uploadPipeline.ts   # Detect + background-removal + upload orchestration
     weatherApi.ts       # OpenWeatherMap integration with caching
   styles/
     globals.css         # Tailwind directives + CSS custom properties + component classes
+  __tests__/            # Vitest unit/component tests and Playwright e2e specs
+supabase_migrations/    # Ordered SQL migrations (schema source of truth)
 ```
 
 ## Scripts
@@ -175,3 +162,8 @@ src/
 - `npm run dev` — start development server
 - `npm run build` — production build
 - `npm run start` — start production server
+- `npm run test` — run unit/component tests (Vitest)
+- `npm run test:watch` — run Vitest in watch mode
+- `npm run test:coverage` — run tests with a coverage report
+- `npm run test:e2e` — run end-to-end tests (Playwright)
+- `npm run test:e2e:ui` — run Playwright tests in UI mode

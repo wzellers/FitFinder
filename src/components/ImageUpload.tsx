@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { X, Upload, Loader2, Eraser, Check, AlertCircle } from 'lucide-react';
+import { X, Upload, Loader2, Eraser, Check, AlertCircle, Crop, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes, colorPalette } from '@/lib/constants';
@@ -12,6 +12,7 @@ import {
   uploadItem,
   runWithConcurrency,
 } from '@/lib/uploadPipeline';
+import ImageCropper from '@/components/ui/ImageCropper';
 import type { ClothingSection } from '@/lib/types';
 
 interface ImageUploadProps {
@@ -28,6 +29,11 @@ interface ItemDraft {
   id: string;
   blob: Blob;
   previewUrl: string;
+  /** The originally-selected image, kept so edits (crop/bg-removal) can be undone. */
+  originalBlob: Blob;
+  originalPreviewUrl: string;
+  /** True once the image has been changed from the original (crop or bg-removal). */
+  edited: boolean;
   category: ClothingSection | '';
   type: string;
   primaryColor: string | null;
@@ -43,10 +49,15 @@ const DETECT_CONCURRENCY = 4;
 const UPLOAD_CONCURRENCY = 4;
 
 function makeDraft(blob: Blob): ItemDraft {
+  // Two independent object URLs for the same original blob: one for the live
+  // preview (which may be replaced by edits) and one kept pristine for revert.
   return {
     id: crypto.randomUUID(),
     blob,
     previewUrl: URL.createObjectURL(blob),
+    originalBlob: blob,
+    originalPreviewUrl: URL.createObjectURL(blob),
+    edited: false,
     category: '',
     type: '',
     primaryColor: null,
@@ -67,6 +78,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
   const [stage, setStage] = useState<Stage>('select');
   const [uploading, setUploading] = useState(false);
   const [drafts, setDrafts] = useState<ItemDraft[]>([]);
+  const [cropDraftId, setCropDraftId] = useState<string | null>(null);
 
   const updateDraft = (id: string, patch: Partial<ItemDraft>) => {
     setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
@@ -118,6 +130,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
         blob: result,
         previewUrl: URL.createObjectURL(result),
         bgRemoved: true,
+        edited: true,
       });
       showToast('Background removed!', 'success');
       // Colors are more accurate without the background; re-run detection.
@@ -127,6 +140,29 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
     } finally {
       updateDraft(id, { removingBg: false });
     }
+  };
+
+  const handleCropApplied = (id: string, blob: Blob) => {
+    const draft = drafts.find((d) => d.id === id);
+    if (draft?.previewUrl) URL.revokeObjectURL(draft.previewUrl);
+    updateDraft(id, { blob, previewUrl: URL.createObjectURL(blob), edited: true });
+    setCropDraftId(null);
+    // Cropping changes the dominant pixels, so re-detect colors/type.
+    runDetection(id, blob);
+  };
+
+  // Restore the pristine original image, undoing any crop / background removal.
+  const handleRevertOriginal = (id: string) => {
+    const draft = drafts.find((d) => d.id === id);
+    if (!draft) return;
+    if (draft.previewUrl) URL.revokeObjectURL(draft.previewUrl);
+    updateDraft(id, {
+      blob: draft.originalBlob,
+      previewUrl: URL.createObjectURL(draft.originalBlob),
+      edited: false,
+      bgRemoved: false,
+    });
+    runDetection(id, draft.originalBlob);
   };
 
   const handleCategoryChange = (id: string, category: ClothingSection | '') => {
@@ -149,6 +185,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
     setDrafts((prev) => {
       const draft = prev.find((d) => d.id === id);
       if (draft?.previewUrl) URL.revokeObjectURL(draft.previewUrl);
+      if (draft?.originalPreviewUrl) URL.revokeObjectURL(draft.originalPreviewUrl);
       return prev.filter((d) => d.id !== id);
     });
   };
@@ -204,7 +241,10 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
       setDrafts((prev) => {
         prev
           .filter((d) => d.status === 'done')
-          .forEach((d) => d.previewUrl && URL.revokeObjectURL(d.previewUrl));
+          .forEach((d) => {
+            if (d.previewUrl) URL.revokeObjectURL(d.previewUrl);
+            if (d.originalPreviewUrl) URL.revokeObjectURL(d.originalPreviewUrl);
+          });
         return prev
           .filter((d) => d.status === 'error')
           .map((d) => ({ ...d, status: 'pending' as DraftStatus }));
@@ -213,7 +253,10 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
   };
 
   const resetForm = () => {
-    drafts.forEach((d) => d.previewUrl && URL.revokeObjectURL(d.previewUrl));
+    drafts.forEach((d) => {
+      if (d.previewUrl) URL.revokeObjectURL(d.previewUrl);
+      if (d.originalPreviewUrl) URL.revokeObjectURL(d.originalPreviewUrl);
+    });
     setDrafts([]);
     setStage('select');
     setUploading(false);
@@ -285,6 +328,8 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
                     invalidType={!draft.detecting && !draft.type}
                     invalidColor={!draft.detecting && !draft.primaryColor}
                     onRemoveBackground={() => handleRemoveBackground(draft.id)}
+                    onCrop={() => setCropDraftId(draft.id)}
+                    onRevert={() => handleRevertOriginal(draft.id)}
                     onCategoryChange={(c) => handleCategoryChange(draft.id, c)}
                     onTypeChange={(t) => updateDraft(draft.id, { type: t })}
                     onPrimarySelect={(c) => handlePrimarySelect(draft, c)}
@@ -301,6 +346,8 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
                 invalidType={!drafts[0].detecting && !drafts[0].type}
                 invalidColor={!drafts[0].detecting && !drafts[0].primaryColor}
                 onRemoveBackground={() => handleRemoveBackground(drafts[0].id)}
+                onCrop={() => setCropDraftId(drafts[0].id)}
+                onRevert={() => handleRevertOriginal(drafts[0].id)}
                 onCategoryChange={(c) => handleCategoryChange(drafts[0].id, c)}
                 onTypeChange={(t) => updateDraft(drafts[0].id, { type: t })}
                 onPrimarySelect={(c) => handlePrimarySelect(drafts[0], c)}
@@ -345,6 +392,19 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
             </div>
           </>
         )}
+
+        {/* Crop overlay (renders above the modal content). */}
+        {cropDraftId && (() => {
+          const d = drafts.find((x) => x.id === cropDraftId);
+          if (!d) return null;
+          return (
+            <ImageCropper
+              imageSrc={d.previewUrl}
+              onCancel={() => setCropDraftId(null)}
+              onCropComplete={(blob) => handleCropApplied(cropDraftId, blob)}
+            />
+          );
+        })()}
       </div>
     </div>
   );
@@ -357,6 +417,8 @@ interface DraftEditorProps {
   /** Primary color not yet chosen (and detection has finished). */
   invalidColor: boolean;
   onRemoveBackground: () => void;
+  onCrop: () => void;
+  onRevert: () => void;
   onCategoryChange: (category: ClothingSection | '') => void;
   onTypeChange: (type: string) => void;
   onPrimarySelect: (color: string) => void;
@@ -413,6 +475,29 @@ function BgRemoveButton({
       ) : (
         <><Eraser size={12} /> Remove background</>
       )}
+    </button>
+  );
+}
+
+function CropButton({ onClick, compact }: { onClick: () => void; compact?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`btn-secondary ${compact ? 'text-[10px] px-2 py-1' : 'text-xs'} flex items-center gap-1`}
+    >
+      <Crop size={compact ? 12 : 14} /> Adjust / crop
+    </button>
+  );
+}
+
+function RevertButton({ onClick, compact }: { onClick: () => void; compact?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Undo crop / background removal"
+      className={`btn-ghost ${compact ? 'text-[10px] px-2 py-1' : 'text-xs'} flex items-center gap-1`}
+    >
+      <RotateCcw size={compact ? 12 : 14} /> Revert
     </button>
   );
 }
@@ -501,6 +586,8 @@ function DraftDetail({
   invalidType,
   invalidColor,
   onRemoveBackground,
+  onCrop,
+  onRevert,
   onCategoryChange,
   onTypeChange,
   onPrimarySelect,
@@ -519,7 +606,11 @@ function DraftDetail({
         <div className="w-40 h-40 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
           <img src={draft.previewUrl} alt="Preview" className="w-full h-full object-contain" />
         </div>
-        <BgRemoveButton draft={draft} onClick={onRemoveBackground} />
+        <div className="flex items-center gap-2">
+          <CropButton onClick={onCrop} />
+          <BgRemoveButton draft={draft} onClick={onRemoveBackground} />
+          {draft.edited && <RevertButton onClick={onRevert} />}
+        </div>
         {!draft.bgRemoved && !draft.removingBg && (
           <p className="text-[10px] text-[var(--text-secondary)] text-center">
             First use downloads a model (~30 MB).
@@ -584,6 +675,8 @@ function DraftCard({
   invalidType,
   invalidColor,
   onRemoveBackground,
+  onCrop,
+  onRevert,
   onCategoryChange,
   onTypeChange,
   onPrimarySelect,
@@ -622,7 +715,11 @@ function DraftCard({
         <div className="w-28 h-28 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
           <img src={draft.previewUrl} alt="Preview" className="w-full h-full object-contain" />
         </div>
-        <BgRemoveButton draft={draft} onClick={onRemoveBackground} compact />
+        <div className="flex items-center gap-1.5">
+          <CropButton onClick={onCrop} compact />
+          <BgRemoveButton draft={draft} onClick={onRemoveBackground} compact />
+          {draft.edited && <RevertButton onClick={onRevert} compact />}
+        </div>
       </div>
 
       {/* Category / type */}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Shirt, Palette, Sparkles, Calendar, BarChart3, LogOut, Plus } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import AuthForm from '@/components/AuthForm';
 import Closet from '@/components/Closet';
 import ColorPreferences from '@/components/ColorPreferences';
@@ -22,12 +22,12 @@ import type { OccasionRules } from '@/lib/outfitScoring';
 import { deserializeModel, serializeModel, updateWeights, computeReward } from '@/lib/banditModel';
 import type { DashboardTab, ClothingItem, PendingRating, ColorCombination } from '@/lib/types';
 
-const tabs: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
-  { key: 'closet', label: 'Closet', icon: Shirt },
-  { key: 'generator', label: 'Generator', icon: Sparkles },
-  { key: 'calendar', label: 'Calendar', icon: Calendar },
-  { key: 'stats', label: 'Stats', icon: BarChart3 },
-  { key: 'preferences', label: 'Preferences', icon: Palette },
+const tabs: { key: DashboardTab; label: string }[] = [
+  { key: 'closet', label: 'Closet' },
+  { key: 'generator', label: 'Generator' },
+  { key: 'calendar', label: 'Calendar' },
+  { key: 'stats', label: 'Stats' },
+  { key: 'preferences', label: 'Preferences' },
 ];
 
 export default function Page() {
@@ -217,14 +217,13 @@ export default function Page() {
 
           {/* Tab navigation */}
           <nav className="hidden sm:flex items-center gap-1">
-            {tabs.map(({ key, label, icon: Icon }) => (
+            {tabs.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
                 className={activeTab === key ? 'nav-tab-active' : 'nav-tab'}
               >
-                <Icon size={16} />
-                <span className="hidden md:inline">{label}</span>
+                <span>{label}</span>
               </button>
             ))}
           </nav>
@@ -238,7 +237,7 @@ export default function Page() {
 
         {/* Mobile tab bar */}
         <nav className="sm:hidden flex items-center justify-around py-1 -mx-4 px-2 border-t border-[var(--border)]">
-          {tabs.map(({ key, label, icon: Icon }) => (
+          {tabs.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
@@ -248,7 +247,6 @@ export default function Page() {
                   : 'text-[var(--text-secondary)]'
               }`}
             >
-              <Icon size={18} />
               {label}
             </button>
           ))}

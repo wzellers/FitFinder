@@ -28,6 +28,13 @@ Object.defineProperty(URL, 'revokeObjectURL', {
   value: vi.fn(),
 });
 
+// jsdom doesn't implement canvas.toBlob; stub it for crop-related code.
+if (!HTMLCanvasElement.prototype.toBlob) {
+  HTMLCanvasElement.prototype.toBlob = function (cb: BlobCallback) {
+    cb(new Blob(['x'], { type: 'image/png' }));
+  };
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();

@@ -117,4 +117,14 @@ describe('EditItem', () => {
     fireEvent.click(screen.getByText('Update Item'));
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
+
+  it('does not render image-editing controls', () => {
+    renderWithProviders(
+      <EditItem isOpen={true} onClose={vi.fn()} item={item} />,
+    );
+    expect(screen.queryByText('New photo')).toBeNull();
+    expect(screen.queryByText('Adjust / crop')).toBeNull();
+    expect(screen.queryByText('Revert to original')).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
 });

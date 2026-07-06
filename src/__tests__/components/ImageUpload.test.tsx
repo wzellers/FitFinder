@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -33,6 +33,11 @@ vi.mock('@imgly/background-removal', () => ({
 // Mock next/dynamic
 vi.mock('next/dynamic', () => ({
   default: vi.fn(() => () => null),
+}));
+
+// jsdom can't decode images; mock the crop helper used by ImageCropper.
+vi.mock('@/lib/imageCrop', () => ({
+  getCroppedBlob: vi.fn(() => Promise.resolve(new Blob(['x'], { type: 'image/png' }))),
 }));
 
 import ImageUpload from '@/components/ImageUpload';
@@ -70,5 +75,20 @@ describe('ImageUpload', () => {
     const closeBtn = document.querySelector('.btn-ghost');
     if (closeBtn) fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('opens the cropper when "Adjust / crop" is clicked in the review stage', async () => {
+    renderWithProviders(
+      <ImageUpload isOpen={true} onClose={vi.fn()} />,
+    );
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['x'], 'shirt.png', { type: 'image/png' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Review stage shows the Adjust / crop button.
+    const cropBtn = await screen.findByText('Adjust / crop');
+    fireEvent.click(cropBtn);
+
+    await waitFor(() => expect(screen.getByText('Adjust & crop')).toBeTruthy());
   });
 });

@@ -172,6 +172,13 @@ export async function runWithConcurrency<T, R>(
   return results;
 }
 
+const BUCKET = 'clothing-images';
+
+/** Build a unique storage path for a user's image. */
+function newImagePath(userId: string): string {
+  return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+}
+
 export interface UploadItemInput {
   userId: string;
   blob: Blob;
@@ -180,23 +187,33 @@ export interface UploadItemInput {
   isDirty: boolean;
 }
 
+/** Upload a blob to the bucket and return its public URL. */
+async function uploadBlob(userId: string, blob: Blob): Promise<string> {
+  const fileName = newImagePath(userId);
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(fileName, blob, { contentType: 'image/png' });
+  if (uploadError) throw uploadError;
+  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
+  return urlData.publicUrl;
+}
+
 /**
  * Upload a processed item: store the image, then insert the clothing_items row.
  * Throws on failure so callers can surface per-item errors.
  */
-export async function uploadItem({ userId, blob, type, colors, isDirty }: UploadItemInput): Promise<void> {
-  const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('clothing-images')
-    .upload(fileName, blob, { contentType: 'image/png' });
-  if (uploadError) throw uploadError;
-
-  const { data: urlData } = supabase.storage.from('clothing-images').getPublicUrl(fileName);
+export async function uploadItem({
+  userId,
+  blob,
+  type,
+  colors,
+  isDirty,
+}: UploadItemInput): Promise<void> {
+  const url = await uploadBlob(userId, blob);
 
   const { error } = await supabase
     .from('clothing_items')
-    .insert([{ user_id: userId, type, colors, image_url: urlData.publicUrl, is_dirty: isDirty }])
+    .insert([{ user_id: userId, type, colors, image_url: url, is_dirty: isDirty }])
     .select();
   if (error) throw error;
 }

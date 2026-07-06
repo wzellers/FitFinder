@@ -219,7 +219,7 @@ export default function OutfitCalendar() {
           <button
             key={idx}
             onClick={() => handleDayClick(day)}
-            className={`group bg-white min-h-[120px] p-1.5 text-left flex flex-col transition-colors hover:bg-blue-50 ${
+            className={`group bg-white min-h-[120px] p-1.5 text-left flex flex-col transition-colors hover:bg-[var(--accent-light)] ${
               !day.isCurrentMonth ? 'opacity-40' : ''
             } ${day.isToday ? 'ring-2 ring-inset ring-[var(--accent)]' : ''}`}
           >
@@ -291,7 +291,7 @@ export default function OutfitCalendar() {
                       <button
                         onClick={() => setter('')}
                         className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
-                          val === '' ? 'border-[var(--accent)] bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                          val === '' ? 'border-[var(--accent)] bg-[var(--accent-light)]' : 'border-gray-300 hover:border-gray-400'
                         }`}
                       >
                         None

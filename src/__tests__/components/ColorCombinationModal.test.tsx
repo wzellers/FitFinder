@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import ColorCombinationModal from '@/components/ColorCombinationModal';
 import type { ColorCombination } from '@/lib/types';
 
@@ -82,16 +82,13 @@ describe('ColorCombinationModal', () => {
         onDelete={onDelete}
       />,
     );
-    // Open the ConfirmDialog (header Delete button)
-    const deleteBtns = screen.getAllByText('Delete');
-    // Header "Delete" button — has a Trash2 icon, is inside the modal header
-    // The last one is in the modal header, the one inside ConfirmDialog doesn't exist yet
-    fireEvent.click(deleteBtns[0]);
-    // Now ConfirmDialog is open — click its confirm button
-    // ConfirmDialog comes first in DOM, so confirmBtns[0] is its "Delete" confirm button
-    const allDeleteBtns = screen.getAllByText('Delete');
-    // ConfirmDialog confirm button is index 0 in DOM order (ConfirmDialog renders first)
-    fireEvent.click(allDeleteBtns[0]);
+    // Open the ConfirmDialog via the header Delete button.
+    fireEvent.click(screen.getByText('Delete'));
+    // Scope to the ConfirmDialog (identified by its message) and click its
+    // confirm button, so we don't accidentally re-click the header button.
+    const dialog = screen.getByText('Delete this color combination?').closest('.modal-content')!;
+    const confirmBtn = within(dialog as HTMLElement).getByText('Delete');
+    fireEvent.click(confirmBtn);
     await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
   });
 

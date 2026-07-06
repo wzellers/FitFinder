@@ -24,13 +24,16 @@ function makeRequest(body: Record<string, unknown>): NextRequest {
 
 const VALID_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-describe('POST /api/detect-clothing', () => {
-  let mockCreate: ReturnType<typeof vi.fn>;
+/** Build a mock Anthropic instance whose messages.create is a fresh vi.fn(). */
+function mockAnthropicInstance(): { messages: { create: ReturnType<typeof vi.fn> } } {
+  const instance = { messages: { create: vi.fn() } };
+  vi.mocked(Anthropic).mockImplementationOnce(() => instance as unknown as Anthropic);
+  return instance;
+}
 
+describe('POST /api/detect-clothing', () => {
   beforeEach(() => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
-    const instance = new (Anthropic as unknown as { new(): { messages: { create: ReturnType<typeof vi.fn> } } })();
-    mockCreate = instance.messages.create as ReturnType<typeof vi.fn>;
   });
 
   afterEach(() => {
@@ -63,12 +66,10 @@ describe('POST /api/detect-clothing', () => {
   });
 
   it('returns {type, color} on successful Claude response', async () => {
-    const MockAnthropicClass = Anthropic as unknown as new (opts: unknown) => { messages: { create: ReturnType<typeof vi.fn> } };
-    const mockInstance = new MockAnthropicClass({ apiKey: 'test' });
-    mockInstance.messages.create.mockResolvedValueOnce({
+    const instance = mockAnthropicInstance();
+    instance.messages.create.mockResolvedValueOnce({
       content: [{ type: 'text', text: '{"type": "T-Shirt", "color": "blue"}' }],
     });
-    vi.mocked(Anthropic).mockImplementationOnce(() => mockInstance);
 
     const req = makeRequest({ image: VALID_IMAGE });
     const res = await POST(req);
@@ -79,12 +80,10 @@ describe('POST /api/detect-clothing', () => {
   });
 
   it('returns {type: null, color: null} when Claude outputs invalid type/color', async () => {
-    const MockAnthropicClass = Anthropic as unknown as new (opts: unknown) => { messages: { create: ReturnType<typeof vi.fn> } };
-    const mockInstance = new MockAnthropicClass({ apiKey: 'test' });
-    mockInstance.messages.create.mockResolvedValueOnce({
+    const instance = mockAnthropicInstance();
+    instance.messages.create.mockResolvedValueOnce({
       content: [{ type: 'text', text: '{"type": "Dress", "color": "neon-purple"}' }],
     });
-    vi.mocked(Anthropic).mockImplementationOnce(() => mockInstance);
 
     const req = makeRequest({ image: VALID_IMAGE });
     const res = await POST(req);
@@ -95,12 +94,10 @@ describe('POST /api/detect-clothing', () => {
   });
 
   it('returns 500 when Claude response has no parseable JSON', async () => {
-    const MockAnthropicClass = Anthropic as unknown as new (opts: unknown) => { messages: { create: ReturnType<typeof vi.fn> } };
-    const mockInstance = new MockAnthropicClass({ apiKey: 'test' });
-    mockInstance.messages.create.mockResolvedValueOnce({
+    const instance = mockAnthropicInstance();
+    instance.messages.create.mockResolvedValueOnce({
       content: [{ type: 'text', text: 'I see a clothing item.' }],
     });
-    vi.mocked(Anthropic).mockImplementationOnce(() => mockInstance);
 
     const req = makeRequest({ image: VALID_IMAGE });
     const res = await POST(req);
@@ -108,16 +105,11 @@ describe('POST /api/detect-clothing', () => {
   });
 
   it('returns 500 when Anthropic SDK throws', async () => {
-    const MockAnthropicClass = Anthropic as unknown as new (opts: unknown) => { messages: { create: ReturnType<typeof vi.fn> } };
-    const mockInstance = new MockAnthropicClass({ apiKey: 'test' });
-    mockInstance.messages.create.mockRejectedValueOnce(new Error('API error'));
-    vi.mocked(Anthropic).mockImplementationOnce(() => mockInstance);
+    const instance = mockAnthropicInstance();
+    instance.messages.create.mockRejectedValueOnce(new Error('API error'));
 
     const req = makeRequest({ image: VALID_IMAGE });
     const res = await POST(req);
     expect(res.status).toBe(500);
   });
-
-  // suppress unused var warning
-  void mockCreate;
 });
