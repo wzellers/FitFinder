@@ -311,12 +311,9 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                                 <Plus size={20} />
                                 <span className="text-[10px] mt-0.5">Add</span>
                               </button>
-                              <p className="text-xs text-[var(--text-secondary)]">
-                                No {type.toLowerCase()}s yet
-                              </p>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 ml-5 mb-2">
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4 ml-5 mb-2">
                               {/* Add button */}
                               <button
                                 onClick={onAddItem}

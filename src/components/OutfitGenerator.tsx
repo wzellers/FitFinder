@@ -345,7 +345,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       <button
         type="button"
         onClick={onClickSlot}
-        className={`w-40 h-40 sm:w-48 sm:h-48 rounded-xl border bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[var(--accent)] transition-colors shrink-0 ${
+        className={`w-36 h-36 sm:w-40 sm:h-40 rounded-xl border bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[var(--accent)] transition-colors shrink-0 ${
           item ? 'border-[var(--border)]' : 'border-2 border-dashed border-gray-300'
         }`}
         title={`Click to choose ${label.toLowerCase()}`}
@@ -506,7 +506,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     key={label}
                     type="button"
                     onClick={onClick}
-                    className={`w-40 h-40 sm:w-48 sm:h-48 rounded-xl border bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[var(--accent)] transition-colors shrink-0 ${
+                    className={`w-36 h-36 sm:w-40 sm:h-40 rounded-xl border bg-white flex items-center justify-center overflow-hidden cursor-pointer hover:border-[var(--accent)] transition-colors shrink-0 ${
                       item ? 'border-[var(--border)]' : 'border-2 border-dashed border-gray-300'
                     }`}
                     title={`Click to choose ${label.toLowerCase()}`}
