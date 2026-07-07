@@ -8,19 +8,20 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Space Grotesk', 'system-ui', 'sans-serif'],
       },
       colors: {
         surface: {
-          DEFAULT: '#FAFAFA',
+          DEFAULT: '#FFFFFF',
           card: '#FFFFFF',
-          muted: '#F3F4F6',
-          dark: '#111827',
+          muted: '#EFF4FF',
+          dark: '#0B1220',
         },
         accent: {
-          DEFAULT: '#01889F',
-          light: '#CCEAF0',
-          hover: '#016F82',
+          DEFAULT: '#1D4ED8',
+          light: '#DBE7FF',
+          hover: '#1E40AF',
         },
       },
     },

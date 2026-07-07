@@ -179,8 +179,8 @@ export default function Page() {
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)] px-4">
-        <h1 className="text-4xl font-bold text-[var(--text)] mb-2 tracking-tight">
-          Fit<span className="text-[var(--accent)]">Finder</span>
+        <h1 className="logo text-5xl mb-2">
+          Fit<span className="logo-accent">Finder</span>
         </h1>
         <p className="text-[var(--text-secondary)] mb-8 text-sm">
           Your smart wardrobe assistant
@@ -211,8 +211,8 @@ export default function Page() {
       <header className="sticky top-0 z-40 bg-white border-b border-[var(--border)] px-4 lg:px-8">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-14">
           {/* Logo */}
-          <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
-            Fit<span className="text-[var(--accent)]">Finder</span>
+          <h1 className="logo text-xl">
+            Fit<span className="logo-accent">Finder</span>
           </h1>
 
           {/* Tab navigation */}

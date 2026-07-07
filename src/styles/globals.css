@@ -4,15 +4,15 @@
 
 @layer base {
   :root {
-    --bg: #FAFAFA;
+    --bg: #FFFFFF;
     --card: #FFFFFF;
-    --muted: #F3F4F6;
-    --text: #111827;
-    --text-secondary: #6B7280;
-    --accent: #01889F;
-    --accent-light: #CCEAF0;
-    --accent-hover: #016F82;
-    --border: #E5E7EB;
+    --muted: #EFF4FF;
+    --text: #0B1220;
+    --text-secondary: #475569;
+    --accent: #1D4ED8;
+    --accent-light: #DBE7FF;
+    --accent-hover: #1E40AF;
+    --border: #DDE3EC;
     --success: #16A34A;
     --warning: #F59E0B;
     --danger: #DC2626;
@@ -23,6 +23,8 @@
     min-height: 100vh;
     margin: 0;
     padding: 0;
+    /* Slightly heavier base weight so body text reads bold and clear. */
+    font-weight: 500;
   }
 
   /* Reset default element styles so Tailwind classes take full control */
@@ -92,5 +94,17 @@
   /* Section header */
   .section-header {
     @apply text-lg font-semibold text-[var(--text)] pb-2 mb-4 border-b border-[var(--border)];
+  }
+
+  /* Brand wordmark */
+  .logo {
+    @apply font-display font-extrabold tracking-tight text-[var(--text)];
+  }
+  /* Gradient-filled portion of the wordmark ("Finder") */
+  .logo-accent {
+    background-image: linear-gradient(120deg, var(--accent) 0%, #3B82F6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }

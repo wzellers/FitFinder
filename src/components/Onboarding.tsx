@@ -75,8 +75,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         {/* ===== WELCOME STEP ===== */}
         {step === 'welcome' && (
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-[var(--text)] mb-2">
-              Welcome to Fit<span className="text-[var(--accent)]">Finder</span>
+            <h1 className="text-2xl mb-2">
+              <span className="text-[var(--text)] font-semibold">Welcome to </span>
+              <span className="logo">Fit<span className="logo-accent">Finder</span></span>
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
               Let&apos;s set up your wardrobe. First, enter your zip code to enable weather-aware outfit suggestions.

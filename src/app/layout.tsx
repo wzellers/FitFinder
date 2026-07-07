@@ -1,9 +1,21 @@
 import '@/styles/globals.css';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
 import ToastProvider from '@/components/ToastProvider';
 import type { Metadata, Viewport } from 'next';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+// Body font: geometric, modern, a bit more character than Inter.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+// Display font: used for the FitFinder wordmark and can be reused for headings.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'FitFinder — Smart Wardrobe & Outfit Generator',
@@ -18,7 +30,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${jakarta.variable} ${spaceGrotesk.variable}`}>
       <body className="font-sans">
         <ToastProvider>{children}</ToastProvider>
       </body>
