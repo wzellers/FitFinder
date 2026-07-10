@@ -1,18 +1,21 @@
 import '@/styles/globals.css';
-import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
+import localFont from 'next/font/local';
 import ToastProvider from '@/components/ToastProvider';
 import type { Metadata, Viewport } from 'next';
 
-// Body font: geometric, modern, a bit more character than Inter.
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
+// Body font: "Super Retro M54" — a retro pixel-ish face used app-wide.
+const superRetro = localFont({
+  src: [
+    { path: '../../public/fonts/SuperRetroM54.ttf', style: 'normal' },
+    { path: '../../public/fonts/SuperRetroM54-Italic.ttf', style: 'italic' },
+  ],
   variable: '--font-sans',
   display: 'swap',
 });
 
-// Display font: used for the FitFinder wordmark and can be reused for headings.
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
+// Display font: "Kelvinized" — bold italic wordmark used for the FitFinder logo.
+const kelvinized = localFont({
+  src: '../../public/fonts/Kelvinized.ttf',
   variable: '--font-display',
   display: 'swap',
 });
@@ -30,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en" className={`${superRetro.variable} ${kelvinized.variable}`}>
       <body className="font-sans">
         <ToastProvider>{children}</ToastProvider>
       </body>

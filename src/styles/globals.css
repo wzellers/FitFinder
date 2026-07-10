@@ -9,13 +9,24 @@
     --muted: #EFF4FF;
     --text: #0B1220;
     --text-secondary: #475569;
-    --accent: #1D4ED8;
-    --accent-light: #DBE7FF;
-    --accent-hover: #1E40AF;
+    /* Main brand color — navy */
+    --accent: #3F3F76;
+    --accent-light: #DAD9EC;
+    --accent-hover: #33335F;
+    /* Accent color — baby / cornflower blue, used to make elements pop */
+    --purple: #6C8CD5;
+    --purple-light: #C9D6F0;
+    --purple-hover: #557AC4;
     --border: #DDE3EC;
     --success: #16A34A;
     --warning: #F59E0B;
     --danger: #DC2626;
+  }
+
+  html {
+    /* Nudge the root size up so every rem-based Tailwind text size
+       (text-xs, text-sm, ...) scales up for easier reading. */
+    font-size: 17.5px;
   }
 
   html, body {
@@ -96,15 +107,30 @@
     @apply text-lg font-semibold text-[var(--text)] pb-2 mb-4 border-b border-[var(--border)];
   }
 
-  /* Brand wordmark */
+  /* Brand wordmark — Kelvinized is a bold italic face, so lean into it.
+     "Fit" is navy (main), "Finder" is baby blue (accent). */
   .logo {
-    @apply font-display font-extrabold tracking-tight text-[var(--text)];
+    @apply font-display italic uppercase tracking-tight text-[var(--accent)];
   }
-  /* Gradient-filled portion of the wordmark ("Finder") */
   .logo-accent {
-    background-image: linear-gradient(120deg, var(--accent) 0%, #3B82F6 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    @apply text-[var(--purple)];
+  }
+
+  /* Retro item cell — thick baby-blue border with a hard offset drop shadow,
+     giving the flat "chunky rectangle" look. Used for closet + generator cells. */
+  .retro-cell {
+    @apply bg-white overflow-hidden relative;
+    border: 4px solid var(--purple);
+    border-radius: 4px;
+    box-shadow: 4px 4px 0 0 var(--purple-hover);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  .retro-cell:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 6px 6px 0 0 var(--purple-hover);
+  }
+  .retro-cell:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 var(--purple-hover);
   }
 }

@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
         display: ['var(--font-display)', 'Space Grotesk', 'system-ui', 'sans-serif'],
       },
       colors: {
@@ -19,9 +19,14 @@ module.exports = {
           dark: '#0B1220',
         },
         accent: {
-          DEFAULT: '#1D4ED8',
-          light: '#DBE7FF',
-          hover: '#1E40AF',
+          DEFAULT: '#3F3F76',
+          light: '#DAD9EC',
+          hover: '#33335F',
+        },
+        purple: {
+          DEFAULT: '#6C8CD5',
+          light: '#C9D6F0',
+          hover: '#557AC4',
         },
       },
     },

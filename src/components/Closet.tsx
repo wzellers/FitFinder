@@ -262,7 +262,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                 : <ChevronDown size={22} className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors" />
               }
               <h2 className="text-2xl font-bold text-[var(--text)] tracking-tight">{section}</h2>
-              <span className="bg-[var(--accent-light)] text-[var(--accent)] text-sm font-semibold px-2.5 py-0.5 rounded-full">
+              <span className="bg-[var(--purple-light)] text-[var(--purple-hover)] text-sm font-semibold px-2.5 py-0.5 rounded-full">
                 {sectionCount}
               </span>
             </button>
@@ -313,7 +313,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                               </button>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4 ml-5 mb-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 ml-5 mb-2">
                               {/* Add button */}
                               <button
                                 onClick={onAddItem}
@@ -327,7 +327,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                                 <button
                                   key={item.id}
                                   onClick={() => onEditItem?.(item)}
-                                  className={`flex flex-col rounded-xl border border-[var(--border)] bg-white overflow-hidden relative group transition-shadow hover:shadow-md ${
+                                  className={`retro-cell flex flex-col group ${
                                     item.is_dirty ? 'opacity-40 grayscale' : ''
                                   }`}
                                 >
