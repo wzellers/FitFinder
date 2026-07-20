@@ -132,9 +132,7 @@ describe('ColorCombinationModal', () => {
     // Click Update
     fireEvent.click(screen.getByText('Update'));
     await waitFor(() => {
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ topColor: 'blue' }),
-      );
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ topColor: 'blue' }));
     });
   });
 });

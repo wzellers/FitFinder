@@ -5,9 +5,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className = '' }: SkeletonProps) {
-  return (
-    <div className={`animate-pulse bg-[var(--muted)] rounded ${className}`} />
-  );
+  return <div className={`animate-pulse bg-[var(--muted)] rounded ${className}`} />;
 }
 
 export function SkeletonGrid({ count = 8 }: { count?: number }) {

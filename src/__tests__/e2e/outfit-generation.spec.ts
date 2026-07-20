@@ -23,7 +23,9 @@ test.describe('Outfit Generator', () => {
   });
 
   test('shows Generator tab with Generate button', async ({ page }) => {
-    await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('shows Weather section', async ({ page }) => {
@@ -43,30 +45,30 @@ test.describe('Outfit Generator', () => {
   test('clicking View Calendar navigates to Calendar tab', async ({ page }) => {
     await page.locator('button:has-text("View Calendar")').click();
     // Should show calendar day headers
-    await expect(
-      page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('shows Saved tab button', async ({ page }) => {
-    await expect(
-      page.locator('button').filter({ hasText: /Saved/ }).first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('button').filter({ hasText: /Saved/ }).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('clicking Generate produces outfit slots or a no-items message', async ({ page }) => {
     await page.locator('button:has-text("Generate")').first().click();
     // Either outfit slots appear, or a message about needing items
     await expect(
-      page.locator('text=/no items|add some|Top|Bottom|Shoes|No valid/i').first()
+      page.locator('text=/no items|add some|Top|Bottom|Shoes|No valid/i').first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
   test('can switch to Saved tab', async ({ page }) => {
     await page.locator('button').filter({ hasText: /Saved/ }).first().click();
     // Should show "No saved outfits" or list of saved outfits
-    await expect(
-      page.locator('text=/No saved outfits|saved outfits/i').first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=/No saved outfits|saved outfits/i').first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });

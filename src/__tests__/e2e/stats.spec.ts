@@ -50,15 +50,15 @@ test.describe('Wardrobe Stats', () => {
 
   test('shows stat cards with wardrobe data', async ({ page }) => {
     // Should show at least "Total Items" or similar stat labels
-    await expect(
-      page.locator('text=/Total Items|Total Wears|Clean|Dirty/i').first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=/Total Items|Total Wears|Clean|Dirty/i').first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('shows category breakdown', async ({ page }) => {
     // Should show section names in the stats
-    await expect(
-      page.locator('text=/Tops|Bottoms|Shoes/').first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=/Tops|Bottoms|Shoes/').first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });

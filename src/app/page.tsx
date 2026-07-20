@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { LogOut } from 'lucide-react';
@@ -105,10 +105,7 @@ export default function Page() {
   }, [user, onboardingChecked, showOnboarding, checkPendingRatings]);
 
   const handleRatingSubmit = async (wearId: string, rating: number) => {
-    await supabase
-      .from('outfit_wears')
-      .update({ rating })
-      .eq('id', wearId);
+    await supabase.from('outfit_wears').update({ rating }).eq('id', wearId);
 
     // Online learning: turn the rating into a reward and nudge the user's model.
     if (user && pendingRating) {
@@ -122,11 +119,7 @@ export default function Page() {
   // Weather defaults to neutral (not stored on the wear); occasion is read back
   // from the wear so the model learns occasion fit; color/variety/rating
   // reconstruct from current data.
-  const applyRatingReward = async (
-    userId: string,
-    rating: PendingRating,
-    score: number,
-  ) => {
+  const applyRatingReward = async (userId: string, rating: PendingRating, score: number) => {
     const itemIds = [
       rating.outfit_items.top_id,
       rating.outfit_items.bottom_id,
@@ -135,10 +128,23 @@ export default function Page() {
     if (itemIds.length < 3) return;
 
     try {
-      const [{ data: itemsData }, { data: prefsData }, { data: modelData }, { data: occPrefsData }] = await Promise.all([
+      const [
+        { data: itemsData },
+        { data: prefsData },
+        { data: modelData },
+        { data: occPrefsData },
+      ] = await Promise.all([
         supabase.from('clothing_items').select('*').in('id', itemIds),
-        supabase.from('color_preferences').select('liked_combinations').eq('user_id', userId).maybeSingle(),
-        supabase.from('outfit_model_weights').select('weights, feature_meta').eq('user_id', userId).maybeSingle(),
+        supabase
+          .from('color_preferences')
+          .select('liked_combinations')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('outfit_model_weights')
+          .select('weights, feature_meta')
+          .eq('user_id', userId)
+          .maybeSingle(),
         supabase.from('occasion_preferences').select('rules').eq('user_id', userId).maybeSingle(),
       ]);
 
@@ -182,9 +188,7 @@ export default function Page() {
         <h1 className="logo text-5xl mb-2">
           Fit<span className="logo-accent">Finder</span>
         </h1>
-        <p className="text-[var(--text-secondary)] mb-8 text-sm">
-          Your smart wardrobe assistant
-        </p>
+        <p className="text-[var(--text-secondary)] mb-8 text-sm">Your smart wardrobe assistant</p>
         <AuthForm />
       </div>
     );
@@ -266,7 +270,9 @@ export default function Page() {
           />
         )}
         {activeTab === 'preferences' && <ColorPreferences />}
-        {activeTab === 'generator' && <OutfitGenerator onNavigateToCalendar={() => setActiveTab('calendar')} />}
+        {activeTab === 'generator' && (
+          <OutfitGenerator onNavigateToCalendar={() => setActiveTab('calendar')} />
+        )}
         {activeTab === 'calendar' && <OutfitCalendar />}
         {activeTab === 'stats' && <WardrobeStats />}
       </main>

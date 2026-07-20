@@ -22,7 +22,8 @@ function makeRequest(body: Record<string, unknown>): NextRequest {
   });
 }
 
-const VALID_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+const VALID_IMAGE =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 /** Build a mock Anthropic instance whose messages.create is a fresh vi.fn(). */
 function mockAnthropicInstance(): { messages: { create: ReturnType<typeof vi.fn> } } {

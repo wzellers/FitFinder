@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
@@ -17,7 +17,13 @@ interface EditItemProps {
   onItemDeleted?: () => void;
 }
 
-export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemDeleted }: EditItemProps) {
+export default function EditItem({
+  isOpen,
+  onClose,
+  item,
+  onItemUpdated,
+  onItemDeleted,
+}: EditItemProps) {
   const { showToast } = useToast();
   const [updating, setUpdating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -45,7 +51,10 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
     }
     setUpdating(true);
     try {
-      const { error } = await supabase.from('clothing_items').update({ type: selectedType, colors: selectedColors }).eq('id', item.id);
+      const { error } = await supabase
+        .from('clothing_items')
+        .update({ type: selectedType, colors: selectedColors })
+        .eq('id', item.id);
       if (error) throw error;
       showToast('Item updated', 'success');
       onItemUpdated?.();
@@ -78,7 +87,10 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
     if (!item) return;
     setUpdating(true);
     try {
-      const { error } = await supabase.from('clothing_items').update({ is_dirty: !isDirty }).eq('id', item.id);
+      const { error } = await supabase
+        .from('clothing_items')
+        .update({ is_dirty: !isDirty })
+        .eq('id', item.id);
       if (error) throw error;
       setIsDirty(!isDirty);
       onItemUpdated?.();
@@ -105,7 +117,11 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
             >
               {isDirty ? 'Mark Clean' : 'Mark Dirty'}
             </button>
-            <button onClick={() => setConfirmOpen(true)} disabled={updating} className="btn-danger text-xs py-1 px-2">
+            <button
+              onClick={() => setConfirmOpen(true)}
+              disabled={updating}
+              className="btn-danger text-xs py-1 px-2"
+            >
               <Trash2 size={14} />
             </button>
             <button onClick={onClose} className="btn-ghost p-1">
@@ -124,17 +140,30 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
         {/* Category / type */}
         <div className="flex flex-col items-center gap-3 mb-5">
           <label className="text-sm font-medium text-[var(--text)]">Item Type</label>
-          <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setSelectedType(''); }} className="w-48 text-center">
+          <select
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setSelectedType('');
+            }}
+            className="w-48 text-center"
+          >
             <option value="">Select category...</option>
             <option value="Tops">Tops</option>
             <option value="Bottoms">Bottoms</option>
             <option value="Shoes">Shoes</option>
           </select>
           {selectedCategory && (
-            <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="w-48 text-center">
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-48 text-center"
+            >
               <option value="">Select type...</option>
               {clothingTypes[selectedCategory as ClothingSection]?.map((type) => (
-                <option key={type} value={type}>{type}</option>
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
             </select>
           )}
@@ -142,7 +171,9 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
 
         {/* Color selection */}
         <div className="mb-5">
-          <label className="text-sm font-medium text-[var(--text)] block text-center mb-2">Select main color</label>
+          <label className="text-sm font-medium text-[var(--text)] block text-center mb-2">
+            Select main color
+          </label>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 justify-center mx-auto w-fit">
             {colorPalette.map((color) => (
               <button
@@ -167,10 +198,22 @@ export default function EditItem({ isOpen, onClose, item, onItemUpdated, onItemD
 
         {/* Actions */}
         <div className="flex gap-3 justify-center">
-          <button onClick={handleUpdate} disabled={updating || !selectedType || selectedColors.length === 0} className="btn-primary disabled:opacity-50">
+          <button
+            onClick={handleUpdate}
+            disabled={updating || !selectedType || selectedColors.length === 0}
+            className="btn-primary disabled:opacity-50"
+          >
             {updating ? 'Updating...' : 'Update Item'}
           </button>
-          <button onClick={() => { if (item) { setSelectedType(item.type); setSelectedColors(item.colors); } }} className="btn-secondary">
+          <button
+            onClick={() => {
+              if (item) {
+                setSelectedType(item.type);
+                setSelectedColors(item.colors);
+              }
+            }}
+            className="btn-secondary"
+          >
             Reset
           </button>
         </div>

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useCallback, useState } from 'react';
 import Cropper from 'react-easy-crop';
@@ -125,7 +125,9 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
             className="btn-primary disabled:opacity-50 flex items-center gap-1"
           >
             {saving ? (
-              <><Loader2 size={14} className="animate-spin" /> Saving…</>
+              <>
+                <Loader2 size={14} className="animate-spin" /> Saving…
+              </>
             ) : (
               'Apply crop'
             )}

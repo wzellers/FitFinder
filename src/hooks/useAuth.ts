@@ -19,8 +19,7 @@ export function useAuth() {
     };
   }, []);
 
-  const signUp = (email: string, password: string) =>
-    supabase.auth.signUp({ email, password });
+  const signUp = (email: string, password: string) => supabase.auth.signUp({ email, password });
 
   const signIn = (email: string, password: string) =>
     supabase.auth.signInWithPassword({ email, password });

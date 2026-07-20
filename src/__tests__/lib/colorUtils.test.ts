@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  getColorStyle,
-  getColorName,
-  getContrastTextColor,
-} from '@/lib/colorUtils';
+import { getColorStyle, getColorName, getContrastTextColor } from '@/lib/colorUtils';
 import { colorPalette, colorMap, colorNameMap } from '@/lib/constants';
 
 describe('getColorStyle', () => {

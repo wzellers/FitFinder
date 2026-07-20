@@ -82,14 +82,27 @@ describe('banditModel', () => {
 
   describe('predict / rawScore', () => {
     it('predict clamps to [0, 1]', () => {
-      const big = { weights: { color: 5, weather: 5, variety: 5, occasion: 5, rating: 5 }, bias: 5 };
-      const small = { weights: { color: -5, weather: -5, variety: -5, occasion: -5, rating: -5 }, bias: -5 };
-      expect(predict(big, feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 }))).toBe(1);
-      expect(predict(small, feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 }))).toBe(0);
+      const big = {
+        weights: { color: 5, weather: 5, variety: 5, occasion: 5, rating: 5 },
+        bias: 5,
+      };
+      const small = {
+        weights: { color: -5, weather: -5, variety: -5, occasion: -5, rating: -5 },
+        bias: -5,
+      };
+      expect(
+        predict(big, feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 })),
+      ).toBe(1);
+      expect(
+        predict(small, feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 })),
+      ).toBe(0);
     });
 
     it('rawScore is unclamped and includes bias', () => {
-      const params = { weights: { color: 1, weather: 0, variety: 0, occasion: 0, rating: 0 }, bias: 0.3 };
+      const params = {
+        weights: { color: 1, weather: 0, variety: 0, occasion: 0, rating: 0 },
+        bias: 0.3,
+      };
       expect(rawScore(params, feats({ color: 2 }))).toBeCloseTo(2.3, 6);
     });
   });
@@ -173,14 +186,24 @@ describe('banditModel', () => {
 
   describe('selectOutfits (ε-greedy)', () => {
     const candidates = [
-      { candidate: 'low', features: feats({ color: 0, weather: 0, variety: 0, occasion: 0, rating: 0 }) },
+      {
+        candidate: 'low',
+        features: feats({ color: 0, weather: 0, variety: 0, occasion: 0, rating: 0 }),
+      },
       { candidate: 'mid', features: feats() },
-      { candidate: 'high', features: feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 }) },
+      {
+        candidate: 'high',
+        features: feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 }),
+      },
     ];
 
     it('exploits (rng above ε) → highest predicted reward first', () => {
       const params = defaultModel().params;
-      const out = selectOutfits(candidates, params, { epsilon: 0.15, count: 3, rng: seededRng([0.9]) });
+      const out = selectOutfits(candidates, params, {
+        epsilon: 0.15,
+        count: 3,
+        rng: seededRng([0.9]),
+      });
       expect(out.map((o) => o.candidate)).toEqual(['high', 'mid', 'low']);
       expect(out[0].score).toBeGreaterThanOrEqual(out[1].score);
     });
@@ -199,13 +222,21 @@ describe('banditModel', () => {
 
     it('respects count', () => {
       const params = defaultModel().params;
-      const out = selectOutfits(candidates, params, { epsilon: 0, count: 2, rng: seededRng([0.9]) });
+      const out = selectOutfits(candidates, params, {
+        epsilon: 0,
+        count: 2,
+        rng: seededRng([0.9]),
+      });
       expect(out).toHaveLength(2);
     });
 
     it('tags each result with its predicted score', () => {
       const params = defaultModel().params;
-      const out = selectOutfits(candidates, params, { epsilon: 0, count: 3, rng: seededRng([0.9]) });
+      const out = selectOutfits(candidates, params, {
+        epsilon: 0,
+        count: 3,
+        rng: seededRng([0.9]),
+      });
       for (const o of out) {
         expect(o.score).toBeCloseTo(predict(params, o.features), 6);
       }
@@ -213,8 +244,16 @@ describe('banditModel', () => {
 
     it('is deterministic given a seeded rng', () => {
       const params = defaultModel().params;
-      const a = selectOutfits(candidates, params, { epsilon: 0.3, count: 3, rng: seededRng([0.1, 0.4, 0.2, 0.8]) });
-      const b = selectOutfits(candidates, params, { epsilon: 0.3, count: 3, rng: seededRng([0.1, 0.4, 0.2, 0.8]) });
+      const a = selectOutfits(candidates, params, {
+        epsilon: 0.3,
+        count: 3,
+        rng: seededRng([0.1, 0.4, 0.2, 0.8]),
+      });
+      const b = selectOutfits(candidates, params, {
+        epsilon: 0.3,
+        count: 3,
+        rng: seededRng([0.1, 0.4, 0.2, 0.8]),
+      });
       expect(a.map((o) => o.candidate)).toEqual(b.map((o) => o.candidate));
     });
   });
@@ -240,11 +279,16 @@ describe('banditModel', () => {
     it('deserialize falls back to cold start for empty/null rows', () => {
       expect(deserializeModel(null)).toEqual(defaultModel());
       expect(deserializeModel({})).toEqual(defaultModel());
-      expect(deserializeModel({ weights: {} } as Parameters<typeof deserializeModel>[0])).not.toBeNull();
+      expect(
+        deserializeModel({ weights: {} } as Parameters<typeof deserializeModel>[0]),
+      ).not.toBeNull();
     });
 
     it('deserialize backfills missing features from a legacy row', () => {
-      const legacy = { weights: { color: 0.8, __bias: 0.1 }, feature_meta: { version: MODEL_VERSION, updates: 3 } };
+      const legacy = {
+        weights: { color: 0.8, __bias: 0.1 },
+        feature_meta: { version: MODEL_VERSION, updates: 3 },
+      };
       const m = deserializeModel(legacy);
       expect(m.params.weights.color).toBe(0.8);
       expect(m.params.weights.weather).toBe(FEATURE_WEIGHTS.weather);

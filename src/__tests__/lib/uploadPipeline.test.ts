@@ -5,7 +5,9 @@ const mockUpload = vi.fn();
 const mockGetPublicUrl = vi.fn();
 const mockRemove = vi.fn();
 const mockRowInsertSelect = vi.fn();
-const mockRowInsert = vi.fn((_rows: Array<Record<string, unknown>>) => ({ select: mockRowInsertSelect }));
+const mockRowInsert = vi.fn((_rows: Array<Record<string, unknown>>) => ({
+  select: mockRowInsertSelect,
+}));
 
 vi.mock('@/lib/supabaseClient', () => ({
   supabase: {

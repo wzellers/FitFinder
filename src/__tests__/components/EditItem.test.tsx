@@ -31,31 +31,23 @@ beforeEach(() => {
 
 describe('EditItem', () => {
   it('does not render when isOpen is false', () => {
-    renderWithProviders(
-      <EditItem isOpen={false} onClose={vi.fn()} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={false} onClose={vi.fn()} item={item} />);
     expect(screen.queryByText('Edit Item')).toBeNull();
   });
 
   it('renders when isOpen is true', () => {
-    renderWithProviders(
-      <EditItem isOpen={true} onClose={vi.fn()} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     expect(screen.getByText('Edit Item')).toBeTruthy();
   });
 
   it('initializes with item type and color', () => {
-    renderWithProviders(
-      <EditItem isOpen={true} onClose={vi.fn()} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     // Should show "Selected: blue" text
     expect(screen.getByText(/Selected: blue/)).toBeTruthy();
   });
 
   it('shows ConfirmDialog when delete button is clicked', () => {
-    renderWithProviders(
-      <EditItem isOpen={true} onClose={vi.fn()} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     // Click the trash icon button (only button with btn-danger class)
     const dangerBtn = document.querySelector('.btn-danger');
     if (dangerBtn) fireEvent.click(dangerBtn);
@@ -63,9 +55,7 @@ describe('EditItem', () => {
   });
 
   it('cancels delete when ConfirmDialog cancel is clicked', () => {
-    renderWithProviders(
-      <EditItem isOpen={true} onClose={vi.fn()} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     const dangerBtn = document.querySelector('.btn-danger');
     if (dangerBtn) fireEvent.click(dangerBtn);
     fireEvent.click(screen.getByText('Cancel'));
@@ -88,9 +78,7 @@ describe('EditItem', () => {
   });
 
   it('Reset button restores original type selection', () => {
-    renderWithProviders(
-      <EditItem isOpen={true} onClose={vi.fn()} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     // Change color
     const blackBtn = screen.getByTitle('black');
     fireEvent.click(blackBtn);
@@ -102,9 +90,7 @@ describe('EditItem', () => {
 
   it('calls onClose when overlay is clicked', () => {
     const onClose = vi.fn();
-    renderWithProviders(
-      <EditItem isOpen={true} onClose={onClose} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={true} onClose={onClose} item={item} />);
     const overlay = document.querySelector('.modal-overlay');
     if (overlay) fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalled();
@@ -119,9 +105,7 @@ describe('EditItem', () => {
   });
 
   it('does not render image-editing controls', () => {
-    renderWithProviders(
-      <EditItem isOpen={true} onClose={vi.fn()} item={item} />,
-    );
+    renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     expect(screen.queryByText('New photo')).toBeNull();
     expect(screen.queryByText('Adjust / crop')).toBeNull();
     expect(screen.queryByText('Revert to original')).toBeNull();

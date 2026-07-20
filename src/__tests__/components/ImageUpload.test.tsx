@@ -44,43 +44,36 @@ import ImageUpload from '@/components/ImageUpload';
 
 describe('ImageUpload', () => {
   it('does not render when isOpen is false', () => {
-    renderWithProviders(
-      <ImageUpload isOpen={false} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<ImageUpload isOpen={false} onClose={vi.fn()} />);
     expect(screen.queryByText(/Upload/i)).toBeNull();
   });
 
   it('renders upload step when isOpen is true', () => {
-    renderWithProviders(
-      <ImageUpload isOpen={true} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<ImageUpload isOpen={true} onClose={vi.fn()} />);
     expect(screen.getByText(/Upload/i)).toBeTruthy();
   });
 
   it('shows file input for uploading', () => {
-    renderWithProviders(
-      <ImageUpload isOpen={true} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<ImageUpload isOpen={true} onClose={vi.fn()} />);
     // File input or upload area should be present
     const fileInput = document.querySelector('input[type="file"]');
-    const uploadArea = screen.queryByText(/drag/i) ?? screen.queryByText(/click/i) ?? screen.queryAllByRole('button')[0];
+    const uploadArea =
+      screen.queryByText(/drag/i) ??
+      screen.queryByText(/click/i) ??
+      screen.queryAllByRole('button')[0];
     expect(fileInput ?? uploadArea).toBeTruthy();
   });
 
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn();
-    renderWithProviders(
-      <ImageUpload isOpen={true} onClose={onClose} />,
-    );
+    renderWithProviders(<ImageUpload isOpen={true} onClose={onClose} />);
     const closeBtn = document.querySelector('.btn-ghost');
     if (closeBtn) fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalled();
   });
 
   it('opens the cropper when "Adjust / crop" is clicked in the review stage', async () => {
-    renderWithProviders(
-      <ImageUpload isOpen={true} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<ImageUpload isOpen={true} onClose={vi.fn()} />);
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['x'], 'shirt.png', { type: 'image/png' });
     fireEvent.change(fileInput, { target: { files: [file] } });

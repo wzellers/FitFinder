@@ -23,7 +23,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid image format' }, { status: 400 });
     }
 
-    const mediaType = `image/${base64Match[1]}` as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+    const mediaType = `image/${base64Match[1]}` as
+      'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
     const base64Data = base64Match[2];
 
     const client = new Anthropic({ apiKey });
@@ -65,7 +66,11 @@ Pick the single best match for type and the dominant color. For secondaryColor, 
         ? parsed.secondaryColor
         : null;
 
-    return NextResponse.json({ type: detectedType, color: detectedColor, secondaryColor: detectedSecondary });
+    return NextResponse.json({
+      type: detectedType,
+      color: detectedColor,
+      secondaryColor: detectedSecondary,
+    });
   } catch (err) {
     console.error('Clothing detection error:', err);
     return NextResponse.json({ error: 'Detection failed' }, { status: 500 });

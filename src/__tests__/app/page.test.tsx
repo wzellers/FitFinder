@@ -7,7 +7,9 @@ vi.mock('@/components/Closet', () => ({
   default: vi.fn(() => <div data-testid="closet">Closet Content</div>),
 }));
 vi.mock('@/components/OutfitGenerator', () => ({
-  default: vi.fn(({ onNavigateToCalendar }: { onNavigateToCalendar?: () => void }) => <div data-testid="generator">Generator Content</div>),
+  default: vi.fn(({ onNavigateToCalendar }: { onNavigateToCalendar?: () => void }) => (
+    <div data-testid="generator">Generator Content</div>
+  )),
 }));
 vi.mock('@/components/OutfitCalendar', () => ({
   default: vi.fn(() => <div data-testid="calendar">Calendar Content</div>),
@@ -114,7 +116,8 @@ describe('Page — Auth State', () => {
   it('shows skeleton while checking auth', () => {
     mockUseAuth.mockReturnValue({ user: undefined, signOut: vi.fn() });
     renderWithProviders(<Page />);
-    const hasContent = screen.queryByTestId('skeleton-fullscreen') ?? screen.queryByTestId('auth-form');
+    const hasContent =
+      screen.queryByTestId('skeleton-fullscreen') ?? screen.queryByTestId('auth-form');
     expect(hasContent).toBeTruthy();
   });
 });
@@ -295,8 +298,11 @@ describe('Page — Onboarding', () => {
     fireEvent.click(screen.getByText('Complete Onboarding'));
 
     // Should now show the main app
-    await waitFor(() => {
-      expect(screen.queryAllByText('Closet').length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText('Closet').length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 });

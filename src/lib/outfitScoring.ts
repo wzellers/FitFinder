@@ -48,11 +48,11 @@ export interface ScoringContext {
 // ============================================================================
 
 export const FEATURE_WEIGHTS = {
-  color: 0.30,
+  color: 0.3,
   weather: 0.25,
-  variety: 0.20,
+  variety: 0.2,
   occasion: 0.15,
-  rating: 0.10,
+  rating: 0.1,
 } as const;
 
 // Number of recent days over which repetition is penalized.
@@ -62,7 +62,11 @@ const RECENCY_WINDOW_DAYS = 14;
 // HELPERS
 // ============================================================================
 
-function pairMatchesLiked(topColor: string, bottomColor: string, liked: ColorCombination[]): boolean {
+function pairMatchesLiked(
+  topColor: string,
+  bottomColor: string,
+  liked: ColorCombination[],
+): boolean {
   return liked.some(
     (c) =>
       (c.topColor.toLowerCase() === topColor && c.bottomColor.toLowerCase() === bottomColor) ||
@@ -145,7 +149,10 @@ function occasionFeature(
   if (!rule) return 0.5;
   const score = (allowed: string[], item: ClothingItem) => (allowed.includes(item.type) ? 1 : 0);
   return (
-    (score(rule.tops, outfit.top) + score(rule.bottoms, outfit.bottom) + score(rule.shoes, outfit.shoes)) / 3
+    (score(rule.tops, outfit.top) +
+      score(rule.bottoms, outfit.bottom) +
+      score(rule.shoes, outfit.shoes)) /
+    3
   );
 }
 
@@ -282,13 +289,12 @@ export function generateScoredOutfits(
     top: c.top,
     bottom: c.bottom,
     shoes: c.shoes,
-    score: (
+    score:
       FEATURE_WEIGHTS.color * c.features.color +
       FEATURE_WEIGHTS.weather * c.features.weather +
       FEATURE_WEIGHTS.variety * c.features.variety +
       FEATURE_WEIGHTS.occasion * c.features.occasion +
-      FEATURE_WEIGHTS.rating * c.features.rating
-    ),
+      FEATURE_WEIGHTS.rating * c.features.rating,
   }));
 
   // Sort by score (descending) and return the top `count`. Ties are broken by a

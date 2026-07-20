@@ -39,7 +39,19 @@ function makeNeverChainable() {
   // Returns a chainable object where every method returns itself,
   // and awaiting it (via .then) never resolves — so loading stays true.
   const obj: Record<string, unknown> = {};
-  const chainMethods = ['eq', 'gte', 'lte', 'order', 'limit', 'not', 'is', 'in', 'neq', 'maybeSingle', 'single'];
+  const chainMethods = [
+    'eq',
+    'gte',
+    'lte',
+    'order',
+    'limit',
+    'not',
+    'is',
+    'in',
+    'neq',
+    'maybeSingle',
+    'single',
+  ];
   chainMethods.forEach((m) => {
     obj[m] = vi.fn(() => obj);
   });
@@ -60,16 +72,22 @@ describe('WardrobeStats', () => {
 
   it('renders stat cards after loading', async () => {
     renderWithProviders(<WardrobeStats />);
-    await waitFor(() => {
-      expect(screen.getByText('Wardrobe Statistics')).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Wardrobe Statistics')).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows time period toggle buttons', async () => {
     renderWithProviders(<WardrobeStats />);
-    await waitFor(() => {
-      expect(screen.getByText('Week')).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Week')).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
     expect(screen.getByText('Month')).toBeTruthy();
     expect(screen.getByText('All Time')).toBeTruthy();
   });

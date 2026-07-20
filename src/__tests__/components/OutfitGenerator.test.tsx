@@ -61,16 +61,22 @@ describe('OutfitGenerator', () => {
 
   it('renders the Generator tab', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.queryByText(/Loading/)).toBeNull();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Loading/)).toBeNull();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows the Generate button', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.getByText(/Generate/)).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Generate/)).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('clicking Generate triggers outfit generation', async () => {
@@ -82,38 +88,53 @@ describe('OutfitGenerator', () => {
 
   it('shows Saved tab button', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.queryAllByText(/Saved/).length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText(/Saved/).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows Weather section heading', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.getByText('Weather')).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Weather')).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows Actions section heading', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.getByText('Actions')).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Actions')).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows Save Outfit and Wear Today action buttons', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.getByText('Save Outfit')).toBeTruthy();
-      expect(screen.getByText('Wear Today')).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('Save Outfit')).toBeTruthy();
+        expect(screen.getByText('Wear Today')).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows View Calendar button', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.getByText('View Calendar')).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText('View Calendar')).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('View Calendar button calls onNavigateToCalendar', async () => {
@@ -130,16 +151,22 @@ describe('OutfitGenerator', () => {
     const savedBtns = screen.queryAllByText(/Saved/);
     if (savedBtns.length > 0) {
       fireEvent.click(savedBtns[0]);
-      await waitFor(() => {
-        expect(screen.queryAllByText(/No saved outfits|saved/i).length).toBeGreaterThan(0);
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.queryAllByText(/No saved outfits|saved/i).length).toBeGreaterThan(0);
+        },
+        { timeout: 3000 },
+      );
     }
   });
 
   it('shows zip code prompt when no weather data', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => {
-      expect(screen.getByText(/zip code/i)).toBeTruthy();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/zip code/i)).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
   });
 });

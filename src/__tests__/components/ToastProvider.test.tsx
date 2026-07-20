@@ -3,7 +3,11 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import ToastProvider, { useToast } from '@/components/ToastProvider';
 import React from 'react';
 
-function TestComponent({ onMount }: { onMount: (showToast: ReturnType<typeof useToast>['showToast']) => void }) {
+function TestComponent({
+  onMount,
+}: {
+  onMount: (showToast: ReturnType<typeof useToast>['showToast']) => void;
+}) {
   const { showToast } = useToast();
   React.useEffect(() => {
     onMount(showToast);
@@ -29,10 +33,16 @@ describe('ToastProvider', () => {
     let show: ReturnType<typeof useToast>['showToast'];
     render(
       <ToastProvider>
-        <TestComponent onMount={(fn) => { show = fn; }} />
+        <TestComponent
+          onMount={(fn) => {
+            show = fn;
+          }}
+        />
       </ToastProvider>,
     );
-    act(() => { show('Test message'); });
+    act(() => {
+      show('Test message');
+    });
     expect(screen.getByText('Test message')).toBeTruthy();
   });
 
@@ -40,10 +50,16 @@ describe('ToastProvider', () => {
     let show: ReturnType<typeof useToast>['showToast'];
     render(
       <ToastProvider>
-        <TestComponent onMount={(fn) => { show = fn; }} />
+        <TestComponent
+          onMount={(fn) => {
+            show = fn;
+          }}
+        />
       </ToastProvider>,
     );
-    act(() => { show('Success!', 'success'); });
+    act(() => {
+      show('Success!', 'success');
+    });
     const toast = screen.getByText('Success!');
     expect(toast.className).toContain('bg-green-600');
   });
@@ -52,10 +68,16 @@ describe('ToastProvider', () => {
     let show: ReturnType<typeof useToast>['showToast'];
     render(
       <ToastProvider>
-        <TestComponent onMount={(fn) => { show = fn; }} />
+        <TestComponent
+          onMount={(fn) => {
+            show = fn;
+          }}
+        />
       </ToastProvider>,
     );
-    act(() => { show('Error!', 'error'); });
+    act(() => {
+      show('Error!', 'error');
+    });
     const toast = screen.getByText('Error!');
     expect(toast.className).toContain('bg-red-600');
   });
@@ -64,10 +86,16 @@ describe('ToastProvider', () => {
     let show: ReturnType<typeof useToast>['showToast'];
     render(
       <ToastProvider>
-        <TestComponent onMount={(fn) => { show = fn; }} />
+        <TestComponent
+          onMount={(fn) => {
+            show = fn;
+          }}
+        />
       </ToastProvider>,
     );
-    act(() => { show('Warning!', 'warning'); });
+    act(() => {
+      show('Warning!', 'warning');
+    });
     const toast = screen.getByText('Warning!');
     expect(toast.className).toContain('bg-amber-500');
   });
@@ -76,10 +104,16 @@ describe('ToastProvider', () => {
     let show: ReturnType<typeof useToast>['showToast'];
     render(
       <ToastProvider>
-        <TestComponent onMount={(fn) => { show = fn; }} />
+        <TestComponent
+          onMount={(fn) => {
+            show = fn;
+          }}
+        />
       </ToastProvider>,
     );
-    act(() => { show('Click me', 'info', 0); });
+    act(() => {
+      show('Click me', 'info', 0);
+    });
     const toast = screen.getByText('Click me');
     fireEvent.click(toast);
     expect(screen.queryByText('Click me')).toBeNull();
@@ -89,12 +123,20 @@ describe('ToastProvider', () => {
     let show: ReturnType<typeof useToast>['showToast'];
     render(
       <ToastProvider>
-        <TestComponent onMount={(fn) => { show = fn; }} />
+        <TestComponent
+          onMount={(fn) => {
+            show = fn;
+          }}
+        />
       </ToastProvider>,
     );
-    act(() => { show('Auto dismiss', 'info', 1000); });
+    act(() => {
+      show('Auto dismiss', 'info', 1000);
+    });
     expect(screen.getByText('Auto dismiss')).toBeTruthy();
-    act(() => { vi.advanceTimersByTime(1100); });
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
     expect(screen.queryByText('Auto dismiss')).toBeNull();
   });
 
@@ -102,7 +144,11 @@ describe('ToastProvider', () => {
     let show: ReturnType<typeof useToast>['showToast'];
     render(
       <ToastProvider>
-        <TestComponent onMount={(fn) => { show = fn; }} />
+        <TestComponent
+          onMount={(fn) => {
+            show = fn;
+          }}
+        />
       </ToastProvider>,
     );
     act(() => {

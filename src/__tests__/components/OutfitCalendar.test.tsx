@@ -43,11 +43,14 @@ beforeEach(() => {
 describe('OutfitCalendar', () => {
   it('renders the calendar month view', async () => {
     renderWithProviders(<OutfitCalendar />);
-    await waitFor(() => {
-      // Should show day headers
-      const dayHeaders = screen.queryAllByText(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/);
-      expect(dayHeaders.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        // Should show day headers
+        const dayHeaders = screen.queryAllByText(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/);
+        expect(dayHeaders.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows loading skeleton initially', () => {
@@ -65,10 +68,13 @@ describe('OutfitCalendar', () => {
 
   it('renders navigation arrows', async () => {
     renderWithProviders(<OutfitCalendar />);
-    await waitFor(() => {
-      const navBtns = document.querySelectorAll('.btn-ghost');
-      expect(navBtns.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        const navBtns = document.querySelectorAll('.btn-ghost');
+        expect(navBtns.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('navigates to previous month when clicking prev button', async () => {

@@ -11,7 +11,9 @@ export function getColorStyle(color: string): { backgroundColor: string } {
 export function getColorName(color: string): string {
   if (!color) return 'None';
   const lower = color.toLowerCase();
-  return colorNameMap[lower] ?? colorNameMap[color] ?? (color.charAt(0).toUpperCase() + color.slice(1));
+  return (
+    colorNameMap[lower] ?? colorNameMap[color] ?? color.charAt(0).toUpperCase() + color.slice(1)
+  );
 }
 
 /** Returns appropriate text color (black / white) for contrast on a bg color */

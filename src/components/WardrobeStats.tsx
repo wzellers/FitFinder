@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -58,7 +58,11 @@ export default function WardrobeStats() {
       const [{ data: itemsData }, { data: wearsData }] = await Promise.all([
         supabase.from('clothing_items').select('*').eq('user_id', user.id),
         startDate
-          ? supabase.from('outfit_wears').select('*').eq('user_id', user.id).gte('worn_date', startDate)
+          ? supabase
+              .from('outfit_wears')
+              .select('*')
+              .eq('user_id', user.id)
+              .gte('worn_date', startDate)
           : supabase.from('outfit_wears').select('*').eq('user_id', user.id),
       ]);
       setItems(itemsData || []);
@@ -70,12 +74,16 @@ export default function WardrobeStats() {
     }
   }, [user, timePeriod]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const stats = useMemo((): Stats => {
     const itemsByCategory: Record<string, number> = {};
     sectionNames.forEach((section) => {
-      itemsByCategory[section] = items.filter((item) => typeToSection[item.type] === section).length;
+      itemsByCategory[section] = items.filter(
+        (item) => typeToSection[item.type] === section,
+      ).length;
     });
 
     const dirtyItems = items.filter((item) => item.is_dirty).length;
@@ -84,9 +92,18 @@ export default function WardrobeStats() {
     const wearCounts: Record<string, number> = {};
     const wornItemIds = new Set<string>();
     outfitWears.forEach((wear) => {
-      if (wear.top_id) { wearCounts[wear.top_id] = (wearCounts[wear.top_id] || 0) + 1; wornItemIds.add(wear.top_id); }
-      if (wear.bottom_id) { wearCounts[wear.bottom_id] = (wearCounts[wear.bottom_id] || 0) + 1; wornItemIds.add(wear.bottom_id); }
-      if (wear.shoes_id) { wearCounts[wear.shoes_id] = (wearCounts[wear.shoes_id] || 0) + 1; wornItemIds.add(wear.shoes_id); }
+      if (wear.top_id) {
+        wearCounts[wear.top_id] = (wearCounts[wear.top_id] || 0) + 1;
+        wornItemIds.add(wear.top_id);
+      }
+      if (wear.bottom_id) {
+        wearCounts[wear.bottom_id] = (wearCounts[wear.bottom_id] || 0) + 1;
+        wornItemIds.add(wear.bottom_id);
+      }
+      if (wear.shoes_id) {
+        wearCounts[wear.shoes_id] = (wearCounts[wear.shoes_id] || 0) + 1;
+        wornItemIds.add(wear.shoes_id);
+      }
     });
 
     const closetUtilization = items.length > 0 ? (wornItemIds.size / items.length) * 100 : 0;
@@ -115,9 +132,10 @@ export default function WardrobeStats() {
       .sort((a, b) => b.count - a.count);
 
     const ratedOutfits = outfitWears.filter((w) => w.rating != null);
-    const avgRating = ratedOutfits.length > 0
-      ? ratedOutfits.reduce((sum, w) => sum + (w.rating || 0), 0) / ratedOutfits.length
-      : 0;
+    const avgRating =
+      ratedOutfits.length > 0
+        ? ratedOutfits.reduce((sum, w) => sum + (w.rating || 0), 0) / ratedOutfits.length
+        : 0;
 
     const topRatedOutfits = [...outfitWears]
       .filter((w) => w.rating != null)
@@ -127,13 +145,29 @@ export default function WardrobeStats() {
     let avgDaysBetweenRepeat = 0;
     if (outfitWears.length > 1) {
       const outfitStrings = outfitWears.map((w) => `${w.top_id}-${w.bottom_id}-${w.shoes_id}`);
-      const repeatOccurrences = outfitStrings.filter((str, idx) => outfitStrings.indexOf(str) !== idx);
-      avgDaysBetweenRepeat = repeatOccurrences.length > 0
-        ? Math.round(outfitWears.length / repeatOccurrences.length)
-        : 0;
+      const repeatOccurrences = outfitStrings.filter(
+        (str, idx) => outfitStrings.indexOf(str) !== idx,
+      );
+      avgDaysBetweenRepeat =
+        repeatOccurrences.length > 0
+          ? Math.round(outfitWears.length / repeatOccurrences.length)
+          : 0;
     }
 
-    return { totalItems: items.length, totalWears: outfitWears.length, itemsByCategory, dirtyItems, cleanItems, mostWornItems, leastWornItems, colorDistribution, avgRating, topRatedOutfits, avgDaysBetweenRepeat, closetUtilization };
+    return {
+      totalItems: items.length,
+      totalWears: outfitWears.length,
+      itemsByCategory,
+      dirtyItems,
+      cleanItems,
+      mostWornItems,
+      leastWornItems,
+      colorDistribution,
+      avgRating,
+      topRatedOutfits,
+      avgDaysBetweenRepeat,
+      closetUtilization,
+    };
   }, [items, outfitWears]);
 
   const getItemImage = (itemId: string | undefined): string | null => {
@@ -208,10 +242,14 @@ export default function WardrobeStats() {
                 <div className="flex-1 h-5 bg-[var(--muted)] rounded overflow-hidden">
                   <div
                     className="h-full bg-[var(--accent)] rounded transition-all duration-300"
-                    style={{ width: `${stats.totalItems > 0 ? (stats.itemsByCategory[section] / stats.totalItems) * 100 : 0}%` }}
+                    style={{
+                      width: `${stats.totalItems > 0 ? (stats.itemsByCategory[section] / stats.totalItems) * 100 : 0}%`,
+                    }}
                   />
                 </div>
-                <span className="text-xs text-[var(--text-secondary)] w-6 text-right">{stats.itemsByCategory[section]}</span>
+                <span className="text-xs text-[var(--text-secondary)] w-6 text-right">
+                  {stats.itemsByCategory[section]}
+                </span>
               </div>
             ))}
           </div>
@@ -221,13 +259,19 @@ export default function WardrobeStats() {
         <div className="card p-5">
           <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Most Worn Items</h3>
           {stats.mostWornItems.length === 0 ? (
-            <div className="text-center text-[var(--text-secondary)] text-xs py-4">No wear data yet</div>
+            <div className="text-center text-[var(--text-secondary)] text-xs py-4">
+              No wear data yet
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {stats.mostWornItems.map((wc, idx) => (
                 <div key={wc.itemId} className="flex items-center gap-3">
                   <span className="text-xs font-bold text-[var(--accent)] w-5">#{idx + 1}</span>
-                  <img src={wc.item.image_url} alt={wc.item.type} className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]" />
+                  <img
+                    src={wc.item.image_url}
+                    alt={wc.item.type}
+                    className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-[var(--text)] truncate">{wc.item.type}</div>
                     <div className="text-xs text-[var(--text-secondary)]">{wc.count} times</div>
@@ -259,8 +303,18 @@ export default function WardrobeStats() {
         <div className="card p-5">
           <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Closet Utilization</h3>
           <div className="text-center mb-3">
-            <div className="text-3xl font-bold text-[var(--accent)]">{Math.round(stats.closetUtilization)}%</div>
-            <div className="text-xs text-[var(--text-secondary)]">of items worn ({timePeriod === 'week' ? 'this week' : timePeriod === 'month' ? 'this month' : 'all time'})</div>
+            <div className="text-3xl font-bold text-[var(--accent)]">
+              {Math.round(stats.closetUtilization)}%
+            </div>
+            <div className="text-xs text-[var(--text-secondary)]">
+              of items worn (
+              {timePeriod === 'week'
+                ? 'this week'
+                : timePeriod === 'month'
+                  ? 'this month'
+                  : 'all time'}
+              )
+            </div>
           </div>
           <div className="h-3 bg-[var(--muted)] rounded-full overflow-hidden">
             <div
@@ -274,15 +328,23 @@ export default function WardrobeStats() {
         <div className="card p-5">
           <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Neglected Items</h3>
           {stats.leastWornItems.length === 0 ? (
-            <div className="text-center text-[var(--text-secondary)] text-xs py-4">Add items to see stats</div>
+            <div className="text-center text-[var(--text-secondary)] text-xs py-4">
+              Add items to see stats
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {stats.leastWornItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-3">
-                  <img src={item.image_url} alt={item.type} className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]" />
+                  <img
+                    src={item.image_url}
+                    alt={item.type}
+                    className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-[var(--text)] truncate">{item.type}</div>
-                    <div className={`text-xs ${item.wearCount === 0 ? 'text-amber-500' : 'text-[var(--text-secondary)]'}`}>
+                    <div
+                      className={`text-xs ${item.wearCount === 0 ? 'text-amber-500' : 'text-[var(--text-secondary)]'}`}
+                    >
                       {item.wearCount === 0 ? 'Never worn' : `${item.wearCount} times`}
                     </div>
                   </div>
@@ -296,11 +358,16 @@ export default function WardrobeStats() {
         <div className="card p-5">
           <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Color Distribution</h3>
           {stats.colorDistribution.length === 0 ? (
-            <div className="text-center text-[var(--text-secondary)] text-xs py-4">No color data</div>
+            <div className="text-center text-[var(--text-secondary)] text-xs py-4">
+              No color data
+            </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {stats.colorDistribution.slice(0, 10).map(({ color, count }) => (
-                <div key={color} className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--muted)] rounded-full text-xs">
+                <div
+                  key={color}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--muted)] rounded-full text-xs"
+                >
                   <div
                     className="w-3 h-3 rounded-full border border-[var(--border)]"
                     style={{ backgroundColor: getColorStyle(color).backgroundColor }}
@@ -324,7 +391,9 @@ export default function WardrobeStats() {
               <div className="text-xs text-[var(--text-secondary)]">Avg Rating (1-10)</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--accent)]">{stats.topRatedOutfits.length}</div>
+              <div className="text-2xl font-bold text-[var(--accent)]">
+                {stats.topRatedOutfits.length}
+              </div>
               <div className="text-xs text-[var(--text-secondary)]">Rated Outfits</div>
             </div>
           </div>
@@ -334,12 +403,20 @@ export default function WardrobeStats() {
               <h4 className="text-xs font-medium text-[var(--text)] mb-2">Top Rated:</h4>
               <div className="flex flex-col gap-2">
                 {stats.topRatedOutfits.slice(0, 3).map((outfit) => (
-                  <div key={outfit.id} className="flex items-center gap-2 p-2 bg-[var(--muted)] rounded-lg">
+                  <div
+                    key={outfit.id}
+                    className="flex items-center gap-2 p-2 bg-[var(--muted)] rounded-lg"
+                  >
                     <div className="flex gap-0.5">
                       {[outfit.top_id, outfit.bottom_id].map((id, idx) => {
                         const imgUrl = getItemImage(id);
                         return imgUrl ? (
-                          <img key={idx} src={imgUrl} alt="" className="w-6 h-6 rounded object-cover" />
+                          <img
+                            key={idx}
+                            src={imgUrl}
+                            alt=""
+                            className="w-6 h-6 rounded object-cover"
+                          />
                         ) : null;
                       })}
                     </div>

@@ -1,10 +1,7 @@
 import { Page, Browser } from '@playwright/test';
 import path from 'path';
 
-export const STORAGE_STATE_PATH = path.resolve(
-  __dirname,
-  '../.auth-state.json',
-);
+export const STORAGE_STATE_PATH = path.resolve(__dirname, '../.auth-state.json');
 
 /** Sign in via the UI and save storage state for reuse across test files. */
 export async function loginAndSave(browser: Browser): Promise<void> {
@@ -30,7 +27,7 @@ export async function loginAndSave(browser: Browser): Promise<void> {
 /** Sign into the app via the AuthForm UI. */
 export async function signIn(page: Page, email: string, password: string): Promise<void> {
   // If already on a logged-in page, nothing to do
-  if (await page.locator('text=Sign Out').count() > 0) return;
+  if ((await page.locator('text=Sign Out').count()) > 0) return;
 
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
@@ -40,7 +37,7 @@ export async function signIn(page: Page, email: string, password: string): Promi
 /** Sign out via the Sign Out button. */
 export async function signOut(page: Page): Promise<void> {
   const signOutBtn = page.locator('button:has-text("Sign Out")').first();
-  if (await signOutBtn.count() > 0) {
+  if ((await signOutBtn.count()) > 0) {
     await signOutBtn.click();
   }
 }

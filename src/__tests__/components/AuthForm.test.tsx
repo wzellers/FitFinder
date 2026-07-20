@@ -80,7 +80,11 @@ describe('AuthForm', () => {
 
   it('disables button while loading', async () => {
     let resolveSignIn: (v: unknown) => void;
-    mockSignIn.mockReturnValueOnce(new Promise((r) => { resolveSignIn = r; }));
+    mockSignIn.mockReturnValueOnce(
+      new Promise((r) => {
+        resolveSignIn = r;
+      }),
+    );
     renderWithProviders(<AuthForm />);
     fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'x@x.com' } });
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'pass' } });

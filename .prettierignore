@@ -1,0 +1,9 @@
+.next/
+out/
+dist/
+coverage/
+node_modules/
+package-lock.json
+next-env.d.ts
+tsconfig.tsbuildinfo
+public/fonts/

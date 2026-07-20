@@ -58,7 +58,10 @@ describe('getUserClothingWeatherRules', () => {
 
   it('merges user overrides with defaults', () => {
     const override = {
-      'T-Shirt': { blockedIn: ['cold', 'cool'] as TemperatureCategory[], suggestedIn: ['hot'] as TemperatureCategory[] },
+      'T-Shirt': {
+        blockedIn: ['cold', 'cool'] as TemperatureCategory[],
+        suggestedIn: ['hot'] as TemperatureCategory[],
+      },
     };
     const result = getUserClothingWeatherRules(override);
     expect(result['T-Shirt'].blockedIn).toContain('cool');
@@ -67,7 +70,12 @@ describe('getUserClothingWeatherRules', () => {
   });
 
   it('partial override does not erase other defaults', () => {
-    const override = { 'Shorts': { blockedIn: [] as TemperatureCategory[], suggestedIn: ['hot', 'warm', 'cool'] as TemperatureCategory[] } };
+    const override = {
+      Shorts: {
+        blockedIn: [] as TemperatureCategory[],
+        suggestedIn: ['hot', 'warm', 'cool'] as TemperatureCategory[],
+      },
+    };
     const result = getUserClothingWeatherRules(override);
     expect(result['Tank Top']).toEqual(clothingWeatherRules['Tank Top']);
   });

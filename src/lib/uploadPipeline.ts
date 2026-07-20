@@ -135,10 +135,7 @@ function mergeColors(
  * parallel; either may come back empty, in which case the user fills it in.
  */
 export async function detectItem(blob: Blob): Promise<ItemSuggestions> {
-  const [localColors, detected] = await Promise.all([
-    detectColors(blob),
-    tryDetectType(blob),
-  ]);
+  const [localColors, detected] = await Promise.all([detectColors(blob), tryDetectType(blob)]);
 
   const suggestedColors = mergeColors(localColors, detected);
   const suggestedType = detected.type;

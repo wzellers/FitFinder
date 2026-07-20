@@ -58,12 +58,7 @@ describe('ConfirmDialog', () => {
   it('calls onConfirm when confirm button clicked', () => {
     const onConfirm = vi.fn();
     render(
-      <ConfirmDialog
-        isOpen={true}
-        message="Confirm?"
-        onConfirm={onConfirm}
-        onCancel={vi.fn()}
-      />,
+      <ConfirmDialog isOpen={true} message="Confirm?" onConfirm={onConfirm} onCancel={vi.fn()} />,
     );
     fireEvent.click(screen.getByText('Confirm'));
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -72,12 +67,7 @@ describe('ConfirmDialog', () => {
   it('calls onCancel when cancel button clicked', () => {
     const onCancel = vi.fn();
     render(
-      <ConfirmDialog
-        isOpen={true}
-        message="Confirm?"
-        onConfirm={vi.fn()}
-        onCancel={onCancel}
-      />,
+      <ConfirmDialog isOpen={true} message="Confirm?" onConfirm={vi.fn()} onCancel={onCancel} />,
     );
     fireEvent.click(screen.getByText('Cancel'));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -86,27 +76,19 @@ describe('ConfirmDialog', () => {
   it('calls onCancel when overlay is clicked', () => {
     const onCancel = vi.fn();
     render(
-      <ConfirmDialog
-        isOpen={true}
-        message="Confirm?"
-        onConfirm={vi.fn()}
-        onCancel={onCancel}
-      />,
+      <ConfirmDialog isOpen={true} message="Confirm?" onConfirm={vi.fn()} onCancel={onCancel} />,
     );
     // Click the overlay (first div = modal-overlay)
-    const overlay = screen.getByText('Confirm?').closest('.modal-overlay') ?? document.querySelector('.modal-overlay');
+    const overlay =
+      screen.getByText('Confirm?').closest('.modal-overlay') ??
+      document.querySelector('.modal-overlay');
     if (overlay) fireEvent.click(overlay);
     expect(onCancel).toHaveBeenCalled();
   });
 
   it('applies btn-danger class for danger variant (default)', () => {
     render(
-      <ConfirmDialog
-        isOpen={true}
-        message="Delete?"
-        onConfirm={vi.fn()}
-        onCancel={vi.fn()}
-      />,
+      <ConfirmDialog isOpen={true} message="Delete?" onConfirm={vi.fn()} onCancel={vi.fn()} />,
     );
     const confirmBtn = screen.getByText('Confirm');
     expect(confirmBtn.className).toContain('btn-danger');

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useRef } from 'react';
 import { X, Upload, Loader2, Eraser, Check, AlertCircle, Crop, RotateCcw } from 'lucide-react';
@@ -229,10 +229,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
     setUploading(false);
 
     if (failed === 0) {
-      showToast(
-        succeeded === 1 ? 'Item uploaded!' : `Uploaded ${succeeded} items`,
-        'success',
-      );
+      showToast(succeeded === 1 ? 'Item uploaded!' : `Uploaded ${succeeded} items`, 'success');
       resetForm();
       setTimeout(onClose, 800);
     } else {
@@ -309,9 +306,9 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
               <Upload size={16} /> Upload Photos
             </button>
             <p className="text-xs text-[var(--text-secondary)] text-center">
-              Pick one photo or several at once. We&apos;ll detect the type and colors
-              automatically — you can remove the background and fix anything before saving.
-              You can also add more items one at a time on the next screen.
+              Pick one photo or several at once. We&apos;ll detect the type and colors automatically
+              — you can remove the background and fix anything before saving. You can also add more
+              items one at a time on the next screen.
             </p>
           </div>
         )}
@@ -361,8 +358,8 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
             {incompleteCount > 0 && (
               <p className="flex items-center justify-center gap-1.5 text-sm text-red-600 mb-3">
                 <AlertCircle size={14} />
-                {incompleteCount} {incompleteCount === 1 ? 'item needs' : 'items need'} a type
-                and primary color (highlighted in red).
+                {incompleteCount} {incompleteCount === 1 ? 'item needs' : 'items need'} a type and
+                primary color (highlighted in red).
               </p>
             )}
 
@@ -394,17 +391,18 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
         )}
 
         {/* Crop overlay (renders above the modal content). */}
-        {cropDraftId && (() => {
-          const d = drafts.find((x) => x.id === cropDraftId);
-          if (!d) return null;
-          return (
-            <ImageCropper
-              imageSrc={d.previewUrl}
-              onCancel={() => setCropDraftId(null)}
-              onCropComplete={(blob) => handleCropApplied(cropDraftId, blob)}
-            />
-          );
-        })()}
+        {cropDraftId &&
+          (() => {
+            const d = drafts.find((x) => x.id === cropDraftId);
+            if (!d) return null;
+            return (
+              <ImageCropper
+                imageSrc={d.previewUrl}
+                onCancel={() => setCropDraftId(null)}
+                onCropComplete={(blob) => handleCropApplied(cropDraftId, blob)}
+              />
+            );
+          })()}
       </div>
     </div>
   );
@@ -469,11 +467,17 @@ function BgRemoveButton({
       className={`btn-secondary ${compact ? 'text-[10px] px-2 py-1' : 'text-xs'} flex items-center gap-1 disabled:opacity-50`}
     >
       {draft.removingBg ? (
-        <><Loader2 size={12} className="animate-spin" /> Removing…</>
+        <>
+          <Loader2 size={12} className="animate-spin" /> Removing…
+        </>
       ) : draft.bgRemoved ? (
-        <><Eraser size={12} /> Removed</>
+        <>
+          <Eraser size={12} /> Removed
+        </>
       ) : (
-        <><Eraser size={12} /> Remove background</>
+        <>
+          <Eraser size={12} /> Remove background
+        </>
       )}
     </button>
   );
@@ -513,7 +517,9 @@ function ColorPalette({
   invalid?: boolean;
   onSelect: (color: string) => void;
 }) {
-  const baseBorder = invalid ? 'border-red-400 hover:border-red-500' : 'border-gray-200 hover:border-gray-400';
+  const baseBorder = invalid
+    ? 'border-red-400 hover:border-red-500'
+    : 'border-gray-200 hover:border-gray-400';
   return (
     <div
       className={`grid grid-cols-8 gap-2 justify-center mx-auto w-fit ${
@@ -573,7 +579,9 @@ function TypeSelects({
         >
           <option value="">Select type...</option>
           {clothingTypes[draft.category]?.map((type) => (
-            <option key={type} value={type}>{type}</option>
+            <option key={type} value={type}>
+              {type}
+            </option>
           ))}
         </select>
       )}
@@ -620,19 +628,32 @@ function DraftDetail({
 
       {/* Category / type */}
       <div className="flex flex-col items-center gap-3 mb-5">
-        <label className={`text-sm font-medium flex items-center gap-2 ${invalidType ? 'text-red-600' : 'text-[var(--text)]'}`}>
+        <label
+          className={`text-sm font-medium flex items-center gap-2 ${invalidType ? 'text-red-600' : 'text-[var(--text)]'}`}
+        >
           Item Type {invalidType && '(required)'}
           {draft.detecting && <Loader2 size={12} className="animate-spin text-[var(--accent)]" />}
         </label>
-        <TypeSelects draft={draft} invalid={invalidType} onCategoryChange={onCategoryChange} onTypeChange={onTypeChange} />
+        <TypeSelects
+          draft={draft}
+          invalid={invalidType}
+          onCategoryChange={onCategoryChange}
+          onTypeChange={onTypeChange}
+        />
       </div>
 
       {/* Primary color */}
       <div className="mb-5">
-        <label className={`text-sm font-medium block text-center mb-2 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}>
+        <label
+          className={`text-sm font-medium block text-center mb-2 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}
+        >
           Primary color {invalidColor && '(required)'}
         </label>
-        <ColorPalette selected={draft.primaryColor} invalid={invalidColor} onSelect={onPrimarySelect} />
+        <ColorPalette
+          selected={draft.primaryColor}
+          invalid={invalidColor}
+          onSelect={onPrimarySelect}
+        />
         {draft.primaryColor && (
           <p className="text-center text-xs text-[var(--text-secondary)] mt-2 capitalize">
             Selected: {draft.primaryColor}
@@ -653,7 +674,9 @@ function DraftDetail({
         />
         <div className="flex items-center justify-center gap-3 mt-2">
           {draft.secondaryColor ? (
-            <p className="text-xs text-[var(--text-secondary)] capitalize">Selected: {draft.secondaryColor}</p>
+            <p className="text-xs text-[var(--text-secondary)] capitalize">
+              Selected: {draft.secondaryColor}
+            </p>
           ) : (
             <p className="text-xs text-[var(--text-secondary)]">No secondary color</p>
           )}
@@ -724,15 +747,26 @@ function DraftCard({
 
       {/* Category / type */}
       <div className="flex flex-col items-center gap-2 mb-3">
-        <TypeSelects draft={draft} invalid={invalidType} onCategoryChange={onCategoryChange} onTypeChange={onTypeChange} />
+        <TypeSelects
+          draft={draft}
+          invalid={invalidType}
+          onCategoryChange={onCategoryChange}
+          onTypeChange={onTypeChange}
+        />
       </div>
 
       {/* Primary color */}
       <div className="mb-3">
-        <label className={`text-xs font-medium block text-center mb-1 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}>
+        <label
+          className={`text-xs font-medium block text-center mb-1 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}
+        >
           Primary {invalidColor && '(required)'}
         </label>
-        <ColorPalette selected={draft.primaryColor} invalid={invalidColor} onSelect={onPrimarySelect} />
+        <ColorPalette
+          selected={draft.primaryColor}
+          invalid={invalidColor}
+          onSelect={onPrimarySelect}
+        />
       </div>
 
       {/* Secondary color */}

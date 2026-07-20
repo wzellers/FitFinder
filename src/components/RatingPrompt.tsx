@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Minus } from 'lucide-react';
@@ -13,7 +13,12 @@ interface RatingPromptProps {
   onMinimize: () => void;
 }
 
-export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimize }: RatingPromptProps) {
+export default function RatingPrompt({
+  pendingRating,
+  onSubmit,
+  onSkip,
+  onMinimize,
+}: RatingPromptProps) {
   const { user } = useAuth();
   const [rating, setRating] = useState<number>(5);
   const [items, setItems] = useState<ClothingItem[]>([]);
@@ -28,7 +33,10 @@ export default function RatingPrompt({ pendingRating, onSubmit, onSkip, onMinimi
         pendingRating.outfit_items.shoes_id,
       ].filter(Boolean) as string[];
 
-      if (itemIds.length === 0) { setLoading(false); return; }
+      if (itemIds.length === 0) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const { data } = await supabase.from('clothing_items').select('*').in('id', itemIds);

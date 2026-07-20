@@ -76,9 +76,10 @@ export function normalizeModel(loaded: Partial<BanditModel> | null | undefined):
     const v = loaded.params.weights?.[name];
     if (typeof v === 'number' && Number.isFinite(v)) weights[name] = v;
   }
-  const bias = typeof loaded.params.bias === 'number' && Number.isFinite(loaded.params.bias)
-    ? loaded.params.bias
-    : base.params.bias;
+  const bias =
+    typeof loaded.params.bias === 'number' && Number.isFinite(loaded.params.bias)
+      ? loaded.params.bias
+      : base.params.bias;
   return {
     params: { weights, bias },
     meta: {

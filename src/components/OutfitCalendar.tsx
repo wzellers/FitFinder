@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
@@ -55,7 +55,10 @@ export default function OutfitCalendar() {
       calEnd.setDate(calEnd.getDate() + (6 - endOfMonth.getDay()));
 
       const [{ data: wearsData }, { data: itemsData }, { data: savedData }] = await Promise.all([
-        supabase.from('outfit_wears').select('*').eq('user_id', user.id)
+        supabase
+          .from('outfit_wears')
+          .select('*')
+          .eq('user_id', user.id)
           .gte('worn_date', calStart.toISOString().split('T')[0])
           .lte('worn_date', calEnd.toISOString().split('T')[0]),
         supabase.from('clothing_items').select('*').eq('user_id', user.id),
@@ -71,12 +74,15 @@ export default function OutfitCalendar() {
     }
   }, [user, currentDate, showToast]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const first = new Date(year, month, 1);
     const last = new Date(year, month + 1, 0);
     const days: DayData[] = [];
@@ -84,22 +90,42 @@ export default function OutfitCalendar() {
     const prev = new Date(year, month, 0);
     for (let i = first.getDay() - 1; i >= 0; i--) {
       const d = new Date(year, month - 1, prev.getDate() - i);
-      days.push({ date: d, dayOfMonth: d.getDate(), isCurrentMonth: false, isToday: false, outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null });
+      days.push({
+        date: d,
+        dayOfMonth: d.getDate(),
+        isCurrentMonth: false,
+        isToday: false,
+        outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null,
+      });
     }
     for (let day = 1; day <= last.getDate(); day++) {
       const d = new Date(year, month, day);
-      days.push({ date: d, dayOfMonth: day, isCurrentMonth: true, isToday: d.getTime() === today.getTime(), outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null });
+      days.push({
+        date: d,
+        dayOfMonth: day,
+        isCurrentMonth: true,
+        isToday: d.getTime() === today.getTime(),
+        outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null,
+      });
     }
     const rem = 42 - days.length;
     for (let i = 1; i <= rem; i++) {
       const d = new Date(year, month + 1, i);
-      days.push({ date: d, dayOfMonth: i, isCurrentMonth: false, isToday: false, outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null });
+      days.push({
+        date: d,
+        dayOfMonth: i,
+        isCurrentMonth: false,
+        isToday: false,
+        outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null,
+      });
     }
     setCalendarDays(days);
   }, [currentDate, outfitWears]);
 
-  const getItemImage = (id: string | undefined) => id ? items.find((i) => i.id === id)?.image_url ?? null : null;
-  const getItemsBySection = (section: string) => items.filter((i) => typeToSection[i.type] === section && !i.is_dirty);
+  const getItemImage = (id: string | undefined) =>
+    id ? (items.find((i) => i.id === id)?.image_url ?? null) : null;
+  const getItemsBySection = (section: string) =>
+    items.filter((i) => typeToSection[i.type] === section && !i.is_dirty);
 
   const handleDayClick = (day: DayData) => {
     setSelectedDate(day.date);
@@ -117,17 +143,32 @@ export default function OutfitCalendar() {
     setShowLogModal(true);
   };
 
-  const resetForm = () => { setLogMode('custom'); setSelectedSavedOutfit(''); setSelectedTop(''); setSelectedBottom(''); setSelectedShoes(''); setNotes(''); setRating(0); };
+  const resetForm = () => {
+    setLogMode('custom');
+    setSelectedSavedOutfit('');
+    setSelectedTop('');
+    setSelectedBottom('');
+    setSelectedShoes('');
+    setNotes('');
+    setRating(0);
+  };
 
   const handleSavedOutfitSelect = (id: string) => {
     setSelectedSavedOutfit(id);
     const o = savedOutfits.find((s) => s.id === id);
-    if (o) { setSelectedTop(o.outfit_items.top_id || ''); setSelectedBottom(o.outfit_items.bottom_id); setSelectedShoes(o.outfit_items.shoes_id); }
+    if (o) {
+      setSelectedTop(o.outfit_items.top_id || '');
+      setSelectedBottom(o.outfit_items.bottom_id);
+      setSelectedShoes(o.outfit_items.shoes_id);
+    }
   };
 
   const handleSave = async () => {
     if (!user || !selectedDate) return;
-    if (!selectedTop && !selectedBottom && !selectedShoes) { showToast('Select at least one item', 'warning'); return; }
+    if (!selectedTop && !selectedBottom && !selectedShoes) {
+      showToast('Select at least one item', 'warning');
+      return;
+    }
     const dateStr = selectedDate.toISOString().split('T')[0];
     try {
       const payload = {
@@ -141,7 +182,9 @@ export default function OutfitCalendar() {
       if (selectedOutfitWear) {
         await supabase.from('outfit_wears').update(payload).eq('id', selectedOutfitWear.id);
       } else {
-        await supabase.from('outfit_wears').insert({ user_id: user.id, worn_date: dateStr, ...payload });
+        await supabase
+          .from('outfit_wears')
+          .insert({ user_id: user.id, worn_date: dateStr, ...payload });
       }
       setShowLogModal(false);
       loadData();
@@ -163,11 +206,32 @@ export default function OutfitCalendar() {
     loadData();
   };
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Star rating component
-  const StarRating = ({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) => (
+  const StarRating = ({
+    value,
+    onChange,
+    label,
+  }: {
+    value: number;
+    onChange: (v: number) => void;
+    label: string;
+  }) => (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium text-[var(--text)]">{label}</label>
       <div className="flex gap-1">
@@ -182,9 +246,7 @@ export default function OutfitCalendar() {
             <Star
               size={18}
               className={`transition-colors ${
-                n <= value
-                  ? 'text-amber-400 fill-amber-400'
-                  : 'text-gray-300'
+                n <= value ? 'text-amber-400 fill-amber-400' : 'text-gray-300'
               }`}
             />
           </button>
@@ -202,18 +264,41 @@ export default function OutfitCalendar() {
     <div className="w-full max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="btn-ghost p-2"><ChevronLeft size={18} /></button>
+        <button
+          onClick={() =>
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+          }
+          className="btn-ghost p-2"
+        >
+          <ChevronLeft size={18} />
+        </button>
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-[var(--text)]">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
-          <button onClick={() => setCurrentDate(new Date())} className="btn-secondary text-xs">Today</button>
+          <h2 className="text-lg font-semibold text-[var(--text)]">
+            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+          </h2>
+          <button onClick={() => setCurrentDate(new Date())} className="btn-secondary text-xs">
+            Today
+          </button>
         </div>
-        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="btn-ghost p-2"><ChevronRight size={18} /></button>
+        <button
+          onClick={() =>
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+          }
+          className="btn-ghost p-2"
+        >
+          <ChevronRight size={18} />
+        </button>
       </div>
 
       {/* Grid */}
       <div className="grid grid-cols-7 gap-[2px] bg-[var(--border)] rounded-xl overflow-hidden border border-[var(--border)]">
         {dayNames.map((d) => (
-          <div key={d} className="bg-[var(--muted)] text-center text-xs font-medium text-[var(--text-secondary)] py-2">{d}</div>
+          <div
+            key={d}
+            className="bg-[var(--muted)] text-center text-xs font-medium text-[var(--text-secondary)] py-2"
+          >
+            {d}
+          </div>
         ))}
         {calendarDays.map((day, idx) => (
           <button
@@ -223,19 +308,29 @@ export default function OutfitCalendar() {
               !day.isCurrentMonth ? 'opacity-40' : ''
             } ${day.isToday ? 'ring-2 ring-inset ring-[var(--accent)]' : ''}`}
           >
-            <span className={`text-xs font-medium ${day.isToday ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>{day.dayOfMonth}</span>
+            <span
+              className={`text-xs font-medium ${day.isToday ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}
+            >
+              {day.dayOfMonth}
+            </span>
             {day.outfit ? (
               <div className="flex flex-col gap-0.5 mt-auto">
                 <div className="flex gap-0.5 flex-wrap">
-                  {[day.outfit.top_id, day.outfit.bottom_id, day.outfit.shoes_id].filter(Boolean).map((id, i) => {
-                    const url = getItemImage(id);
-                    return url ? <img key={i} src={url} alt="" className="w-10 h-10 rounded object-cover" /> : null;
-                  })}
+                  {[day.outfit.top_id, day.outfit.bottom_id, day.outfit.shoes_id]
+                    .filter(Boolean)
+                    .map((id, i) => {
+                      const url = getItemImage(id);
+                      return url ? (
+                        <img key={i} src={url} alt="" className="w-10 h-10 rounded object-cover" />
+                      ) : null;
+                    })}
                 </div>
                 {day.outfit.rating != null && (
                   <div className="flex items-center gap-0.5">
                     <Star size={10} className="text-amber-500 fill-amber-500" />
-                    <span className="text-[10px] text-amber-600 font-medium">{day.outfit.rating}</span>
+                    <span className="text-[10px] text-amber-600 font-medium">
+                      {day.outfit.rating}
+                    </span>
                   </div>
                 )}
               </div>
@@ -253,26 +348,64 @@ export default function OutfitCalendar() {
       {/* Log Modal */}
       {showLogModal && selectedDate && (
         <div className="modal-overlay" onClick={() => setShowLogModal(false)}>
-          <div className="card p-6 w-[95vw] max-w-3xl max-h-[90vh] overflow-auto relative" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="card p-6 w-[95vw] max-w-3xl max-h-[90vh] overflow-auto relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-5">
               <h3 className="text-lg font-semibold text-[var(--text)]">
-                {selectedOutfitWear ? 'Edit' : 'Log'} Outfit — {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {selectedOutfitWear ? 'Edit' : 'Log'} Outfit —{' '}
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
               </h3>
-              <button onClick={() => setShowLogModal(false)} className="btn-ghost p-1 text-lg">&times;</button>
+              <button onClick={() => setShowLogModal(false)} className="btn-ghost p-1 text-lg">
+                &times;
+              </button>
             </div>
 
             {/* Mode toggle */}
             <div className="flex gap-2 mb-5">
-              <button onClick={() => { setLogMode('custom'); resetForm(); }} className={logMode === 'custom' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'}>Pick Items</button>
-              <button onClick={() => setLogMode('saved')} className={logMode === 'saved' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'}>From Saved</button>
+              <button
+                onClick={() => {
+                  setLogMode('custom');
+                  resetForm();
+                }}
+                className={
+                  logMode === 'custom'
+                    ? 'btn-primary text-sm flex-1'
+                    : 'btn-secondary text-sm flex-1'
+                }
+              >
+                Pick Items
+              </button>
+              <button
+                onClick={() => setLogMode('saved')}
+                className={
+                  logMode === 'saved'
+                    ? 'btn-primary text-sm flex-1'
+                    : 'btn-secondary text-sm flex-1'
+                }
+              >
+                From Saved
+              </button>
             </div>
 
             {logMode === 'saved' && (
-              <select value={selectedSavedOutfit} onChange={(e) => handleSavedOutfitSelect(e.target.value)} className="w-full mb-5">
+              <select
+                value={selectedSavedOutfit}
+                onChange={(e) => handleSavedOutfitSelect(e.target.value)}
+                className="w-full mb-5"
+              >
                 <option value="">Select saved outfit...</option>
                 {savedOutfits.map((o, idx) => (
                   <option key={o.id} value={o.id}>
-                    {o.name || (o.created_at ? `Outfit from ${new Date(o.created_at).toLocaleDateString()}` : `Outfit #${idx + 1}`)}
+                    {o.name ||
+                      (o.created_at
+                        ? `Outfit from ${new Date(o.created_at).toLocaleDateString()}`
+                        : `Outfit #${idx + 1}`)}
                   </option>
                 ))}
               </select>
@@ -280,18 +413,32 @@ export default function OutfitCalendar() {
 
             <div className="space-y-5 mb-5">
               {(['Tops', 'Bottoms', 'Shoes'] as const).map((section) => {
-                const val = section === 'Tops' ? selectedTop : section === 'Bottoms' ? selectedBottom : selectedShoes;
-                const setter = section === 'Tops' ? setSelectedTop : section === 'Bottoms' ? setSelectedBottom : setSelectedShoes;
+                const val =
+                  section === 'Tops'
+                    ? selectedTop
+                    : section === 'Bottoms'
+                      ? selectedBottom
+                      : selectedShoes;
+                const setter =
+                  section === 'Tops'
+                    ? setSelectedTop
+                    : section === 'Bottoms'
+                      ? setSelectedBottom
+                      : setSelectedShoes;
                 const sectionItems = getItemsBySection(section);
                 return (
                   <div key={section}>
-                    <label className="text-sm font-medium text-[var(--text)] mb-2 block">{section}</label>
+                    <label className="text-sm font-medium text-[var(--text)] mb-2 block">
+                      {section}
+                    </label>
                     <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-4 max-h-48 overflow-y-auto p-1">
                       {/* None option */}
                       <button
                         onClick={() => setter('')}
                         className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
-                          val === '' ? 'border-[var(--accent)] bg-[var(--accent-light)]' : 'border-gray-300 hover:border-gray-400'
+                          val === ''
+                            ? 'border-[var(--accent)] bg-[var(--accent-light)]'
+                            : 'border-gray-300 hover:border-gray-400'
                         }`}
                       >
                         None
@@ -301,10 +448,16 @@ export default function OutfitCalendar() {
                           key={item.id}
                           onClick={() => setter(item.id)}
                           className={`w-20 h-20 rounded-xl border-2 overflow-hidden bg-white transition-all ${
-                            val === item.id ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]' : 'border-[var(--border)] hover:border-gray-400'
+                            val === item.id
+                              ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
+                              : 'border-[var(--border)] hover:border-gray-400'
                           }`}
                         >
-                          <img src={item.image_url} alt={item.type} className="w-full h-full object-cover" />
+                          <img
+                            src={item.image_url}
+                            alt={item.type}
+                            className="w-full h-full object-cover"
+                          />
                         </button>
                       ))}
                     </div>
@@ -317,7 +470,14 @@ export default function OutfitCalendar() {
             <div className="flex gap-3 justify-center mb-5">
               {[selectedTop, selectedBottom, selectedShoes].filter(Boolean).map((id, i) => {
                 const url = getItemImage(id);
-                return url ? <img key={i} src={url} alt="" className="w-16 h-16 rounded-xl object-cover border border-[var(--border)]" /> : null;
+                return url ? (
+                  <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    className="w-16 h-16 rounded-xl object-cover border border-[var(--border)]"
+                  />
+                ) : null;
               })}
             </div>
 
@@ -326,12 +486,25 @@ export default function OutfitCalendar() {
               <StarRating value={rating} onChange={setRating} label="Outfit Rating" />
             </div>
 
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full mb-5 min-h-[60px]" />
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              className="w-full mb-5 min-h-[60px]"
+            />
 
             <div className="flex gap-2 justify-end">
-              {selectedOutfitWear && <button onClick={requestDelete} className="btn-danger text-sm mr-auto">Delete</button>}
-              <button onClick={() => setShowLogModal(false)} className="btn-secondary text-sm">Cancel</button>
-              <button onClick={handleSave} className="btn-primary text-sm">{selectedOutfitWear ? 'Update' : 'Save'}</button>
+              {selectedOutfitWear && (
+                <button onClick={requestDelete} className="btn-danger text-sm mr-auto">
+                  Delete
+                </button>
+              )}
+              <button onClick={() => setShowLogModal(false)} className="btn-secondary text-sm">
+                Cancel
+              </button>
+              <button onClick={handleSave} className="btn-primary text-sm">
+                {selectedOutfitWear ? 'Update' : 'Save'}
+              </button>
             </div>
           </div>
         </div>

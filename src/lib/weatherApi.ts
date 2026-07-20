@@ -27,7 +27,11 @@ export function getTemperatureCategory(
   temp: number,
   customThresholds?: { cold: number; cool: number; warm: number },
 ): TemperatureCategory {
-  const t = customThresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM };
+  const t = customThresholds ?? {
+    cold: TEMPERATURE_THRESHOLDS.COLD,
+    cool: TEMPERATURE_THRESHOLDS.COOL,
+    warm: TEMPERATURE_THRESHOLDS.WARM,
+  };
   if (temp < t.cold) return 'cold';
   if (temp < t.cool) return 'cool';
   if (temp < t.warm) return 'warm';
@@ -129,18 +133,18 @@ export const clothingWeatherRules: Record<string, ClothingWeatherRules> = {
   'Tank Top': { blockedIn: ['cold', 'cool'], suggestedIn: ['hot'] },
   'T-Shirt': { blockedIn: ['cold'], suggestedIn: ['warm', 'hot'] },
   'Long Sleeve Shirt': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
-  'Polo': { blockedIn: ['cold'], suggestedIn: ['warm'] },
+  Polo: { blockedIn: ['cold'], suggestedIn: ['warm'] },
   'Button-Up Shirt': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
-  'Jacket': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  'Sweatshirt': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  'Crewneck': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  'Sweater': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  'Shorts': { blockedIn: ['cold'], suggestedIn: ['hot', 'warm'] },
-  'Skirt': { blockedIn: ['cold'], suggestedIn: ['warm', 'hot'] },
-  'Jeans': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
-  'Pants': { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
-  'Sweats': { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  'Leggings': { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
+  Jacket: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  Sweatshirt: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  Crewneck: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  Sweater: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  Shorts: { blockedIn: ['cold'], suggestedIn: ['hot', 'warm'] },
+  Skirt: { blockedIn: ['cold'], suggestedIn: ['warm', 'hot'] },
+  Jeans: { blockedIn: [], suggestedIn: ['cool', 'warm'] },
+  Pants: { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
+  Sweats: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
+  Leggings: { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
 };
 
 export function isClothingAppropriateForWeather(

@@ -48,40 +48,58 @@ beforeEach(() => {
 describe('ColorPreferences', () => {
   it('renders without crashing', async () => {
     renderWithProviders(<ColorPreferences />);
-    await waitFor(() => {
-      expect(screen.queryAllByText(/Weather|Colors/).length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText(/Weather|Colors/).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows temperature threshold inputs', async () => {
     renderWithProviders(<ColorPreferences />);
-    await waitFor(() => {
-      expect(screen.queryAllByText(/Cold|Cool|Warm/).length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText(/Cold|Cool|Warm/).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('has Colors and Weather section tabs', async () => {
     renderWithProviders(<ColorPreferences />);
-    await waitFor(() => {
-      expect(screen.queryAllByText(/Colors|Weather/).length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText(/Colors|Weather/).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('shows color combination section when Colors tab is clicked', async () => {
     renderWithProviders(<ColorPreferences />);
-    await waitFor(() => {
-      expect(screen.queryAllByText(/Colors/).length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText(/Colors/).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
     fireEvent.click(screen.queryAllByText(/Colors/)[0]);
-    await waitFor(() => {
-      expect(screen.queryAllByText(/Add Color Combination/).length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText(/Add Color Combination/).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('weather section defaults to no custom rules', async () => {
     renderWithProviders(<ColorPreferences />);
-    await waitFor(() => {
-      expect(screen.queryAllByText(/No custom weather rules set/).length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.queryAllByText(/No custom weather rules set/).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
   });
 });

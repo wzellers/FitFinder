@@ -26,7 +26,9 @@ test.describe('Closet', () => {
 
   test('clicking Add Item opens the upload modal', async ({ page }) => {
     await page.locator('button:has-text("Add Item")').first().click();
-    await expect(page.locator('text=/upload|drag|select/i').first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('text=/upload|drag|select/i').first()).toBeVisible({
+      timeout: 5_000,
+    });
     await page.keyboard.press('Escape');
   });
 
@@ -65,9 +67,11 @@ test.describe('Closet', () => {
 
     // If there were subsections visible, they should be hidden now
     if (wasBefore > 0) {
-      await expect(page.locator('button:has(h2:has-text("Tops")) ~ div >> text=T-Shirt')).not.toBeVisible({ timeout: 3_000 }).catch(() => {
-        // Section might not have T-Shirt items — that's fine
-      });
+      await expect(page.locator('button:has(h2:has-text("Tops")) ~ div >> text=T-Shirt'))
+        .not.toBeVisible({ timeout: 3_000 })
+        .catch(() => {
+          // Section might not have T-Shirt items — that's fine
+        });
     }
 
     // Click again to expand

@@ -1,8 +1,18 @@
 {
+  "name": "fitfinder",
+  "version": "3.0.0",
+  "private": true,
+  "description": "A smart wardrobe app that learns what you like to wear — AI-tagged closet management and adaptive outfit generation.",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -23,6 +33,7 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -33,7 +44,11 @@
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^2.1.9",
     "dotenv": "^17.3.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.15",
+    "eslint-config-prettier": "^9.1.2",
     "jsdom": "^25.0.1",
+    "prettier": "^3.9.5",
     "typescript": "5.8.3",
     "vitest": "^2.1.9"
   }

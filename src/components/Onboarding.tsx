@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { MapPin, Upload, Palette, ChevronRight, Check } from 'lucide-react';
@@ -28,7 +28,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const handleSaveZipCode = async () => {
     if (!user || !zipCode.trim()) return;
     try {
-      await supabase.from('profiles').upsert({ id: user.id, zip_code: zipCode.trim() }, { onConflict: 'id' });
+      await supabase
+        .from('profiles')
+        .upsert({ id: user.id, zip_code: zipCode.trim() }, { onConflict: 'id' });
     } catch {
       // non-critical
     }
@@ -37,7 +39,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const handleFinish = async () => {
     if (!user) return;
     try {
-      await supabase.from('profiles').upsert({ id: user.id, onboarding_completed: true }, { onConflict: 'id' });
+      await supabase
+        .from('profiles')
+        .upsert({ id: user.id, onboarding_completed: true }, { onConflict: 'id' });
     } catch {
       // non-critical
     }
@@ -56,17 +60,25 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       <div className="flex items-center gap-2 mb-8">
         {steps.map(({ key, label, icon: Icon }, idx) => (
           <React.Fragment key={key}>
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              step === key
-                ? 'bg-[var(--accent)] text-white'
-                : steps.findIndex((s) => s.key === step) > idx
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-[var(--muted)] text-[var(--text-secondary)]'
-            }`}>
-              {steps.findIndex((s) => s.key === step) > idx ? <Check size={12} /> : <Icon size={12} />}
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                step === key
+                  ? 'bg-[var(--accent)] text-white'
+                  : steps.findIndex((s) => s.key === step) > idx
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-[var(--muted)] text-[var(--text-secondary)]'
+              }`}
+            >
+              {steps.findIndex((s) => s.key === step) > idx ? (
+                <Check size={12} />
+              ) : (
+                <Icon size={12} />
+              )}
               <span className="hidden sm:inline">{label}</span>
             </div>
-            {idx < steps.length - 1 && <ChevronRight size={14} className="text-[var(--text-secondary)]" />}
+            {idx < steps.length - 1 && (
+              <ChevronRight size={14} className="text-[var(--text-secondary)]" />
+            )}
           </React.Fragment>
         ))}
       </div>
@@ -77,10 +89,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           <div className="text-center">
             <h1 className="text-2xl mb-2">
               <span className="text-[var(--text)] font-semibold">Welcome to </span>
-              <span className="logo">Fit<span className="logo-accent">Finder</span></span>
+              <span className="logo">
+                Fit<span className="logo-accent">Finder</span>
+              </span>
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              Let&apos;s set up your wardrobe. First, enter your zip code to enable weather-aware outfit suggestions.
+              Let&apos;s set up your wardrobe. First, enter your zip code to enable weather-aware
+              outfit suggestions.
             </p>
 
             <div className="flex items-center gap-2 mb-6">
@@ -110,11 +125,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         {/* ===== UPLOAD STEP ===== */}
         {step === 'upload' && (
           <div>
-            <h2 className="text-lg font-semibold text-[var(--text)] mb-1 text-center">Add Your First Items</h2>
+            <h2 className="text-lg font-semibold text-[var(--text)] mb-1 text-center">
+              Add Your First Items
+            </h2>
             <p className="text-xs text-[var(--text-secondary)] text-center mb-5">
               Upload photos of your clothing. You can always add more later.
               {uploadedCount > 0 && (
-                <span className="block mt-1 text-green-600 font-medium">{uploadedCount} item{uploadedCount > 1 ? 's' : ''} added</span>
+                <span className="block mt-1 text-green-600 font-medium">
+                  {uploadedCount} item{uploadedCount > 1 ? 's' : ''} added
+                </span>
               )}
             </p>
 
@@ -124,10 +143,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </button>
             </div>
 
-            <button
-              onClick={() => setStep('preferences')}
-              className="btn-secondary w-full"
-            >
+            <button onClick={() => setStep('preferences')} className="btn-secondary w-full">
               {uploadedCount > 0 ? 'Continue' : 'Skip for Now'} <ChevronRight size={16} />
             </button>
           </div>
@@ -146,7 +162,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 : 'You can add items from the Closet tab anytime.'}
             </p>
             <p className="text-xs text-[var(--text-secondary)] mb-6">
-              Head to Preferences to set your color combinations, then try the Generator to create outfits.
+              Head to Preferences to set your color combinations, then try the Generator to create
+              outfits.
             </p>
 
             <button onClick={handleFinish} className="btn-primary w-full">

@@ -19,7 +19,9 @@ test.describe('Tab Navigation', () => {
   test('all five tabs are visible in navigation', async ({ page }) => {
     // Desktop nav should show all tabs
     for (const tab of ['Closet', 'Generator', 'Calendar', 'Stats', 'Preferences']) {
-      await expect(page.locator(`button:has-text("${tab}")`).first()).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(`button:has-text("${tab}")`).first()).toBeVisible({
+        timeout: 10_000,
+      });
     }
   });
 
@@ -31,11 +33,15 @@ test.describe('Tab Navigation', () => {
   test('can navigate to each tab and see correct content', async ({ page }) => {
     // Generator tab
     await page.locator('button:has-text("Generator")').first().click();
-    await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Calendar tab
     await page.locator('button:has-text("Calendar")').first().click();
-    await expect(page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Stats tab
     await page.locator('button:has-text("Stats")').first().click();
@@ -76,7 +82,9 @@ test.describe('Cross-tab Integration', () => {
 
     // Go to Generator
     await page.locator('button:has-text("Generator")').first().click();
-    await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Back to Closet — should still work
     await page.locator('button:has-text("Closet")').first().click();
@@ -95,7 +103,7 @@ test.describe('Cross-tab Integration', () => {
 
     // Should show outfit or message about needing items
     await expect(
-      page.locator('text=/no items|add some|Top|Bottom|Shoes|No valid/i').first()
+      page.locator('text=/no items|add some|Top|Bottom|Shoes|No valid/i').first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 

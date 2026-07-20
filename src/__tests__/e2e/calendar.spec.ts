@@ -24,14 +24,16 @@ test.describe('Outfit Calendar', () => {
 
   test('shows calendar grid with day headers', async ({ page }) => {
     // Day headers should be visible
-    await expect(
-      page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('shows month/year header with navigation arrows', async ({ page }) => {
     // Navigation arrows (prev/next month) should be visible
-    await expect(page.locator('button[aria-label*="prev"], button[title*="prev"], button svg').first()).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.locator('button[aria-label*="prev"], button[title*="prev"], button svg').first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('can navigate to previous month', async ({ page }) => {
@@ -39,7 +41,10 @@ test.describe('Outfit Calendar', () => {
     const monthText = await page.locator('h2, .section-header').first().textContent();
 
     // Click previous month button (first button with an arrow icon)
-    const prevBtn = page.locator('button').filter({ has: page.locator('svg') }).first();
+    const prevBtn = page
+      .locator('button')
+      .filter({ has: page.locator('svg') })
+      .first();
     await prevBtn.click();
     await page.waitForLoadState('networkidle');
 
@@ -54,18 +59,20 @@ test.describe('Outfit Calendar', () => {
     await page.locator('button:has-text("Closet")').first().click();
     await navigateToCalendar(page);
     // Calendar grid should eventually render
-    await expect(
-      page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=/Sun|Mon|Tue|Wed|Thu|Fri|Sat/').first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('clicking an empty day opens log modal', async ({ page }) => {
     // Find a day cell with a "+" button and click it
     const plusBtn = page.locator('button:has-text("+")').first();
-    if (await plusBtn.count() > 0) {
+    if ((await plusBtn.count()) > 0) {
       await plusBtn.click();
       // The log modal should open
-      await expect(page.locator('text=/Log Outfit|Select/i').first()).toBeVisible({ timeout: 5_000 });
+      await expect(page.locator('text=/Log Outfit|Select/i').first()).toBeVisible({
+        timeout: 5_000,
+      });
       // Close the modal
       await page.keyboard.press('Escape');
     }

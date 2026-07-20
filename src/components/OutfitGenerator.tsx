@@ -1,12 +1,27 @@
-"use client";
+'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Lock, Unlock, Sparkles, Save, CloudSun, CalendarPlus, CloudOff, X, Calendar } from 'lucide-react';
+import {
+  Lock,
+  Unlock,
+  Sparkles,
+  Save,
+  CloudSun,
+  CalendarPlus,
+  CloudOff,
+  X,
+  Calendar,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
-import { fetchWeather, getTemperatureCategory, getWeatherIconUrl, TEMPERATURE_THRESHOLDS } from '@/lib/weatherApi';
+import {
+  fetchWeather,
+  getTemperatureCategory,
+  getWeatherIconUrl,
+  TEMPERATURE_THRESHOLDS,
+} from '@/lib/weatherApi';
 import { buildCandidates, featureVector } from '@/lib/outfitScoring';
 import type { OccasionRules } from '@/lib/outfitScoring';
 import { getUserClothingWeatherRules } from '@/lib/weatherApi';
@@ -23,7 +38,13 @@ import {
 } from '@/lib/banditModel';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { SkeletonOutfitSlots } from '@/components/ui/Skeleton';
-import type { ClothingItem, ColorCombination, SavedOutfit, UserWeatherPreferences, OutfitWear } from '@/lib/types';
+import type {
+  ClothingItem,
+  ColorCombination,
+  SavedOutfit,
+  UserWeatherPreferences,
+  OutfitWear,
+} from '@/lib/types';
 import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
 
 interface OutfitGeneratorProps {
@@ -103,13 +124,35 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         ] = await Promise.all([
           supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
           supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase.from('saved_outfits').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          supabase
+            .from('saved_outfits')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
           supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
           supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase.from('outfit_wears').select('*').eq('user_id', user.id).gte('worn_date', recencyCutoff),
-          supabase.from('outfit_wears').select('*').eq('user_id', user.id).not('rating', 'is', null).order('worn_date', { ascending: false }).limit(100),
-          supabase.from('outfit_model_weights').select('weights, feature_meta').eq('user_id', user.id).maybeSingle(),
-          supabase.from('occasion_preferences').select('rules').eq('user_id', user.id).maybeSingle(),
+          supabase
+            .from('outfit_wears')
+            .select('*')
+            .eq('user_id', user.id)
+            .gte('worn_date', recencyCutoff),
+          supabase
+            .from('outfit_wears')
+            .select('*')
+            .eq('user_id', user.id)
+            .not('rating', 'is', null)
+            .order('worn_date', { ascending: false })
+            .limit(100),
+          supabase
+            .from('outfit_model_weights')
+            .select('weights, feature_meta')
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('occasion_preferences')
+            .select('rules')
+            .eq('user_id', user.id)
+            .maybeSingle(),
         ]);
 
         setItems(itemsData || []);
@@ -120,10 +163,16 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         setModel(deserializeModel(modelData));
         setUserOccasionRules((occPrefsData?.rules ?? null) as OccasionRules | null);
 
-        const userWP: UserWeatherPreferences | null = weatherPrefsData ? {
-          thresholds: weatherPrefsData.thresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM },
-          clothingRules: weatherPrefsData.clothing_rules ?? null,
-        } : null;
+        const userWP: UserWeatherPreferences | null = weatherPrefsData
+          ? {
+              thresholds: weatherPrefsData.thresholds ?? {
+                cold: TEMPERATURE_THRESHOLDS.COLD,
+                cool: TEMPERATURE_THRESHOLDS.COOL,
+                warm: TEMPERATURE_THRESHOLDS.WARM,
+              },
+              clothingRules: weatherPrefsData.clothing_rules ?? null,
+            }
+          : null;
         setUserWeatherPrefs(userWP);
 
         // Fetch weather
@@ -228,7 +277,10 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
   // Save outfit with name
   const openSaveModal = () => {
-    if (!top || !bottom || !shoes || !user) { setError('Cannot save incomplete outfit'); return; }
+    if (!top || !bottom || !shoes || !user) {
+      setError('Cannot save incomplete outfit');
+      return;
+    }
     setPendingSaveName(`Outfit #${savedOutfits.length + 1}`);
     setShowSaveModal(true);
   };
@@ -238,20 +290,28 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     setShowSaveModal(false);
     setLoading(true);
     try {
-      const { error: err } = await supabase.from('saved_outfits').insert({
-        user_id: user.id,
-        name: pendingSaveName.trim() || null,
-        outfit_items: {
-          top_id: top.id,
-          bottom_id: bottom.id,
-          shoes_id: shoes.id,
-        },
-      }).select().single();
+      const { error: err } = await supabase
+        .from('saved_outfits')
+        .insert({
+          user_id: user.id,
+          name: pendingSaveName.trim() || null,
+          outfit_items: {
+            top_id: top.id,
+            bottom_id: bottom.id,
+            shoes_id: shoes.id,
+          },
+        })
+        .select()
+        .single();
       if (err) throw err;
       showToast('Outfit saved!', 'success');
       // Saving signals mild approval — nudge the model toward this outfit.
       void applyReward({ top, bottom, shoes }, SAVED_OUTFIT_REWARD);
-      const { data } = await supabase.from('saved_outfits').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      const { data } = await supabase
+        .from('saved_outfits')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
       setSavedOutfits(data || []);
     } catch {
       showToast('Failed to save outfit', 'error');
@@ -283,7 +343,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         shoes_id: shoes.id,
         occasion,
       });
-      showToast('Logged as today\'s outfit!', 'success');
+      showToast("Logged as today's outfit!", 'success');
     } catch {
       showToast('Failed to log outfit', 'error');
     }
@@ -299,7 +359,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (!user || !pendingDeleteId) return;
     setConfirmOpen(false);
     try {
-      await supabase.from('saved_outfits').delete().eq('id', pendingDeleteId).eq('user_id', user.id);
+      await supabase
+        .from('saved_outfits')
+        .delete()
+        .eq('id', pendingDeleteId)
+        .eq('user_id', user.id);
       setSavedOutfits((prev) => prev.filter((o) => o.id !== pendingDeleteId));
       showToast('Outfit deleted', 'success');
     } catch {
@@ -314,7 +378,9 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     setTop(items.find((i) => i.id === outfit.outfit_items.top_id) ?? null);
     setBottom(items.find((i) => i.id === outfit.outfit_items.bottom_id) ?? null);
     setShoes(items.find((i) => i.id === outfit.outfit_items.shoes_id) ?? null);
-    setLockedTop(false); setLockedBottom(false); setLockedShoes(false);
+    setLockedTop(false);
+    setLockedBottom(false);
+    setLockedShoes(false);
     setActiveTab('generator');
   };
 
@@ -327,9 +393,18 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const handlePickItem = (item: ClothingItem) => {
     if (!pickerSlot) return;
     switch (pickerSlot) {
-      case 'top': setTop(item); setLockedTop(true); break;
-      case 'bottom': setBottom(item); setLockedBottom(true); break;
-      case 'shoes': setShoes(item); setLockedShoes(true); break;
+      case 'top':
+        setTop(item);
+        setLockedTop(true);
+        break;
+      case 'bottom':
+        setBottom(item);
+        setLockedBottom(true);
+        break;
+      case 'shoes':
+        setShoes(item);
+        setLockedShoes(true);
+        break;
     }
     setPickerSlot(null);
   };
@@ -337,16 +412,27 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const hasOutfit = top && bottom && shoes;
 
   // Item slot renderer
-  const ItemSlot = ({ item, label, locked, onToggleLock, onClickSlot }: {
-    item: ClothingItem | null; label: string; locked: boolean;
-    onToggleLock: () => void; onClickSlot: () => void;
+  const ItemSlot = ({
+    item,
+    label,
+    locked,
+    onToggleLock,
+    onClickSlot,
+  }: {
+    item: ClothingItem | null;
+    label: string;
+    locked: boolean;
+    onToggleLock: () => void;
+    onClickSlot: () => void;
   }) => (
     <div className="flex items-center gap-3 w-full">
       <button
         type="button"
         onClick={onClickSlot}
         className={`w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 ${
-          item ? 'retro-cell' : 'rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-[var(--accent)] transition-colors'
+          item
+            ? 'retro-cell'
+            : 'rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-[var(--accent)] transition-colors'
         }`}
         title={`Click to choose ${label.toLowerCase()}`}
       >
@@ -382,14 +468,22 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   return (
     <div className="w-full">
       {/* Error */}
-      {error && <div className="bg-amber-50 text-amber-800 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>}
+      {error && (
+        <div className="bg-amber-50 text-amber-800 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
+      )}
 
       {/* Tab toggle */}
       <div className="flex gap-2 mb-6">
-        <button onClick={() => setActiveTab('generator')} className={activeTab === 'generator' ? 'btn-primary' : 'btn-secondary'}>
+        <button
+          onClick={() => setActiveTab('generator')}
+          className={activeTab === 'generator' ? 'btn-primary' : 'btn-secondary'}
+        >
           Generator
         </button>
-        <button onClick={() => setActiveTab('saved')} className={activeTab === 'saved' ? 'btn-primary' : 'btn-secondary'}>
+        <button
+          onClick={() => setActiveTab('saved')}
+          className={activeTab === 'saved' ? 'btn-primary' : 'btn-secondary'}
+        >
           Saved ({savedOutfits.length})
         </button>
       </div>
@@ -443,31 +537,52 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
             {weather && !weatherLoading && (
               <div className="card p-4 space-y-4">
                 <div className="flex items-center gap-3">
-                  <img src={getWeatherIconUrl(weather.icon)} alt={weather.condition} className="w-14 h-14" />
+                  <img
+                    src={getWeatherIconUrl(weather.icon)}
+                    alt={weather.condition}
+                    className="w-14 h-14"
+                  />
                   <div>
-                    <div className="text-2xl font-bold text-[var(--text)]">{weather.temperature}°F</div>
+                    <div className="text-2xl font-bold text-[var(--text)]">
+                      {weather.temperature}°F
+                    </div>
                     <div className="text-xs text-[var(--text-secondary)]">{weather.condition}</div>
                   </div>
                 </div>
 
                 <div className="text-sm text-[var(--text-secondary)]">
-                  High: <span className="font-medium text-[var(--text)]">{weather.highTemperature}°F</span>
+                  High:{' '}
+                  <span className="font-medium text-[var(--text)]">
+                    {weather.highTemperature}°F
+                  </span>
                 </div>
 
-                <div className={`text-xs font-medium px-3 py-1.5 rounded-full text-center ${
-                  ignoreWeather ? 'opacity-50' : ''
-                } ${
-                  tempCategory === 'cold' ? 'bg-blue-100 text-blue-700' :
-                  tempCategory === 'cool' ? 'bg-sky-100 text-sky-700' :
-                  tempCategory === 'warm' ? 'bg-orange-100 text-orange-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
+                <div
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full text-center ${
+                    ignoreWeather ? 'opacity-50' : ''
+                  } ${
+                    tempCategory === 'cold'
+                      ? 'bg-blue-100 text-blue-700'
+                      : tempCategory === 'cool'
+                        ? 'bg-sky-100 text-sky-700'
+                        : tempCategory === 'warm'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-red-100 text-red-700'
+                  }`}
+                >
                   {(() => {
-                    const t = userWeatherPrefs?.thresholds ?? { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM };
-                    return tempCategory === 'cold' ? `Cold (<${t.cold}°F)` :
-                           tempCategory === 'cool' ? `Cool (${t.cold}-${t.cool}°F)` :
-                           tempCategory === 'warm' ? `Warm (${t.cool}-${t.warm}°F)` :
-                           `Hot (>${t.warm}°F)`;
+                    const t = userWeatherPrefs?.thresholds ?? {
+                      cold: TEMPERATURE_THRESHOLDS.COLD,
+                      cool: TEMPERATURE_THRESHOLDS.COOL,
+                      warm: TEMPERATURE_THRESHOLDS.WARM,
+                    };
+                    return tempCategory === 'cold'
+                      ? `Cold (<${t.cold}°F)`
+                      : tempCategory === 'cool'
+                        ? `Cool (${t.cold}-${t.cool}°F)`
+                        : tempCategory === 'warm'
+                          ? `Warm (${t.cool}-${t.warm}°F)`
+                          : `Hot (>${t.warm}°F)`;
                   })()}
                 </div>
 
@@ -479,7 +594,17 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                       : 'bg-[var(--accent)] text-white border-[var(--accent)]'
                   }`}
                 >
-                  {ignoreWeather ? <><CloudOff size={14} />Weather Off</> : <><CloudSun size={14} />Using Weather</>}
+                  {ignoreWeather ? (
+                    <>
+                      <CloudOff size={14} />
+                      Weather Off
+                    </>
+                  ) : (
+                    <>
+                      <CloudSun size={14} />
+                      Using Weather
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -507,19 +632,29 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     type="button"
                     onClick={onClick}
                     className={`w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 ${
-                      item ? 'retro-cell' : 'rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-[var(--accent)] transition-colors'
+                      item
+                        ? 'retro-cell'
+                        : 'rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-[var(--accent)] transition-colors'
                     }`}
                     title={`Click to choose ${label.toLowerCase()}`}
                   >
                     {item ? (
-                      <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-2" />
+                      <img
+                        src={item.image_url}
+                        alt={item.type}
+                        className="w-full h-full object-contain p-2"
+                      />
                     ) : (
                       <span className="text-sm text-[var(--text-secondary)]">{label}</span>
                     )}
                   </button>
                 ))}
 
-                <button onClick={pickOutfit} disabled={loading} className="btn-primary text-xl px-10 py-4 mt-6">
+                <button
+                  onClick={pickOutfit}
+                  disabled={loading}
+                  className="btn-primary text-xl px-10 py-4 mt-6"
+                >
                   <Sparkles size={20} /> Generate
                 </button>
               </div>
@@ -527,13 +662,33 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
               {/* Labels + locks column */}
               <div className="flex flex-col gap-3">
                 {[
-                  { item: top, label: 'Top', locked: lockedTop, toggle: () => setLockedTop(!lockedTop) },
-                  { item: bottom, label: 'Bottom', locked: lockedBottom, toggle: () => setLockedBottom(!lockedBottom) },
-                  { item: shoes, label: 'Shoes', locked: lockedShoes, toggle: () => setLockedShoes(!lockedShoes) },
+                  {
+                    item: top,
+                    label: 'Top',
+                    locked: lockedTop,
+                    toggle: () => setLockedTop(!lockedTop),
+                  },
+                  {
+                    item: bottom,
+                    label: 'Bottom',
+                    locked: lockedBottom,
+                    toggle: () => setLockedBottom(!lockedBottom),
+                  },
+                  {
+                    item: shoes,
+                    label: 'Shoes',
+                    locked: lockedShoes,
+                    toggle: () => setLockedShoes(!lockedShoes),
+                  },
                 ].map(({ item, label, locked, toggle }) => (
-                  <div key={label} className="flex flex-col items-start gap-1 h-32 sm:h-36 justify-center">
+                  <div
+                    key={label}
+                    className="flex flex-col items-start gap-1 h-32 sm:h-36 justify-center"
+                  >
                     <span className="text-sm font-medium text-[var(--text)]">{label}</span>
-                    <span className="text-xs text-[var(--text-secondary)]">{item ? item.type : '\u00A0'}</span>
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      {item ? item.type : '\u00A0'}
+                    </span>
                     <button
                       onClick={toggle}
                       className={`p-1.5 rounded-md border transition-colors ${locked ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]'}`}
@@ -569,10 +724,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
             <div className="border-t border-[var(--border)] my-2" />
 
-            <button
-              onClick={onNavigateToCalendar}
-              className="btn-ghost w-full"
-            >
+            <button onClick={onNavigateToCalendar} className="btn-ghost w-full">
               <Calendar size={16} /> View Calendar
             </button>
           </div>
@@ -602,16 +754,33 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     </div>
                     {[topItem, bottomItem, shoesItem].map((item, i) =>
                       item ? (
-                        <div key={i} className="w-20 h-20 rounded-lg border border-[var(--border)] bg-white overflow-hidden">
-                          <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-1" />
+                        <div
+                          key={i}
+                          className="w-20 h-20 rounded-lg border border-[var(--border)] bg-white overflow-hidden"
+                        >
+                          <img
+                            src={item.image_url}
+                            alt={item.type}
+                            className="w-full h-full object-contain p-1"
+                          />
                         </div>
                       ) : (
                         <div key={i} className="w-20 h-20 rounded-lg bg-[var(--muted)]" />
                       ),
                     )}
                     <div className="flex gap-2 mt-1">
-                      <button onClick={() => loadSavedOutfit(outfit)} className="btn-primary text-xs py-1 px-2">Load</button>
-                      <button onClick={() => requestDeleteOutfit(outfit.id!)} className="btn-danger text-xs py-1 px-2">Delete</button>
+                      <button
+                        onClick={() => loadSavedOutfit(outfit)}
+                        className="btn-primary text-xs py-1 px-2"
+                      >
+                        Load
+                      </button>
+                      <button
+                        onClick={() => requestDeleteOutfit(outfit.id!)}
+                        className="btn-danger text-xs py-1 px-2"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 );
@@ -634,11 +803,17 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
               placeholder="e.g. Casual Friday"
               className="w-full mb-4"
               autoFocus
-              onKeyDown={(e) => { if (e.key === 'Enter') confirmSaveOutfit(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmSaveOutfit();
+              }}
             />
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowSaveModal(false)} className="btn-secondary text-xs">Cancel</button>
-              <button onClick={confirmSaveOutfit} className="btn-primary text-xs">Save</button>
+              <button onClick={() => setShowSaveModal(false)} className="btn-secondary text-xs">
+                Cancel
+              </button>
+              <button onClick={confirmSaveOutfit} className="btn-primary text-xs">
+                Save
+              </button>
             </div>
           </div>
         </div>
@@ -652,12 +827,17 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
               <h3 className="text-base font-semibold text-[var(--text)]">
                 Choose {pickerSlot.charAt(0).toUpperCase() + pickerSlot.slice(1)}
               </h3>
-              <button onClick={() => setPickerSlot(null)} className="p-1 rounded-md hover:bg-gray-100">
+              <button
+                onClick={() => setPickerSlot(null)}
+                className="p-1 rounded-md hover:bg-gray-100"
+              >
                 <X size={16} />
               </button>
             </div>
             {pickerItems.length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)] text-center py-6">No items in this category.</p>
+              <p className="text-sm text-[var(--text-secondary)] text-center py-6">
+                No items in this category.
+              </p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
                 {pickerItems.map((item) => (
@@ -667,9 +847,15 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     className="flex flex-col items-center gap-1 p-2 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
                   >
                     <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
-                      <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-1" />
+                      <img
+                        src={item.image_url}
+                        alt={item.type}
+                        className="w-full h-full object-contain p-1"
+                      />
                     </div>
-                    <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-center">{item.type}</span>
+                    <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-center">
+                      {item.type}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -686,7 +872,10 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         cancelLabel="Cancel"
         variant="danger"
         onConfirm={confirmDeleteOutfit}
-        onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null); }}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingDeleteId(null);
+        }}
       />
     </div>
   );

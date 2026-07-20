@@ -12,11 +12,17 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/lib/**', 'src/app/api/**', 'src/hooks/**', 'src/components/**', 'src/app/page.tsx'],
+      include: [
+        'src/lib/**',
+        'src/app/api/**',
+        'src/hooks/**',
+        'src/components/**',
+        'src/app/page.tsx',
+      ],
       exclude: [
         'src/lib/supabaseClient.ts',
         'src/app/layout.tsx',
-        'src/components/Onboarding.tsx',  // not in test scope
+        'src/components/Onboarding.tsx', // not in test scope
         'src/__tests__/**',
         '**/*.d.ts',
       ],

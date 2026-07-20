@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { MapPin, Thermometer, RotateCcw, Sun, Palette, Briefcase } from 'lucide-react';
@@ -6,7 +6,12 @@ import ColorCombinationModal from '@/components/ColorCombinationModal';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
-import { colorPalette, occasions, occasionRules as defaultOccasionRules, typeToSection } from '@/lib/constants';
+import {
+  colorPalette,
+  occasions,
+  occasionRules as defaultOccasionRules,
+  typeToSection,
+} from '@/lib/constants';
 import type { Occasion } from '@/lib/constants';
 import { getColorStyle, getColorName, getContrastTextColor } from '@/lib/colorUtils';
 import { clearWeatherCache, TEMPERATURE_THRESHOLDS, clothingWeatherRules } from '@/lib/weatherApi';
@@ -30,15 +35,22 @@ export default function ColorPreferences() {
   const [savingZip, setSavingZip] = useState(false);
 
   // Weather preferences
-  const [thresholds, setThresholds] = useState({ cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM });
+  const [thresholds, setThresholds] = useState({
+    cold: TEMPERATURE_THRESHOLDS.COLD,
+    cool: TEMPERATURE_THRESHOLDS.COOL,
+    warm: TEMPERATURE_THRESHOLDS.WARM,
+  });
   const [activeSection, setActiveSection] = useState<'weather' | 'colors' | 'occasions'>('weather');
-  const [clothingRulesState, setClothingRulesState] = useState<Record<string, ClothingWeatherRules>>({});
+  const [clothingRulesState, setClothingRulesState] = useState<
+    Record<string, ClothingWeatherRules>
+  >({});
   const [savingWeather, setSavingWeather] = useState(false);
 
   // Occasion preferences — valid clothing types per occasion.
   const cloneDefaultOccasionRules = (): OccasionRules =>
     JSON.parse(JSON.stringify(defaultOccasionRules)) as OccasionRules;
-  const [occasionRulesState, setOccasionRulesState] = useState<OccasionRules>(cloneDefaultOccasionRules);
+  const [occasionRulesState, setOccasionRulesState] =
+    useState<OccasionRules>(cloneDefaultOccasionRules);
   const [savingOccasion, setSavingOccasion] = useState(false);
 
   const tempCategories: TemperatureCategory[] = ['cold', 'cool', 'warm', 'hot'];
@@ -57,26 +69,38 @@ export default function ColorPreferences() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [{ data: prefs }, { data: profile }, { data: weatherPrefs }, { data: occasionPrefs }] = await Promise.all([
-        supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
-        supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase.from('occasion_preferences').select('rules').eq('user_id', user.id).maybeSingle(),
-      ]);
+      const [{ data: prefs }, { data: profile }, { data: weatherPrefs }, { data: occasionPrefs }] =
+        await Promise.all([
+          supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+          supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+          supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+          supabase
+            .from('occasion_preferences')
+            .select('rules')
+            .eq('user_id', user.id)
+            .maybeSingle(),
+        ]);
 
       if (prefs) {
-        const liked = (prefs.liked_combinations ?? []).map((c: { topColor: string; bottomColor: string; id?: string }) => ({
-          id: c.id ?? `${c.topColor}-${c.bottomColor}`,
-          topColor: c.topColor,
-          bottomColor: c.bottomColor,
-        }));
+        const liked = (prefs.liked_combinations ?? []).map(
+          (c: { topColor: string; bottomColor: string; id?: string }) => ({
+            id: c.id ?? `${c.topColor}-${c.bottomColor}`,
+            topColor: c.topColor,
+            bottomColor: c.bottomColor,
+          }),
+        );
         setLikedCombinations(liked);
       }
       if (profile?.zip_code) setZipCode(profile.zip_code);
       if (weatherPrefs) {
         if (weatherPrefs.thresholds) setThresholds(weatherPrefs.thresholds);
         if (weatherPrefs.clothing_rules) {
-          setClothingRulesState(JSON.parse(JSON.stringify(weatherPrefs.clothing_rules)) as Record<string, ClothingWeatherRules>);
+          setClothingRulesState(
+            JSON.parse(JSON.stringify(weatherPrefs.clothing_rules)) as Record<
+              string,
+              ClothingWeatherRules
+            >,
+          );
         }
       }
       if (occasionPrefs?.rules) {
@@ -94,7 +118,10 @@ export default function ColorPreferences() {
     const { error } = await supabase.from('color_preferences').upsert(
       {
         user_id: user.id,
-        liked_combinations: nextLiked.map((c) => ({ topColor: c.topColor, bottomColor: c.bottomColor })),
+        liked_combinations: nextLiked.map((c) => ({
+          topColor: c.topColor,
+          bottomColor: c.bottomColor,
+        })),
         disliked_combinations: [],
       },
       { onConflict: 'user_id' },
@@ -145,17 +172,26 @@ export default function ColorPreferences() {
     if (!user) return false;
     const key = normalizedKey(updated);
     const dup = likedCombinations.some((c) => normalizedKey(c) === key && c.id !== updated.id);
-    if (dup) { showToast('This combination already exists', 'warning'); return false; }
+    if (dup) {
+      showToast('This combination already exists', 'warning');
+      return false;
+    }
 
     const nextLiked = likedCombinations.map((c) => (c.id === updated.id ? updated : c));
-    if (!(await persistColorPrefs(nextLiked))) { showToast('Failed to update', 'error'); return false; }
+    if (!(await persistColorPrefs(nextLiked))) {
+      showToast('Failed to update', 'error');
+      return false;
+    }
     setLikedCombinations(nextLiked);
     showToast('Updated', 'success');
     return true;
   };
 
   const handleDeleteCombination = async () => {
-    if (selectedCombination) { await deleteCombination(selectedCombination.id!); return true; }
+    if (selectedCombination) {
+      await deleteCombination(selectedCombination.id!);
+      return true;
+    }
     return false;
   };
 
@@ -183,17 +219,21 @@ export default function ColorPreferences() {
     if (!user) return;
     setSavingWeather(true);
     try {
-      const { error } = await supabase.from('weather_preferences').upsert({
-        user_id: user.id,
-        thresholds,
-        clothing_rules: Object.keys(clothingRulesState).length > 0 ? clothingRulesState : null,
-      }, { onConflict: 'user_id' });
+      const { error } = await supabase.from('weather_preferences').upsert(
+        {
+          user_id: user.id,
+          thresholds,
+          clothing_rules: Object.keys(clothingRulesState).length > 0 ? clothingRulesState : null,
+        },
+        { onConflict: 'user_id' },
+      );
       if (error) throw error;
       showToast('Weather preferences saved', 'success');
     } catch (err) {
-      const msg = err instanceof Error && err.message?.includes('relation')
-        ? 'Weather preferences table not found — run migration 004'
-        : 'Failed to save weather preferences';
+      const msg =
+        err instanceof Error && err.message?.includes('relation')
+          ? 'Weather preferences table not found — run migration 004'
+          : 'Failed to save weather preferences';
       showToast(msg, 'error');
     } finally {
       setSavingWeather(false);
@@ -201,16 +241,27 @@ export default function ColorPreferences() {
   };
 
   const resetWeatherDefaults = async () => {
-    setThresholds({ cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM });
+    setThresholds({
+      cold: TEMPERATURE_THRESHOLDS.COLD,
+      cool: TEMPERATURE_THRESHOLDS.COOL,
+      warm: TEMPERATURE_THRESHOLDS.WARM,
+    });
     setClothingRulesState({});
     if (!user) return;
     setSavingWeather(true);
     try {
-      const { error } = await supabase.from('weather_preferences').upsert({
-        user_id: user.id,
-        thresholds: { cold: TEMPERATURE_THRESHOLDS.COLD, cool: TEMPERATURE_THRESHOLDS.COOL, warm: TEMPERATURE_THRESHOLDS.WARM },
-        clothing_rules: null,
-      }, { onConflict: 'user_id' });
+      const { error } = await supabase.from('weather_preferences').upsert(
+        {
+          user_id: user.id,
+          thresholds: {
+            cold: TEMPERATURE_THRESHOLDS.COLD,
+            cool: TEMPERATURE_THRESHOLDS.COOL,
+            warm: TEMPERATURE_THRESHOLDS.WARM,
+          },
+          clothing_rules: null,
+        },
+        { onConflict: 'user_id' },
+      );
       if (error) throw error;
       showToast('Reset to defaults', 'success');
     } catch {
@@ -291,16 +342,20 @@ export default function ColorPreferences() {
     if (!user) return;
     setSavingOccasion(true);
     try {
-      const { error } = await supabase.from('occasion_preferences').upsert({
-        user_id: user.id,
-        rules: occasionRulesState,
-      }, { onConflict: 'user_id' });
+      const { error } = await supabase.from('occasion_preferences').upsert(
+        {
+          user_id: user.id,
+          rules: occasionRulesState,
+        },
+        { onConflict: 'user_id' },
+      );
       if (error) throw error;
       showToast('Occasion preferences saved', 'success');
     } catch (err) {
-      const msg = err instanceof Error && err.message?.includes('relation')
-        ? 'Occasion preferences table not found — run migration 005'
-        : 'Failed to save occasion preferences';
+      const msg =
+        err instanceof Error && err.message?.includes('relation')
+          ? 'Occasion preferences table not found — run migration 005'
+          : 'Failed to save occasion preferences';
       showToast(msg, 'error');
     } finally {
       setSavingOccasion(false);
@@ -312,10 +367,13 @@ export default function ColorPreferences() {
     if (!user) return;
     setSavingOccasion(true);
     try {
-      const { error } = await supabase.from('occasion_preferences').upsert({
-        user_id: user.id,
-        rules: null,
-      }, { onConflict: 'user_id' });
+      const { error } = await supabase.from('occasion_preferences').upsert(
+        {
+          user_id: user.id,
+          rules: null,
+        },
+        { onConflict: 'user_id' },
+      );
       if (error) throw error;
       showToast('Reset to defaults', 'success');
     } catch {
@@ -365,39 +423,57 @@ export default function ColorPreferences() {
         <div className="flex flex-wrap gap-4 mb-3">
           {(['cold', 'cool', 'warm'] as const).map((key) => (
             <div key={key} className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-[var(--text-secondary)] capitalize">{key} below (&deg;F)</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)] capitalize">
+                {key} below (&deg;F)
+              </label>
               <input
                 type="number"
                 value={thresholds[key]}
-                onChange={(e) => setThresholds((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setThresholds((prev) => ({ ...prev, [key]: Number(e.target.value) }))
+                }
                 className="w-20 text-sm"
               />
             </div>
           ))}
         </div>
         <p className="text-xs text-[var(--text-secondary)] mb-4">
-          Cold: &lt;{thresholds.cold}&deg;F &middot; Cool: {thresholds.cold}&ndash;{thresholds.cool}&deg;F &middot; Warm: {thresholds.cool}&ndash;{thresholds.warm}&deg;F &middot; Hot: &gt;{thresholds.warm}&deg;F
+          Cold: &lt;{thresholds.cold}&deg;F &middot; Cool: {thresholds.cold}&ndash;{thresholds.cool}
+          &deg;F &middot; Warm: {thresholds.cool}&ndash;{thresholds.warm}&deg;F &middot; Hot: &gt;
+          {thresholds.warm}&deg;F
         </p>
       </div>
 
       {/* Clothing Weather Rules */}
       <div className="card p-5 mb-6">
-        <h4 className="text-sm font-semibold text-[var(--text)] mb-2">Clothing Rules per Temperature</h4>
+        <h4 className="text-sm font-semibold text-[var(--text)] mb-2">
+          Clothing Rules per Temperature
+        </h4>
         <p className="text-xs text-[var(--text-secondary)] mb-3">
-          Add clothing types you want to customize weather rules for. Types not listed here will use sensible defaults.
+          Add clothing types you want to customize weather rules for. Types not listed here will use
+          sensible defaults.
         </p>
 
         {/* Add clothing type */}
         {availableTypes.length > 0 && (
           <div className="flex items-center gap-2 mb-4">
             <select
-              onChange={(e) => { if (e.target.value) { addClothingTypeRule(e.target.value); e.target.value = ''; } }}
+              onChange={(e) => {
+                if (e.target.value) {
+                  addClothingTypeRule(e.target.value);
+                  e.target.value = '';
+                }
+              }}
               className="text-sm"
               defaultValue=""
             >
-              <option value="" disabled>Add clothing type...</option>
+              <option value="" disabled>
+                Add clothing type...
+              </option>
               {availableTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
             </select>
           </div>
@@ -406,18 +482,29 @@ export default function ColorPreferences() {
         {customizedTypes.length > 0 && (
           <>
             <p className="text-xs text-[var(--text-secondary)] mb-3 flex items-center gap-1">
-              <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">&#10003;</span>
+              <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">
+                &#10003;
+              </span>
               = allowed in that weather &nbsp;&middot;&nbsp;
-              <span className="inline-block w-4 h-4 rounded bg-red-100 text-red-500 text-center leading-4 text-[10px] font-bold">&#10005;</span>
+              <span className="inline-block w-4 h-4 rounded bg-red-100 text-red-500 text-center leading-4 text-[10px] font-bold">
+                &#10005;
+              </span>
               = blocked
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr>
-                    <th className="text-left py-1.5 pr-4 font-medium text-[var(--text-secondary)]">Type</th>
+                    <th className="text-left py-1.5 pr-4 font-medium text-[var(--text-secondary)]">
+                      Type
+                    </th>
                     {tempCategories.map((cat) => (
-                      <th key={cat} className="text-center py-1.5 px-2 font-medium text-[var(--text-secondary)] capitalize">{cat}</th>
+                      <th
+                        key={cat}
+                        className="text-center py-1.5 px-2 font-medium text-[var(--text-secondary)] capitalize"
+                      >
+                        {cat}
+                      </th>
                     ))}
                     <th className="text-center py-1.5 px-2 font-medium text-[var(--text-secondary)]"></th>
                   </tr>
@@ -467,15 +554,24 @@ export default function ColorPreferences() {
 
         {customizedTypes.length === 0 && (
           <p className="text-sm text-[var(--text-secondary)] italic">
-            No custom weather rules set. Add clothing types above to customize when they can be worn.
+            No custom weather rules set. Add clothing types above to customize when they can be
+            worn.
           </p>
         )}
 
         <div className="flex gap-2 mt-4">
-          <button onClick={saveWeatherPrefs} disabled={savingWeather} className="btn-primary text-xs">
+          <button
+            onClick={saveWeatherPrefs}
+            disabled={savingWeather}
+            className="btn-primary text-xs"
+          >
             {savingWeather ? 'Saving...' : 'Save Weather Rules'}
           </button>
-          <button onClick={resetWeatherDefaults} disabled={savingWeather} className="btn-secondary text-xs flex items-center gap-1">
+          <button
+            onClick={resetWeatherDefaults}
+            disabled={savingWeather}
+            className="btn-secondary text-xs flex items-center gap-1"
+          >
             <RotateCcw size={12} /> Reset to Defaults
           </button>
         </div>
@@ -534,8 +630,12 @@ export default function ColorPreferences() {
             <div
               className="w-20 h-14 rounded-lg border-2 border-gray-300 flex items-center justify-center text-xs font-medium"
               style={{
-                backgroundColor: selectedTopColor ? getColorStyle(selectedTopColor).backgroundColor : '#fff',
-                color: selectedTopColor ? getContrastTextColor(selectedTopColor) : 'var(--text-secondary)',
+                backgroundColor: selectedTopColor
+                  ? getColorStyle(selectedTopColor).backgroundColor
+                  : '#fff',
+                color: selectedTopColor
+                  ? getContrastTextColor(selectedTopColor)
+                  : 'var(--text-secondary)',
               }}
             >
               {selectedTopColor ? getColorName(selectedTopColor) : 'Top'}
@@ -543,8 +643,12 @@ export default function ColorPreferences() {
             <div
               className="w-20 h-14 rounded-lg border-2 border-gray-300 flex items-center justify-center text-xs font-medium"
               style={{
-                backgroundColor: selectedBottomColor ? getColorStyle(selectedBottomColor).backgroundColor : '#fff',
-                color: selectedBottomColor ? getContrastTextColor(selectedBottomColor) : 'var(--text-secondary)',
+                backgroundColor: selectedBottomColor
+                  ? getColorStyle(selectedBottomColor).backgroundColor
+                  : '#fff',
+                color: selectedBottomColor
+                  ? getContrastTextColor(selectedBottomColor)
+                  : 'var(--text-secondary)',
               }}
             >
               {selectedBottomColor ? getColorName(selectedBottomColor) : 'Bottom'}
@@ -569,13 +673,18 @@ export default function ColorPreferences() {
       <section className="mb-6">
         <h2 className="section-header">Liked Combinations</h2>
         {likedCombinations.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)] italic">No liked combinations yet — add some above!</p>
+          <p className="text-sm text-[var(--text-secondary)] italic">
+            No liked combinations yet — add some above!
+          </p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {likedCombinations.map((combo) => (
               <button
                 key={combo.id}
-                onClick={() => { setSelectedCombination(combo); setShowEditModal(true); }}
+                onClick={() => {
+                  setSelectedCombination(combo);
+                  setShowEditModal(true);
+                }}
                 className="w-14 h-14 rounded-lg border-2 border-gray-300 overflow-hidden hover:border-[var(--accent)] hover:scale-105 transition-all"
               >
                 <div className="w-full h-1/2" style={getColorStyle(combo.topColor)} />
@@ -599,9 +708,13 @@ export default function ColorPreferences() {
         Generator, only its allowed types are used.
       </p>
       <p className="text-xs text-[var(--text-secondary)] mb-4 flex items-center gap-1">
-        <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">&#10003;</span>
+        <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">
+          &#10003;
+        </span>
         = allowed &nbsp;&middot;&nbsp;
-        <span className="inline-block w-4 h-4 rounded bg-gray-100 text-gray-400 text-center leading-4 text-[10px] font-bold">&#10005;</span>
+        <span className="inline-block w-4 h-4 rounded bg-gray-100 text-gray-400 text-center leading-4 text-[10px] font-bold">
+          &#10005;
+        </span>
         = not allowed
       </p>
 
@@ -609,9 +722,16 @@ export default function ColorPreferences() {
         <table className="w-full text-xs">
           <thead>
             <tr>
-              <th className="text-left py-1.5 pr-4 font-medium text-[var(--text-secondary)]">Type</th>
+              <th className="text-left py-1.5 pr-4 font-medium text-[var(--text-secondary)]">
+                Type
+              </th>
               {occasions.map((o) => (
-                <th key={o} className="text-center py-1.5 px-2 font-medium text-[var(--text-secondary)]">{o}</th>
+                <th
+                  key={o}
+                  className="text-center py-1.5 px-2 font-medium text-[var(--text-secondary)]"
+                >
+                  {o}
+                </th>
               ))}
             </tr>
           </thead>
@@ -644,10 +764,18 @@ export default function ColorPreferences() {
       </div>
 
       <div className="flex gap-2 mt-4">
-        <button onClick={saveOccasionPrefs} disabled={savingOccasion} className="btn-primary text-xs">
+        <button
+          onClick={saveOccasionPrefs}
+          disabled={savingOccasion}
+          className="btn-primary text-xs"
+        >
           {savingOccasion ? 'Saving...' : 'Save Occasion Rules'}
         </button>
-        <button onClick={resetOccasionDefaults} disabled={savingOccasion} className="btn-secondary text-xs flex items-center gap-1">
+        <button
+          onClick={resetOccasionDefaults}
+          disabled={savingOccasion}
+          className="btn-secondary text-xs flex items-center gap-1"
+        >
           <RotateCcw size={12} /> Reset to Defaults
         </button>
       </div>
@@ -655,9 +783,11 @@ export default function ColorPreferences() {
   );
 
   const sectionContent =
-    activeSection === 'weather' ? weatherContent :
-    activeSection === 'occasions' ? occasionsContent :
-    colorsContent;
+    activeSection === 'weather'
+      ? weatherContent
+      : activeSection === 'occasions'
+        ? occasionsContent
+        : colorsContent;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -700,9 +830,7 @@ export default function ColorPreferences() {
         </nav>
 
         {/* Content panel */}
-        <div className="flex-1 min-w-0">
-          {sectionContent}
-        </div>
+        <div className="flex-1 min-w-0">{sectionContent}</div>
       </div>
 
       <ColorCombinationModal

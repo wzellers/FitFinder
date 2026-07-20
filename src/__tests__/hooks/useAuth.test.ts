@@ -38,7 +38,9 @@ beforeEach(() => {
 
   vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((cb) => {
     authStateCallback = cb as typeof authStateCallback;
-    return { data: { subscription: { unsubscribe: unsubscribeMock } } } as unknown as ReturnType<typeof supabase.auth.onAuthStateChange>;
+    return { data: { subscription: { unsubscribe: unsubscribeMock } } } as unknown as ReturnType<
+      typeof supabase.auth.onAuthStateChange
+    >;
   });
 });
 

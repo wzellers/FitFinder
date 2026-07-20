@@ -4,9 +4,22 @@ import { vi } from 'vitest';
 function makeBuilder(result: { data: unknown; error: unknown } = { data: null, error: null }) {
   const builder: Record<string, unknown> = {};
   const chainMethods = [
-    'select', 'insert', 'update', 'delete', 'upsert',
-    'eq', 'neq', 'gte', 'lte', 'in', 'is', 'not',
-    'limit', 'order', 'filter', 'match',
+    'select',
+    'insert',
+    'update',
+    'delete',
+    'upsert',
+    'eq',
+    'neq',
+    'gte',
+    'lte',
+    'in',
+    'is',
+    'not',
+    'limit',
+    'order',
+    'filter',
+    'match',
   ];
   chainMethods.forEach((m) => {
     builder[m] = vi.fn(() => builder);
@@ -48,15 +61,11 @@ export const mockSupabase = {
     return makeBuilder(result);
   }),
   auth: {
-    getSession: vi.fn(() =>
-      Promise.resolve({ data: { session: null }, error: null }),
-    ),
+    getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
     onAuthStateChange: vi.fn((_cb: unknown) => ({
       data: { subscription: { unsubscribe: vi.fn() } },
     })),
-    signUp: vi.fn(() =>
-      Promise.resolve({ data: { user: null, session: null }, error: null }),
-    ),
+    signUp: vi.fn(() => Promise.resolve({ data: { user: null, session: null }, error: null })),
     signInWithPassword: vi.fn(() =>
       Promise.resolve({ data: { user: null, session: null }, error: null }),
     ),
@@ -65,7 +74,9 @@ export const mockSupabase = {
   storage: {
     from: vi.fn(() => ({
       upload: vi.fn(() => Promise.resolve({ data: { path: 'test/path.jpg' }, error: null })),
-      getPublicUrl: vi.fn(() => ({ data: { publicUrl: 'https://storage.example.com/test/path.jpg' } })),
+      getPublicUrl: vi.fn(() => ({
+        data: { publicUrl: 'https://storage.example.com/test/path.jpg' },
+      })),
     })),
   },
 };

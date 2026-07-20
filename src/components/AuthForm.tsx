@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,7 +20,10 @@ export default function AuthForm() {
     try {
       if (isSignUp) {
         const { data, error } = await signUp(email, password);
-        if (error) { showToast(error.message, 'error'); return; }
+        if (error) {
+          showToast(error.message, 'error');
+          return;
+        }
 
         const newUser = data.user;
         if (!newUser) {
@@ -31,14 +34,20 @@ export default function AuthForm() {
         if (data.session) {
           await supabase
             .from('profiles')
-            .upsert({ id: newUser.id, username: newUser.email, zip_code: null }, { onConflict: 'id' });
+            .upsert(
+              { id: newUser.id, username: newUser.email, zip_code: null },
+              { onConflict: 'id' },
+            );
           showToast('Account created! You are signed in.', 'success');
         } else {
           showToast('Check your email for a confirmation link, then log in.', 'info');
         }
       } else {
         const { error } = await signIn(email, password);
-        if (error) { showToast(error.message, 'error'); return; }
+        if (error) {
+          showToast(error.message, 'error');
+          return;
+        }
       }
     } catch {
       showToast('Something went wrong. Please try again.', 'error');

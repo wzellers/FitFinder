@@ -23,10 +23,7 @@ function baseCtx(overrides: Partial<ScoringContext> = {}): ScoringContext {
 }
 
 // featureVector helper that wires the default weather/occasion rule loaders.
-function featuresFor(
-  outfit: Parameters<typeof featureVector>[0],
-  ctx: ScoringContext,
-) {
+function featuresFor(outfit: Parameters<typeof featureVector>[0], ctx: ScoringContext) {
   return featureVector(
     outfit,
     ctx,
@@ -142,10 +139,7 @@ describe('generateScoredOutfits', () => {
       const tankTop = makeTop({ type: 'Tank Top', colors: ['white'] });
       const bottom = makeBottom();
       const shoes = makeShoes();
-      const results = generateScoredOutfits(
-        [tankTop, bottom, shoes],
-        baseCtx({ weather: 'cold' }),
-      );
+      const results = generateScoredOutfits([tankTop, bottom, shoes], baseCtx({ weather: 'cold' }));
       expect(results).toHaveLength(0);
     });
   });
@@ -157,14 +151,16 @@ describe('generateScoredOutfits', () => {
       const shoes = makeShoes({ id: 'shoes-worn' });
       const freshTop = makeTop({ id: 'top-fresh' });
 
-      const recentWears = [{
-        id: 'w1',
-        user_id: 'u1',
-        worn_date: '2026-02-26',
-        top_id: top.id,
-        bottom_id: bottom.id,
-        shoes_id: shoes.id,
-      }];
+      const recentWears = [
+        {
+          id: 'w1',
+          user_id: 'u1',
+          worn_date: '2026-02-26',
+          top_id: top.id,
+          bottom_id: bottom.id,
+          shoes_id: shoes.id,
+        },
+      ];
 
       const ctxRecent = baseCtx({ recentWears });
       const ctxFresh = baseCtx({ recentWears: [] });
@@ -185,7 +181,11 @@ describe('generateScoredOutfits', () => {
       const bottom = makeBottom({ type: 'Pants' });
       const shoes = makeShoes();
 
-      const results = generateScoredOutfits([tshirt, bottom, shoes], baseCtx({ occasion: 'Work' }), 1);
+      const results = generateScoredOutfits(
+        [tshirt, bottom, shoes],
+        baseCtx({ occasion: 'Work' }),
+        1,
+      );
       expect(results).toHaveLength(0);
     });
 
@@ -195,7 +195,11 @@ describe('generateScoredOutfits', () => {
       const bottom = makeBottom({ type: 'Pants' });
       const shoes = makeShoes();
 
-      const results = generateScoredOutfits([buttonUp, bottom, shoes], baseCtx({ occasion: 'Work' }), 1);
+      const results = generateScoredOutfits(
+        [buttonUp, bottom, shoes],
+        baseCtx({ occasion: 'Work' }),
+        1,
+      );
       expect(results.length).toBeGreaterThan(0);
       expect(results[0].top.type).toBe('Button-Up Shirt');
     });
@@ -206,7 +210,11 @@ describe('generateScoredOutfits', () => {
       const bottom = makeBottom({ type: 'Pants' });
       const shoes = makeShoes();
 
-      const results = generateScoredOutfits([tshirt, bottom, shoes], baseCtx({ occasion: null }), 1);
+      const results = generateScoredOutfits(
+        [tshirt, bottom, shoes],
+        baseCtx({ occasion: null }),
+        1,
+      );
       expect(results.length).toBeGreaterThan(0);
     });
 
@@ -227,15 +235,17 @@ describe('generateScoredOutfits', () => {
       const bottom = makeBottom({ id: 'bottom-rated' });
       const shoes = makeShoes({ id: 'shoes-rated' });
 
-      const ratedOutfits = [{
-        id: 'r1',
-        user_id: 'u1',
-        worn_date: '2026-02-20',
-        top_id: top.id,
-        bottom_id: bottom.id,
-        shoes_id: shoes.id,
-        rating: 9,
-      }];
+      const ratedOutfits = [
+        {
+          id: 'r1',
+          user_id: 'u1',
+          worn_date: '2026-02-20',
+          top_id: top.id,
+          bottom_id: bottom.id,
+          shoes_id: shoes.id,
+          rating: 9,
+        },
+      ];
 
       const ctxHigh = baseCtx({ ratedOutfits });
       const ctxNone = baseCtx({ ratedOutfits: [] });
@@ -278,7 +288,11 @@ describe('generateScoredOutfits', () => {
       const bottom = makeBottom({ type: 'Pants' });
       const shoes = makeShoes();
 
-      const defaultResults = generateScoredOutfits([tshirt, bottom, shoes], baseCtx({ occasion: 'Work' }), 1);
+      const defaultResults = generateScoredOutfits(
+        [tshirt, bottom, shoes],
+        baseCtx({ occasion: 'Work' }),
+        1,
+      );
       const customResults = generateScoredOutfits(
         [tshirt, bottom, shoes],
         baseCtx({ occasion: 'Work', occasionRules: customOccasionRules }),
