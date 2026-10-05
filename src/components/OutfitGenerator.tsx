@@ -1,7 +1,7 @@
 'use client';
 
 import Modal from '@/components/ui/Modal';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Lock,
   Unlock,
@@ -20,6 +20,7 @@ import ClothingImage from '@/components/ui/ClothingImage';
 import PosterHeader from '@/components/ui/PosterHeader';
 import ScrambleText from '@/components/ui/ScrambleText';
 import ColorPairing, { pairingWash } from '@/components/ui/ColorPairing';
+import SlotReel from '@/components/ui/SlotReel';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -207,6 +208,12 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   // Generate outfit — featurize candidates, then let the bandit select via
   // ε-greedy (explore/exploit) using the user's learned weights. Locked slots
   // constrain the candidate pool to the frozen item before scoring.
+  // Bumped per slot on each generate so its reel spins (kept slots don't).
+  const [spins, setSpins] = useState({ top: 0, bottom: 0, shoes: 0 });
+  const lastSpinAt = useRef(0);
+  const reelDuration = { top: 700, bottom: 950, shoes: 1200 } as const;
+  const sectionFor = { top: 'Tops', bottom: 'Bottoms', shoes: 'Shoes' } as const;
+
   const pickOutfit = () => {
     setError('');
 
@@ -247,6 +254,12 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (!lockedTop) setTop(pick.top);
     if (!lockedBottom) setBottom(pick.bottom);
     if (!lockedShoes) setShoes(pick.shoes);
+    lastSpinAt.current = Date.now();
+    setSpins((prev) => ({
+      top: lockedTop ? prev.top : prev.top + 1,
+      bottom: lockedBottom ? prev.bottom : prev.bottom + 1,
+      shoes: lockedShoes ? prev.shoes : prev.shoes + 1,
+    }));
   };
 
   // Apply an online learning update for a given outfit + reward, then persist the
@@ -468,8 +481,22 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     .join(', ');
 
   // The outfit's colour pairing: the top's and the bottom's main colours.
-  const pairing: [string, string] | null =
+  // After a spin it is revealed once the last reel lands, as the payoff.
+  const currentPairing: [string, string] | null =
     top?.colors[0] && bottom?.colors[0] ? [top.colors[0], bottom.colors[0]] : null;
+  const pairingKey = currentPairing ? currentPairing.join('|') : '';
+  const [pairing, setPairing] = useState<[string, string] | null>(null);
+  useEffect(() => {
+    const justSpun = Date.now() - lastSpinAt.current < 300;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const delay = justSpun && !reduce ? reelDuration.shoes : 0;
+    const t = setTimeout(
+      () => setPairing(pairingKey ? (pairingKey.split('|') as [string, string]) : null),
+      delay,
+    );
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pairingKey, spins]);
 
   const slots = [
     {
@@ -538,10 +565,19 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
             className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-6 pb-7 transition-[background-image] duration-500"
             style={pairing ? pairingWash(pairing[0], pairing[1]) : undefined}
           >
-            {pairing && (
+            {pairing ? (
               <div className="mb-5">
                 <ColorPairing a={pairing[0]} b={pairing[1]} />
               </div>
+            ) : (
+              currentPairing && (
+                <div
+                  aria-hidden="true"
+                  className="mb-5 h-24 sm:h-28 rounded-2xl bg-[var(--muted)] flex items-center justify-center readout animate-pulse"
+                >
+                  {'{ matching… }'}
+                </div>
+              )
             )}
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-lg">Your outfit</h3>
@@ -573,10 +609,12 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     }`}
                   >
                     {item ? (
-                      <ClothingImage
-                        src={item.image_url}
-                        alt=""
-                        className="w-full h-full object-contain p-1.5"
+                      <SlotReel
+                        item={item}
+                        pool={items.filter((i) => typeToSection[i.type] === sectionFor[key])}
+                        spinKey={spins[key]}
+                        durationMs={reelDuration[key]}
+                        spinOnMount={Date.now() - lastSpinAt.current < 300}
                       />
                     ) : (
                       <span className="text-sm font-semibold">Choose</span>
