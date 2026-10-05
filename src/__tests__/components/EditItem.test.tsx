@@ -46,7 +46,7 @@ describe('EditItem', () => {
 
   it('initializes with item type and color', () => {
     renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
-    expect(screen.getByRole('button', { name: 'Blue' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('button', { name: 'Blue' })[0].getAttribute('aria-pressed')).toBe('true');
     expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('T-Shirt');
   });
 
@@ -81,10 +81,10 @@ describe('EditItem', () => {
   it('Undo changes restores the original values', () => {
     renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     // Change color
-    fireEvent.click(screen.getByRole('button', { name: 'Black' }));
-    expect(screen.getByRole('button', { name: 'Black' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Black' })[0]);
+    expect(screen.getAllByRole('button', { name: 'Black' })[0].getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByText('Undo changes'));
-    expect(screen.getByRole('button', { name: 'Blue' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('button', { name: 'Blue' })[0].getAttribute('aria-pressed')).toBe('true');
   });
 
   it('calls onClose when overlay is clicked', () => {
@@ -109,5 +109,20 @@ describe('EditItem', () => {
     expect(screen.queryByText('Adjust / crop')).toBeNull();
     expect(screen.queryByText('Revert to original')).toBeNull();
     expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it('keeps and edits a second colour', async () => {
+    const twoTone = { ...item, colors: ['blue', 'white'] };
+    renderWithProviders(
+      <EditItem isOpen={true} onClose={vi.fn()} item={twoTone} onItemUpdated={vi.fn()} />,
+    );
+    const secondGroup = screen.getByText('Second color').closest('fieldset')!;
+    const white = Array.from(secondGroup.querySelectorAll('button')).find(
+      (b) => b.getAttribute('aria-label') === 'White',
+    )!;
+    expect(white.getAttribute('aria-pressed')).toBe('true');
+    // Changing the main colour keeps the second one.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Black' })[0]);
+    expect(white.getAttribute('aria-pressed')).toBe('true');
   });
 });

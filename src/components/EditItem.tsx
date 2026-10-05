@@ -188,8 +188,30 @@ export default function EditItem({
           <ColorSwatchGroup
             legend="Main color"
             value={selectedColors[0] ?? null}
-            onChange={(color) => color && setSelectedColors([color])}
+            onChange={(color) => {
+              if (!color) return;
+              // Keep the second colour unless it now matches the main one.
+              const second = selectedColors[1];
+              setSelectedColors(second && second !== color ? [color, second] : [color]);
+            }}
           />
+          <div className="mt-4">
+            <ColorSwatchGroup
+              legend={
+                <>
+                  Second color{' '}
+                  <span className="font-normal text-[var(--text-secondary)]">(optional)</span>
+                </>
+              }
+              size="sm"
+              allowNone
+              value={selectedColors[1] ?? null}
+              disabledColor={selectedColors[0] ?? null}
+              onChange={(color) =>
+                setSelectedColors(color ? [selectedColors[0], color] : [selectedColors[0]])
+              }
+            />
+          </div>
         </div>
 
         <div className="ticket-rule pt-5 flex flex-wrap gap-3 items-center">
