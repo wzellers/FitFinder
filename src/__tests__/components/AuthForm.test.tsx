@@ -23,6 +23,7 @@ const mockSignIn = vi.fn();
 beforeEach(() => {
   vi.mocked(useAuth).mockReturnValue({
     user: null,
+    loading: false,
     signUp: mockSignUp,
     signIn: mockSignIn,
     signOut: vi.fn(),

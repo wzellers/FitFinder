@@ -34,7 +34,7 @@ const tabs: { key: DashboardTab; label: string }[] = [
 ];
 
 export default function Page() {
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<DashboardTab>('closet');
   const [showImageUpload, setShowImageUpload] = useState(false);
@@ -191,6 +191,10 @@ export default function Page() {
       // Learning is best-effort; never block the rating flow.
     }
   };
+
+  if (authLoading) {
+    return <SkeletonFullScreen />;
+  }
 
   if (!user) {
     return (

@@ -12,6 +12,7 @@ export const mockUser: User = {
 
 export const mockUseAuth = {
   user: mockUser,
+  loading: false,
   signUp: vi.fn(() => Promise.resolve({ data: { user: mockUser, session: null }, error: null })),
   signIn: vi.fn(() =>
     Promise.resolve({ data: { user: mockUser, session: { user: mockUser } }, error: null }),

@@ -100,6 +100,13 @@ beforeEach(() => {
 });
 
 describe('Page — Auth State', () => {
+  it('shows a skeleton instead of the login form while the session loads', () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: true, signOut: vi.fn() });
+    renderWithProviders(<Page />);
+    expect(screen.getByTestId('skeleton-fullscreen')).toBeTruthy();
+    expect(screen.queryByTestId('auth-form')).toBeNull();
+  });
+
   it('shows AuthForm when user is null', () => {
     mockUseAuth.mockReturnValue({ user: null, signOut: vi.fn() });
     renderWithProviders(<Page />);

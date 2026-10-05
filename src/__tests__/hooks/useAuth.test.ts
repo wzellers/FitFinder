@@ -163,4 +163,11 @@ describe('useAuth', () => {
     });
     expect(result.current.user).toBe(first);
   });
+
+  it('reports loading until the stored session has been read', async () => {
+    const { result } = renderHook(() => useAuth());
+    expect(result.current.loading).toBe(true);
+    await act(async () => {});
+    expect(result.current.loading).toBe(false);
+  });
 });

@@ -4,6 +4,9 @@ import type { User } from '@supabase/supabase-js';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
+  // True until the stored session has been read, so the UI can wait instead
+  // of flashing the login form for a signed-in user.
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Supabase emits several auth events on load (INITIAL_SESSION, SIGNED_IN,
@@ -12,12 +15,14 @@ export function useAuth() {
     const applyUser = (next: User | null) =>
       setUser((prev) => (prev && next && prev.id === next.id ? prev : next));
 
-    supabase.auth.getSession().then(({ data }) => {
-      applyUser(data.session?.user ?? null);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => applyUser(data.session?.user ?? null))
+      .finally(() => setLoading(false));
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       applyUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => {
@@ -32,5 +37,5 @@ export function useAuth() {
 
   const signOut = () => supabase.auth.signOut();
 
-  return { user, signUp, signIn, signOut };
+  return { user, loading, signUp, signIn, signOut };
 }
