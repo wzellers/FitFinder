@@ -32,13 +32,20 @@ export default function AuthForm() {
         }
 
         if (data.session) {
-          await supabase
+          const { error: profileError } = await supabase
             .from('profiles')
             .upsert(
               { id: newUser.id, username: newUser.email, zip_code: null },
               { onConflict: 'id' },
             );
-          showToast('Account created! You are signed in.', 'success');
+          if (profileError) {
+            showToast(
+              "Account created, but we couldn't finish setting up your profile. Your ZIP code can be added in Preferences.",
+              'warning',
+            );
+          } else {
+            showToast('Account created! You are signed in.', 'success');
+          }
         } else {
           showToast('Check your email for a confirmation link, then log in.', 'info');
         }

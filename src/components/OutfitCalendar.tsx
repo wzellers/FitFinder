@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
@@ -55,16 +56,18 @@ export default function OutfitCalendar() {
       const calEnd = new Date(endOfMonth);
       calEnd.setDate(calEnd.getDate() + (6 - endOfMonth.getDay()));
 
-      const [{ data: wearsData }, { data: itemsData }, { data: savedData }] = await Promise.all([
-        supabase
-          .from('outfit_wears')
-          .select('*')
-          .eq('user_id', user.id)
-          .gte('worn_date', toLocalDateString(calStart))
-          .lte('worn_date', toLocalDateString(calEnd)),
-        supabase.from('clothing_items').select('*').eq('user_id', user.id),
-        supabase.from('saved_outfits').select('*').eq('user_id', user.id),
-      ]);
+      const [{ data: wearsData }, { data: itemsData }, { data: savedData }] = throwIfAnyError(
+        await Promise.all([
+          supabase
+            .from('outfit_wears')
+            .select('*')
+            .eq('user_id', user.id)
+            .gte('worn_date', toLocalDateString(calStart))
+            .lte('worn_date', toLocalDateString(calEnd)),
+          supabase.from('clothing_items').select('*').eq('user_id', user.id),
+          supabase.from('saved_outfits').select('*').eq('user_id', user.id),
+        ]),
+      );
       setOutfitWears(wearsData || []);
       setItems(itemsData || []);
       setSavedOutfits(savedData || []);
@@ -180,13 +183,12 @@ export default function OutfitCalendar() {
         notes: notes || null,
         rating: rating > 0 ? rating : null,
       };
-      if (selectedOutfitWear) {
-        await supabase.from('outfit_wears').update(payload).eq('id', selectedOutfitWear.id);
-      } else {
-        await supabase
-          .from('outfit_wears')
-          .insert({ user_id: user.id, worn_date: dateStr, ...payload });
-      }
+      const { error } = selectedOutfitWear
+        ? await supabase.from('outfit_wears').update(payload).eq('id', selectedOutfitWear.id)
+        : await supabase
+            .from('outfit_wears')
+            .insert({ user_id: user.id, worn_date: dateStr, ...payload });
+      if (error) throw error;
       setShowLogModal(false);
       loadData();
     } catch {
@@ -202,7 +204,11 @@ export default function OutfitCalendar() {
   const confirmDelete = async () => {
     if (!selectedOutfitWear) return;
     setConfirmOpen(false);
-    await supabase.from('outfit_wears').delete().eq('id', selectedOutfitWear.id);
+    const { error } = await supabase.from('outfit_wears').delete().eq('id', selectedOutfitWear.id);
+    if (error) {
+      showToast("Couldn't delete this entry. Try again.", 'error');
+      return;
+    }
     setShowLogModal(false);
     loadData();
   };

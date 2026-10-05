@@ -13,7 +13,9 @@ import Onboarding from '@/components/Onboarding';
 import ImageUpload from '@/components/ImageUpload';
 import EditItem from '@/components/EditItem';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ToastProvider';
 import { supabase } from '@/lib/supabaseClient';
+import { throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import { featureVector } from '@/lib/outfitScoring';
@@ -33,6 +35,7 @@ const tabs: { key: DashboardTab; label: string }[] = [
 
 export default function Page() {
   const { user, signOut } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<DashboardTab>('closet');
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showEditItem, setShowEditItem] = useState(false);
@@ -51,19 +54,17 @@ export default function Page() {
   useEffect(() => {
     if (!user) return;
     const check = async () => {
-      const { data: items } = await supabase
-        .from('clothing_items')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
+      const [itemsRes, profileRes] = await Promise.all([
+        supabase.from('clothing_items').select('id').eq('user_id', user.id).limit(1),
+        supabase.from('profiles').select('onboarding_completed').eq('id', user.id).maybeSingle(),
+      ]);
+      const items = itemsRes.data;
+      const profile = profileRes.data;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('onboarding_completed')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if ((!items || items.length === 0) && !profile?.onboarding_completed) {
+      // If either check failed we can't tell, so don't push a returning user
+      // back through onboarding.
+      const checkFailed = Boolean(itemsRes.error || profileRes.error);
+      if (!checkFailed && (!items || items.length === 0) && !profile?.onboarding_completed) {
         setShowOnboarding(true);
       }
       setOnboardingChecked(true);
@@ -106,7 +107,11 @@ export default function Page() {
   }, [user, onboardingChecked, showOnboarding, checkPendingRatings]);
 
   const handleRatingSubmit = async (wearId: string, rating: number) => {
-    await supabase.from('outfit_wears').update({ rating }).eq('id', wearId);
+    const { error } = await supabase.from('outfit_wears').update({ rating }).eq('id', wearId);
+    if (error) {
+      showToast("Couldn't save your rating. Try again.", 'error');
+      return;
+    }
 
     // Online learning: turn the rating into a reward and nudge the user's model.
     if (user && pendingRating) {
@@ -134,20 +139,22 @@ export default function Page() {
         { data: prefsData },
         { data: modelData },
         { data: occPrefsData },
-      ] = await Promise.all([
-        supabase.from('clothing_items').select('*').in('id', itemIds),
-        supabase
-          .from('color_preferences')
-          .select('liked_combinations')
-          .eq('user_id', userId)
-          .maybeSingle(),
-        supabase
-          .from('outfit_model_weights')
-          .select('weights, feature_meta')
-          .eq('user_id', userId)
-          .maybeSingle(),
-        supabase.from('occasion_preferences').select('rules').eq('user_id', userId).maybeSingle(),
-      ]);
+      ] = throwIfAnyError(
+        await Promise.all([
+          supabase.from('clothing_items').select('*').in('id', itemIds),
+          supabase
+            .from('color_preferences')
+            .select('liked_combinations')
+            .eq('user_id', userId)
+            .maybeSingle(),
+          supabase
+            .from('outfit_model_weights')
+            .select('weights, feature_meta')
+            .eq('user_id', userId)
+            .maybeSingle(),
+          supabase.from('occasion_preferences').select('rules').eq('user_id', userId).maybeSingle(),
+        ]),
+      );
 
       const byId = new Map((itemsData ?? []).map((i: ClothingItem) => [i.id, i]));
       const top = byId.get(rating.outfit_items.top_id ?? '');
@@ -172,13 +179,15 @@ export default function Page() {
 
       const updated = updateWeights(deserializeModel(modelData), features, computeReward(score));
       const serialized = serializeModel(updated);
-      await supabase.from('outfit_model_weights').upsert({
+      const { error } = await supabase.from('outfit_model_weights').upsert({
         user_id: userId,
         weights: serialized.weights,
         feature_meta: serialized.feature_meta,
         updated_at: new Date().toISOString(),
       });
-    } catch {
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Could not update outfit model', err);
       // Learning is best-effort; never block the rating flow.
     }
   };

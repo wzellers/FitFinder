@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ToastProvider';
 import { supabase } from '@/lib/supabaseClient';
+import { throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { sectionNames, typeToSection } from '@/lib/constants';
 import { getColorName, getColorStyle } from '@/lib/colorUtils';
@@ -39,6 +41,7 @@ type TimePeriod = 'week' | 'month' | 'all';
 
 export default function WardrobeStats() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [outfitWears, setOutfitWears] = useState<OutfitWear[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,24 +59,26 @@ export default function WardrobeStats() {
         startDate = toLocalDateString(date);
       }
 
-      const [{ data: itemsData }, { data: wearsData }] = await Promise.all([
-        supabase.from('clothing_items').select('*').eq('user_id', user.id),
-        startDate
-          ? supabase
-              .from('outfit_wears')
-              .select('*')
-              .eq('user_id', user.id)
-              .gte('worn_date', startDate)
-          : supabase.from('outfit_wears').select('*').eq('user_id', user.id),
-      ]);
+      const [{ data: itemsData }, { data: wearsData }] = throwIfAnyError(
+        await Promise.all([
+          supabase.from('clothing_items').select('*').eq('user_id', user.id),
+          startDate
+            ? supabase
+                .from('outfit_wears')
+                .select('*')
+                .eq('user_id', user.id)
+                .gte('worn_date', startDate)
+            : supabase.from('outfit_wears').select('*').eq('user_id', user.id),
+        ]),
+      );
       setItems(itemsData || []);
       setOutfitWears(wearsData || []);
     } catch {
-      // silently fail
+      showToast("Couldn't load your stats. Refresh to try again.", 'error');
     } finally {
       setLoading(false);
     }
-  }, [user, timePeriod]);
+  }, [user, timePeriod, showToast]);
 
   useEffect(() => {
     loadData();

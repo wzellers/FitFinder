@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
@@ -120,39 +121,45 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           { data: ratedOutfitsData },
           { data: modelData },
           { data: occPrefsData },
-        ] = await Promise.all([
-          supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
-          supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase
-            .from('saved_outfits')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false }),
-          supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
-          supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase
-            .from('outfit_wears')
-            .select('*')
-            .eq('user_id', user.id)
-            .gte('worn_date', recencyCutoff),
-          supabase
-            .from('outfit_wears')
-            .select('*')
-            .eq('user_id', user.id)
-            .not('rating', 'is', null)
-            .order('worn_date', { ascending: false })
-            .limit(100),
-          supabase
-            .from('outfit_model_weights')
-            .select('weights, feature_meta')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-          supabase
-            .from('occasion_preferences')
-            .select('rules')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
+        ] = throwIfAnyError(
+          await Promise.all([
+            supabase
+              .from('clothing_items')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('is_dirty', false),
+            supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+            supabase
+              .from('saved_outfits')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false }),
+            supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+            supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+            supabase
+              .from('outfit_wears')
+              .select('*')
+              .eq('user_id', user.id)
+              .gte('worn_date', recencyCutoff),
+            supabase
+              .from('outfit_wears')
+              .select('*')
+              .eq('user_id', user.id)
+              .not('rating', 'is', null)
+              .order('worn_date', { ascending: false })
+              .limit(100),
+            supabase
+              .from('outfit_model_weights')
+              .select('weights, feature_meta')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+            supabase
+              .from('occasion_preferences')
+              .select('rules')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+          ]),
+        );
 
         setItems(itemsData || []);
         setLiked((prefsData?.liked_combinations ?? []) as ColorCombination[]);
@@ -266,12 +273,14 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     const updated = updateWeights(model ?? deserializeModel(null), features, reward);
     setModel(updated);
     const serialized = serializeModel(updated);
-    await supabase.from('outfit_model_weights').upsert({
+    const { error: weightsError } = await supabase.from('outfit_model_weights').upsert({
       user_id: user.id,
       weights: serialized.weights,
       feature_meta: serialized.feature_meta,
       updated_at: new Date().toISOString(),
     });
+    // Learning is best-effort; the in-memory model still updated.
+    if (weightsError) console.warn('Could not save outfit model', weightsError);
   };
 
   // Save outfit with name
@@ -324,17 +333,18 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (!user || !top || !bottom || !shoes) return;
     const today = toLocalDateString();
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from('outfit_wears')
         .select('id')
         .eq('user_id', user.id)
         .eq('worn_date', today)
         .maybeSingle();
+      if (lookupError) throw lookupError;
       if (existing) {
         showToast('Already logged an outfit for today', 'warning');
         return;
       }
-      await supabase.from('outfit_wears').insert({
+      const { error: insertError } = await supabase.from('outfit_wears').insert({
         user_id: user.id,
         worn_date: today,
         top_id: top.id,
@@ -342,6 +352,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         shoes_id: shoes.id,
         occasion,
       });
+      if (insertError) throw insertError;
       showToast("Logged as today's outfit!", 'success');
     } catch {
       showToast('Failed to log outfit', 'error');
@@ -358,11 +369,12 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (!user || !pendingDeleteId) return;
     setConfirmOpen(false);
     try {
-      await supabase
+      const { error: deleteError } = await supabase
         .from('saved_outfits')
         .delete()
         .eq('id', pendingDeleteId)
         .eq('user_id', user.id);
+      if (deleteError) throw deleteError;
       setSavedOutfits((prev) => prev.filter((o) => o.id !== pendingDeleteId));
       showToast('Outfit deleted', 'success');
     } catch {

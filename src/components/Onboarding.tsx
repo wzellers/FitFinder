@@ -27,24 +27,20 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const handleSaveZipCode = async () => {
     if (!user || !zipCode.trim()) return;
-    try {
-      await supabase
-        .from('profiles')
-        .upsert({ id: user.id, zip_code: zipCode.trim() }, { onConflict: 'id' });
-    } catch {
-      // non-critical
-    }
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, zip_code: zipCode.trim() }, { onConflict: 'id' });
+    if (error)
+      showToast("Couldn't save your ZIP code. You can add it later in Preferences.", 'warning');
   };
 
   const handleFinish = async () => {
     if (!user) return;
-    try {
-      await supabase
-        .from('profiles')
-        .upsert({ id: user.id, onboarding_completed: true }, { onConflict: 'id' });
-    } catch {
-      // non-critical
-    }
+    // Non-blocking: if this fails, onboarding only reappears while the closet is empty.
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, onboarding_completed: true }, { onConflict: 'id' });
+    if (error) console.warn('Could not mark onboarding complete', error);
     onComplete();
   };
 

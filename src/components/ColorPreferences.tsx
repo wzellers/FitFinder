@@ -69,17 +69,20 @@ export default function ColorPreferences() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
+      const results = await Promise.all([
+        supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+        supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('occasion_preferences').select('rules').eq('user_id', user.id).maybeSingle(),
+      ]);
+      // Don't show defaults on a failed load: saving them would overwrite
+      // the user's real preferences.
+      if (results.some((r) => r.error)) {
+        showToast("Couldn't load your preferences. Refresh to try again.", 'error');
+        return;
+      }
       const [{ data: prefs }, { data: profile }, { data: weatherPrefs }, { data: occasionPrefs }] =
-        await Promise.all([
-          supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
-          supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase
-            .from('occasion_preferences')
-            .select('rules')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
+        results;
 
       if (prefs) {
         const liked = (prefs.liked_combinations ?? []).map(
@@ -110,7 +113,7 @@ export default function ColorPreferences() {
       }
     };
     load();
-  }, [user]);
+  }, [user, showToast]);
 
   // Helper to persist color_preferences (liked top/bottom combinations).
   const persistColorPrefs = async (nextLiked: ColorCombination[]) => {
