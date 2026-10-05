@@ -4,7 +4,8 @@ import { colorMap, colorNameMap, lightColors } from '@/lib/constants';
 
 /** Returns CSS background-color style for a given color name */
 export function getColorStyle(color: string): { backgroundColor: string } {
-  return { backgroundColor: colorMap[color] || color };
+  // Accept display names too ("Navy Blue"), which Stats passes in.
+  return { backgroundColor: colorMap[color] || colorMap[color.toLowerCase()] || color };
 }
 
 /** Returns display name for a color value */

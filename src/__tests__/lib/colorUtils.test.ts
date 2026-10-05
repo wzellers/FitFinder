@@ -80,3 +80,9 @@ describe('colorPalette round-trip', () => {
     }
   });
 });
+
+describe('getColorStyle with display names', () => {
+  it('maps a capitalised display name to its swatch colour', () => {
+    expect(getColorStyle('Navy Blue')).toEqual(getColorStyle('navy blue'));
+  });
+});
