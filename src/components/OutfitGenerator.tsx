@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import PosterHeader from '@/components/ui/PosterHeader';
 import ScrambleText from '@/components/ui/ScrambleText';
+import ColorPairing, { pairingWash } from '@/components/ui/ColorPairing';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -466,6 +467,10 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     .filter(Boolean)
     .join(', ');
 
+  // The outfit's colour pairing: the top's and the bottom's main colours.
+  const pairing: [string, string] | null =
+    top?.colors[0] && bottom?.colors[0] ? [top.colors[0], bottom.colors[0]] : null;
+
   const slots = [
     {
       key: 'top' as const,
@@ -529,7 +534,15 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       {activeTab === 'generator' && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,36rem)_320px] lg:justify-center gap-8 lg:gap-14 items-start">
           {/* ====== The outfit ====== */}
-          <div className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-8 pb-7">
+          <div
+            className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-6 pb-7 transition-[background-image] duration-500"
+            style={pairing ? pairingWash(pairing[0], pairing[1]) : undefined}
+          >
+            {pairing && (
+              <div className="mb-5">
+                <ColorPairing a={pairing[0]} b={pairing[1]} />
+              </div>
+            )}
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-lg">Your outfit</h3>
             </div>
