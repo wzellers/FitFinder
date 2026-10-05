@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
 import {
@@ -107,9 +108,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       setLoading(true);
       try {
         // Recent wears for the variety feature: last RECENCY_WINDOW_DAYS days.
-        const recencyCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
+        const recencyCutoff = toLocalDateString(new Date(Date.now() - 14 * 24 * 60 * 60 * 1000));
 
         const [
           { data: itemsData },
@@ -323,7 +322,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   // Wear today
   const wearToday = async () => {
     if (!user || !top || !bottom || !shoes) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateString();
     try {
       const { data: existing } = await supabase
         .from('outfit_wears')

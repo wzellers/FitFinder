@@ -14,6 +14,7 @@ import ImageUpload from '@/components/ImageUpload';
 import EditItem from '@/components/EditItem';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { toLocalDateString } from '@/lib/dates';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import { featureVector } from '@/lib/outfitScoring';
 import { getUserClothingWeatherRules } from '@/lib/weatherApi';
@@ -75,7 +76,7 @@ export default function Page() {
     if (!user) return;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toISOString().split('T')[0];
+    const yStr = toLocalDateString(yesterday);
 
     const { data } = await supabase
       .from('outfit_wears')

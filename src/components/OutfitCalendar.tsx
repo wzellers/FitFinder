@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -59,8 +60,8 @@ export default function OutfitCalendar() {
           .from('outfit_wears')
           .select('*')
           .eq('user_id', user.id)
-          .gte('worn_date', calStart.toISOString().split('T')[0])
-          .lte('worn_date', calEnd.toISOString().split('T')[0]),
+          .gte('worn_date', toLocalDateString(calStart))
+          .lte('worn_date', toLocalDateString(calEnd)),
         supabase.from('clothing_items').select('*').eq('user_id', user.id),
         supabase.from('saved_outfits').select('*').eq('user_id', user.id),
       ]);
@@ -95,7 +96,7 @@ export default function OutfitCalendar() {
         dayOfMonth: d.getDate(),
         isCurrentMonth: false,
         isToday: false,
-        outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null,
+        outfit: outfitWears.find((w) => w.worn_date === toLocalDateString(d)) ?? null,
       });
     }
     for (let day = 1; day <= last.getDate(); day++) {
@@ -105,7 +106,7 @@ export default function OutfitCalendar() {
         dayOfMonth: day,
         isCurrentMonth: true,
         isToday: d.getTime() === today.getTime(),
-        outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null,
+        outfit: outfitWears.find((w) => w.worn_date === toLocalDateString(d)) ?? null,
       });
     }
     const rem = 42 - days.length;
@@ -116,7 +117,7 @@ export default function OutfitCalendar() {
         dayOfMonth: i,
         isCurrentMonth: false,
         isToday: false,
-        outfit: outfitWears.find((w) => w.worn_date === d.toISOString().split('T')[0]) ?? null,
+        outfit: outfitWears.find((w) => w.worn_date === toLocalDateString(d)) ?? null,
       });
     }
     setCalendarDays(days);
@@ -169,7 +170,7 @@ export default function OutfitCalendar() {
       showToast('Select at least one item', 'warning');
       return;
     }
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = toLocalDateString(selectedDate);
     try {
       const payload = {
         top_id: selectedTop || null,

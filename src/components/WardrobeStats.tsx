@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { toLocalDateString } from '@/lib/dates';
 import { sectionNames, typeToSection } from '@/lib/constants';
 import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import { SkeletonStatCards } from '@/components/ui/Skeleton';
@@ -52,7 +53,7 @@ export default function WardrobeStats() {
         const date = new Date();
         if (timePeriod === 'week') date.setDate(date.getDate() - 7);
         else date.setMonth(date.getMonth() - 1);
-        startDate = date.toISOString().split('T')[0];
+        startDate = toLocalDateString(date);
       }
 
       const [{ data: itemsData }, { data: wearsData }] = await Promise.all([
