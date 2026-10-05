@@ -2,31 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * FitFinder — "dry cleaner's counter"
+ *
+ * Every item is a manila hang-tag, laundry status is a rubber stamp, and an
+ * outfit is a claim ticket. Colors come from that counter: steam-gray
+ * surfaces, ticket paper, manila tags, carbon-copy blue ink and stamp red.
+ */
 @layer base {
   :root {
-    --bg: #ffffff;
-    --card: #ffffff;
-    --muted: #eff4ff;
-    --text: #0b1220;
-    --text-secondary: #475569;
-    /* Main brand color — navy */
-    --accent: #3f3f76;
-    --accent-light: #dad9ec;
-    --accent-hover: #33335f;
-    /* Accent color — baby / cornflower blue, used to make elements pop */
-    --purple: #6c8cd5;
-    --purple-light: #c9d6f0;
-    --purple-hover: #557ac4;
-    --border: #dde3ec;
-    --success: #16a34a;
-    --warning: #f59e0b;
-    --danger: #dc2626;
+    /* Surfaces */
+    --bg: #eceff2; /* counter / steam gray */
+    --card: #ffffff; /* ticket paper */
+    --muted: #f3f5f8;
+    --manila: #ead9ae;
+    --manila-deep: #b99a55;
+
+    /* Ink */
+    --text: #14213d; /* ticket ink */
+    --text-secondary: #4a5568;
+    --carbon: #2747a0; /* carbon-copy blue */
+    --stamp: #a82c24; /* stamp red */
+
+    /* Lines */
+    --border: #d3d9e1; /* decorative rules */
+    --line-strong: #8a94a6; /* form control borders, 3:1 on paper */
+
+    /* Status */
+    --success: #1f6b4a;
+    --warning: #8a5300;
+    --danger: #a82c24;
+
+    /* Legacy names used across components, mapped onto the palette */
+    --accent: var(--text);
+    --accent-hover: #0b1528;
+    --accent-light: #dce3f2;
+    --purple: var(--carbon);
+    --purple-hover: #1e3a84;
+    --purple-light: #dce3f2;
+
+    --focus: var(--carbon);
   }
 
   html {
-    /* Nudge the root size up so every rem-based Tailwind text size
-       (text-xs, text-sm, ...) scales up for easier reading. */
-    font-size: 17.5px;
+    font-size: 16px;
   }
 
   html,
@@ -35,8 +54,6 @@
     min-height: 100vh;
     margin: 0;
     padding: 0;
-    /* Slightly heavier base weight so body text reads bold and clear. */
-    font-weight: 500;
   }
 
   /* Reset default element styles so Tailwind classes take full control */
@@ -53,6 +70,16 @@
     box-sizing: border-box;
   }
 
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display;
+    font-stretch: 85%;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
   button {
     @apply bg-transparent border-0 p-0 m-0 text-inherit cursor-pointer;
     font: inherit;
@@ -62,89 +89,201 @@
   input,
   textarea,
   select {
-    @apply bg-white border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none;
+    @apply bg-white border border-[var(--line-strong)] rounded-md px-3 py-2 text-sm text-[var(--text)] outline-none;
     font: inherit;
     box-sizing: border-box;
   }
-  input:focus,
-  textarea:focus,
-  select:focus {
-    @apply ring-2 ring-[var(--accent)] border-[var(--accent)];
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply border-[var(--carbon)];
+    box-shadow:
+      0 0 0 2px var(--card),
+      0 0 0 4px var(--focus);
+  }
+
+  /* One visible focus style for everything keyboard-reachable. */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
 @layer components {
-  /* Shared card style */
+  /* Ticket paper */
   .card {
-    @apply bg-white rounded-xl border border-[var(--border)] shadow-sm;
+    @apply bg-white rounded-md border border-[var(--border)];
+    box-shadow: 0 1px 0 rgba(20, 33, 61, 0.06);
   }
 
-  /* Primary button */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2
-           text-sm font-medium transition-colors;
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold
+           transition-colors min-h-[44px];
   }
   .btn-primary {
-    @apply btn bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)];
+    @apply btn bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
-    @apply btn bg-[var(--muted)] text-[var(--text)] hover:bg-gray-200;
+    @apply btn bg-white text-[var(--text)] border border-[var(--line-strong)] hover:bg-[var(--muted)]
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-danger {
-    @apply btn bg-[var(--danger)] text-white hover:bg-red-700;
+    @apply btn bg-[var(--danger)] text-white hover:bg-[#8c231d];
   }
   .btn-ghost {
-    @apply btn bg-transparent text-[var(--text-secondary)] hover:bg-[var(--muted)];
+    @apply btn bg-transparent text-[var(--text-secondary)] hover:bg-[var(--muted)] hover:text-[var(--text)];
   }
 
   /* Nav tab */
   .nav-tab {
-    @apply flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
-           text-[var(--text-secondary)] hover:bg-[var(--muted)] transition-colors;
+    @apply flex items-center gap-2 px-3 min-h-[44px] rounded-md text-sm font-semibold
+           text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors;
   }
   .nav-tab-active {
-    @apply nav-tab bg-[var(--accent-light)] text-[var(--accent)] font-semibold;
+    @apply nav-tab text-[var(--text)];
+    box-shadow: inset 0 -3px 0 var(--carbon);
   }
 
-  /* Modal overlay */
+  /* Modal */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/40 flex items-center justify-center z-50;
+    @apply fixed inset-0 flex items-end sm:items-center justify-center z-50;
+    background: rgba(20, 33, 61, 0.45);
   }
   .modal-content {
-    @apply card p-6 w-[90vw] max-w-lg max-h-[80vh] overflow-auto relative;
+    @apply card p-6 w-full sm:w-[90vw] max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-auto relative
+           rounded-b-none sm:rounded-md;
   }
 
-  /* Section header */
   .section-header {
-    @apply text-lg font-semibold text-[var(--text)] pb-2 mb-4 border-b border-[var(--border)];
+    @apply font-display text-lg font-bold text-[var(--text)] pb-2 mb-4 border-b border-[var(--border)];
   }
 
-  /* Brand wordmark — Kelvinized is a bold italic face, so lean into it.
-     "Fit" is navy (main), "Finder" is baby blue (accent). */
+  /* Wordmark */
   .logo {
-    @apply font-display italic uppercase tracking-tight text-[var(--accent)];
+    @apply font-display font-extrabold tracking-tight text-[var(--text)];
+    font-stretch: 75%;
   }
   .logo-accent {
-    @apply text-[var(--purple)];
+    @apply text-[var(--carbon)];
   }
 
-  /* Retro item cell — thick baby-blue border with a hard offset drop shadow,
-     giving the flat "chunky rectangle" look. Used for closet + generator cells. */
+  /*
+   * Hang-tag: a manila tag with a punched hole near the top. Used for closet
+   * items and anywhere an item is shown on its own.
+   */
+  .hang-tag {
+    @apply relative bg-[var(--manila)] rounded-md pt-6 px-2 pb-2;
+    box-shadow:
+      inset 0 0 0 1px rgba(20, 33, 61, 0.08),
+      0 2px 0 rgba(20, 33, 61, 0.12);
+    transition: transform 0.15s ease;
+  }
+  .hang-tag::before {
+    /* punched hole with a reinforcing ring */
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    border-radius: 9999px;
+    background: var(--bg);
+    box-shadow: 0 0 0 3px var(--manila-deep);
+  }
+  .hang-tag:hover {
+    transform: rotate(-1deg) translateY(-1px);
+  }
+  .hang-tag-photo {
+    @apply bg-white rounded-sm overflow-hidden;
+  }
+
+  /*
+   * Rubber stamp: bordered, uppercase, slightly rotated. Uppercase is used only
+   * here (and on ticket headers), where it is part of the object being drawn.
+   */
+  .stamp {
+    @apply inline-flex items-center justify-center font-display font-extrabold uppercase
+           px-1.5 py-0.5 rounded-sm text-[11px] leading-none tracking-wider;
+    border: 2px solid currentColor;
+    font-stretch: 100%;
+    transform: rotate(-6deg);
+    mix-blend-mode: multiply;
+  }
+  .stamp-clean {
+    @apply stamp text-[var(--carbon)];
+  }
+  .stamp-dirty {
+    @apply stamp text-[var(--stamp)];
+  }
+  @keyframes stamp-press {
+    0% {
+      transform: rotate(-6deg) scale(1.6);
+      opacity: 0;
+    }
+    60% {
+      transform: rotate(-6deg) scale(0.95);
+      opacity: 1;
+    }
+    100% {
+      transform: rotate(-6deg) scale(1);
+    }
+  }
+  .stamp-animate {
+    animation: stamp-press 0.22s ease-out;
+  }
+
+  /*
+   * Claim ticket: white paper with perforated (scalloped) top and bottom
+   * edges, used for outfits.
+   */
+  .ticket {
+    @apply relative bg-white;
+    --perf: 6px;
+    -webkit-mask:
+      radial-gradient(var(--perf) at 50% 0, transparent 98%, #000) 50% 0 / calc(var(--perf) * 3) 51%
+        repeat-x,
+      radial-gradient(var(--perf) at 50% 100%, transparent 98%, #000) 50% 100% /
+        calc(var(--perf) * 3) 51% repeat-x;
+    mask:
+      radial-gradient(var(--perf) at 50% 0, transparent 98%, #000) 50% 0 / calc(var(--perf) * 3) 51%
+        repeat-x,
+      radial-gradient(var(--perf) at 50% 100%, transparent 98%, #000) 50% 100% /
+        calc(var(--perf) * 3) 51% repeat-x;
+    filter: drop-shadow(0 1px 1px rgba(20, 33, 61, 0.12));
+  }
+  .ticket-header {
+    @apply font-display font-bold uppercase tracking-wider text-xs text-[var(--text-secondary)];
+    font-stretch: 75%;
+  }
+  .ticket-rule {
+    border-top: 1px dashed var(--line-strong);
+  }
+
+  /* Item tile used by the Generator and Calendar pickers */
   .retro-cell {
-    @apply bg-white overflow-hidden relative;
-    border: 4px solid var(--purple);
-    border-radius: 4px;
-    box-shadow: 4px 4px 0 0 var(--purple-hover);
-    transition:
-      transform 0.1s ease,
-      box-shadow 0.1s ease;
+    @apply bg-white overflow-hidden relative rounded-md border border-[var(--border)];
+    transition: border-color 0.15s ease;
   }
   .retro-cell:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 6px 6px 0 0 var(--purple-hover);
+    border-color: var(--line-strong);
   }
-  .retro-cell:active {
-    transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 0 var(--purple-hover);
+
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    @apply sr-only;
   }
 }

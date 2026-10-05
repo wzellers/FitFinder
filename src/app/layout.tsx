@@ -1,21 +1,20 @@
 import '@/styles/globals.css';
-import localFont from 'next/font/local';
+import { Archivo, Instrument_Sans } from 'next/font/google';
 import ToastProvider from '@/components/ToastProvider';
 import type { Metadata, Viewport } from 'next';
 
-// Body font: "Super Retro M54" — a retro pixel-ish face used app-wide.
-const superRetro = localFont({
-  src: [
-    { path: '../../public/fonts/SuperRetroM54.ttf', style: 'normal' },
-    { path: '../../public/fonts/SuperRetroM54-Italic.ttf', style: 'italic' },
-  ],
+// Body text: Instrument Sans — a clear, slightly warm grotesk for reading.
+const instrumentSans = Instrument_Sans({
+  subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
 });
 
-// Display font: "Kelvinized" — bold italic wordmark used for the FitFinder logo.
-const kelvinized = localFont({
-  src: '../../public/fonts/Kelvinized.ttf',
+// Labels, headings and ticket numbers: Archivo, whose width axis gives the
+// condensed, printed-ticket look of a dry cleaner's tags.
+const archivo = Archivo({
+  subsets: ['latin'],
+  axes: ['wdth'],
   variable: '--font-display',
   display: 'swap',
 });
@@ -33,7 +32,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${superRetro.variable} ${kelvinized.variable}`}>
+    <html lang="en" className={`${instrumentSans.variable} ${archivo.variable}`}>
       <body className="font-sans">
         <ToastProvider>{children}</ToastProvider>
       </body>
