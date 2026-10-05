@@ -120,7 +120,7 @@ user, behind the same interface:
   The RNG is injectable so tests are deterministic.
 - **Learning.** When the user rates an outfit, `computeReward()` maps the 1–10
   rating to `[0, 1]` and `updateWeights()` applies one online gradient step
-  (`w += lr · (reward − predicted) · feature`, default lr = 0.05). Saving an
+  (`w += lr · (reward − predicted) · feature`, default lr = 0.1). Saving an
   outfit contributes a mild positive reward. Updates are immutable (they return a
   new model) and increment an update counter for diagnostics.
 - **Persistence.** The model serializes to a compact JSON blob (six numbers plus

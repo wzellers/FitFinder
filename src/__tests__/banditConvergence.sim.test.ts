@@ -21,7 +21,8 @@
  * - Every user starts from the production cold-start weights. Each round the
  *   bandit picks one of 12 fresh random candidates with ε-greedy `selectOutfits`
  *   (ε = 0.15), observes the noisy reward and applies one `updateWeights` step
- *   (lr = 0.05). Each round is one rating; every user gives 400 ratings.
+ *   (lr = 0.1, the production default). Each round is one rating; every user
+ *   gives 400 ratings.
  * - "Converged" = on a fixed 30-outfit held-out set, mean |predicted − true|
  *   reward <= 0.08 AND >= 4 of the model's top 5 are in the true top 5, held for
  *   10 consecutive ratings. Ranking agreement is used because the app surfaces a
@@ -32,7 +33,9 @@
  * - A learning curve (error, top-5 agreement, and distance between learned and
  *   hidden weights at fixed rating counts) shows the convergence directly.
  * - The primary batch is 500 users (seeds 1000–1499); two further independent
- *   batches check that the figures are stable rather than a seed artefact.
+ *   batches check that the figures are stable rather than a seed artefact, and
+ *   a fourth batch with 4× the reward noise (±0.2) checks that the learning
+ *   rate doesn't chase noise.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -261,7 +264,7 @@ describe('bandit convergence simulation', () => {
     topK: 5,
     minOverlap: 4, // >= 4 of the true top-5 present in the model's top-5
     stableWindow: 10,
-    learningRate: DEFAULT_LEARNING_RATE, // 0.05 (production)
+    learningRate: DEFAULT_LEARNING_RATE, // 0.1 (production)
     epsilon: DEFAULT_EPSILON, // 0.15 (production)
   };
   const NUM_USERS = 500;
@@ -269,6 +272,8 @@ describe('bandit convergence simulation', () => {
   it("learns simulated users' rankings, reported per cohort with a learning curve", () => {
     const main = runBatch(1000, NUM_USERS, cfg);
     const others = [50_000, 90_000].map((seed) => runBatch(seed, NUM_USERS, cfg));
+    // Robustness: real ratings are noisier than ±0.05, so rerun with 4× the noise.
+    const noisy = runBatch(1000, NUM_USERS, { ...cfg, noise: 0.2 });
     const lr = main.learnerRounds;
 
     const out = [
@@ -297,6 +302,8 @@ describe('bandit convergence simulation', () => {
       `  learners' median ratings: ${[main, ...others].map((b) => median(b.learnerRounds)).join(' / ')}`,
       `  all users converged:      ${[main, ...others].map((b) => pctOf(b.allConverged, b.users)).join(' / ')}`,
       `  top-5 agreement at ${cfg.maxRounds}:  ${[main, ...others].map((b) => `${(b.curve.get(cfg.maxRounds)!.top5 * 100).toFixed(1)}%`).join(' / ')}`,
+      `Noisier ratings (+/-0.2, seeds 1000-${1000 + NUM_USERS - 1}):`,
+      `  learners' median ratings ${median(noisy.learnerRounds)}  |  all users converged ${pctOf(noisy.allConverged, noisy.users)}  |  top-5 agreement at ${cfg.maxRounds}: ${(noisy.curve.get(cfg.maxRounds)!.top5 * 100).toFixed(1)}%`,
       '==============================================================',
       '',
     ].join('\n');
@@ -312,5 +319,8 @@ describe('bandit convergence simulation', () => {
       expect(end.gap).toBeLessThan(start.gap * 0.5);
       expect(end.top5).toBeGreaterThanOrEqual(0.9);
     }
+    // The learning rate must stay stable when ratings are noisy.
+    expect(noisy.allConverged / noisy.users).toBeGreaterThanOrEqual(0.9);
+    expect(noisy.curve.get(cfg.maxRounds)!.top5).toBeGreaterThanOrEqual(0.9);
   });
 });
