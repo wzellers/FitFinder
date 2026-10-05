@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Lock,
   Unlock,
@@ -58,7 +58,10 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const { showToast } = useToast();
 
   // Data
-  const [items, setItems] = useState<ClothingItem[]>([]);
+  // Every item, including dirty ones (needed to show saved outfits); only clean
+  // items are used to generate outfits.
+  const [allItems, setAllItems] = useState<ClothingItem[]>([]);
+  const items = useMemo(() => allItems.filter((i) => !i.is_dirty), [allItems]);
   const [liked, setLiked] = useState<ColorCombination[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [recentWears, setRecentWears] = useState<OutfitWear[]>([]);
@@ -123,11 +126,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           { data: occPrefsData },
         ] = throwIfAnyError(
           await Promise.all([
-            supabase
-              .from('clothing_items')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('is_dirty', false),
+            supabase.from('clothing_items').select('*').eq('user_id', user.id),
             supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
             supabase
               .from('saved_outfits')
@@ -161,7 +160,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           ]),
         );
 
-        setItems(itemsData || []);
+        setAllItems(itemsData || []);
         setLiked((prefsData?.liked_combinations ?? []) as ColorCombination[]);
         setSavedOutfits(outfitsData || []);
         setRecentWears((recentWearsData ?? []) as OutfitWear[]);
@@ -384,11 +383,22 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     }
   };
 
+  // A saved outfit stores item ids in JSON (no foreign key), so an item can be
+  // deleted out from under it. Missing pieces come back as undefined.
+  const savedOutfitPieces = (outfit: SavedOutfit) =>
+    [outfit.outfit_items.top_id, outfit.outfit_items.bottom_id, outfit.outfit_items.shoes_id].map(
+      (id) => allItems.find((i) => i.id === id),
+    );
+
   // Load saved outfit
   const loadSavedOutfit = (outfit: SavedOutfit) => {
-    setTop(items.find((i) => i.id === outfit.outfit_items.top_id) ?? null);
-    setBottom(items.find((i) => i.id === outfit.outfit_items.bottom_id) ?? null);
-    setShoes(items.find((i) => i.id === outfit.outfit_items.shoes_id) ?? null);
+    const pieces = savedOutfitPieces(outfit);
+    setTop(pieces[0] ?? null);
+    setBottom(pieces[1] ?? null);
+    setShoes(pieces[2] ?? null);
+    if (pieces.some((p) => !p)) {
+      showToast('Part of this outfit was deleted from your closet. Pick a replacement.', 'info');
+    }
     setLockedTop(false);
     setLockedBottom(false);
     setLockedShoes(false);
@@ -752,9 +762,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {savedOutfits.map((outfit, idx) => {
-                const topItem = items.find((i) => i.id === outfit.outfit_items.top_id);
-                const bottomItem = items.find((i) => i.id === outfit.outfit_items.bottom_id);
-                const shoesItem = items.find((i) => i.id === outfit.outfit_items.shoes_id);
+                const [topItem, bottomItem, shoesItem] = savedOutfitPieces(outfit);
                 return (
                   <div key={outfit.id ?? idx} className="card p-3 flex flex-col items-center gap-2">
                     <div className="text-xs font-medium text-[var(--text)] truncate w-full text-center">
@@ -767,16 +775,26 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                       item ? (
                         <div
                           key={i}
-                          className="w-20 h-20 rounded-lg border border-[var(--border)] bg-white overflow-hidden"
+                          className="relative w-20 h-20 rounded-lg border border-[var(--border)] bg-white overflow-hidden"
                         >
                           <img
                             src={item.image_url}
                             alt={item.type}
                             className="w-full h-full object-contain p-1"
                           />
+                          {item.is_dirty && (
+                            <span className="absolute bottom-0 inset-x-0 bg-white/90 text-[10px] text-center">
+                              In the wash
+                            </span>
+                          )}
                         </div>
                       ) : (
-                        <div key={i} className="w-20 h-20 rounded-lg bg-[var(--muted)]" />
+                        <div
+                          key={i}
+                          className="w-20 h-20 rounded-lg border border-dashed border-[var(--border)] bg-[var(--muted)] flex items-center justify-center text-[10px] text-center text-[var(--text-secondary)]"
+                        >
+                          Deleted item
+                        </div>
                       ),
                     )}
                     <div className="flex gap-2 mt-1">
