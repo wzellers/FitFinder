@@ -24,7 +24,7 @@ vi.mock('@/lib/supabaseClient', () => ({
   },
 }));
 
-import { runWithConcurrency, uploadItem } from '@/lib/uploadPipeline';
+import { runWithConcurrency, uploadItem, prepareImageForUpload } from '@/lib/uploadPipeline';
 
 describe('runWithConcurrency', () => {
   it('runs every item and preserves result order', async () => {
@@ -110,5 +110,19 @@ describe('uploadItem', () => {
   it('throws when the insert fails', async () => {
     mockRowInsertSelect.mockResolvedValue({ error: { message: 'insert failed' } });
     await expect(uploadItem(baseInput)).rejects.toBeTruthy();
+  });
+});
+
+describe('prepareImageForUpload', () => {
+  it('passes PNGs through untouched', async () => {
+    const png = new Blob(['img'], { type: 'image/png' });
+    expect(await prepareImageForUpload(png)).toBe(png);
+  });
+
+  it('rejects with a readable message when the browser cannot decode the photo', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('decode')));
+    const heic = new Blob(['img'], { type: 'image/heic' });
+    await expect(prepareImageForUpload(heic)).rejects.toThrow(/format/);
+    vi.unstubAllGlobals();
   });
 });

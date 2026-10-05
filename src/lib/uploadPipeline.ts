@@ -184,12 +184,52 @@ export interface UploadItemInput {
   isDirty: boolean;
 }
 
+/** An upload failure with a message that can be shown to the user as-is. */
+export class UploadError extends Error {}
+
+/** Re-encode a canvas-drawable image as PNG. */
+async function encodePng(blob: Blob): Promise<Blob> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    throw new UploadError("This photo's format can't be read here. Try a JPEG or PNG.");
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    bitmap.close();
+    throw new UploadError('Your browser could not process this photo.');
+  }
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (out) => (out ? resolve(out) : reject(new UploadError('Could not convert this photo.'))),
+      'image/png',
+    ),
+  );
+}
+
+/**
+ * The bucket stores PNGs only, and Storage checks the file's real type, so an
+ * unedited JPEG/HEIC/WebP straight from the file picker would be rejected.
+ * Convert anything that isn't already a PNG.
+ */
+export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
+  if (blob.type === 'image/png') return blob;
+  return encodePng(blob);
+}
+
 /** Upload a blob to the bucket and return its public URL. */
 async function uploadBlob(userId: string, blob: Blob): Promise<string> {
   const fileName = newImagePath(userId);
+  const png = await prepareImageForUpload(blob);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(fileName, blob, { contentType: 'image/png' });
+    .upload(fileName, png, { contentType: 'image/png' });
   if (uploadError) throw uploadError;
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
   return urlData.publicUrl;
