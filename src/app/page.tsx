@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LogOut } from 'lucide-react';
+import { BarChart3, CalendarDays, LogOut, Shirt, SlidersHorizontal, Sparkles } from 'lucide-react';
+import Wordmark from '@/components/ui/Wordmark';
 import AuthForm from '@/components/AuthForm';
 import Closet from '@/components/Closet';
 import ColorPreferences from '@/components/ColorPreferences';
@@ -25,12 +26,12 @@ import type { OccasionRules } from '@/lib/outfitScoring';
 import { deserializeModel, serializeModel, updateWeights, computeReward } from '@/lib/banditModel';
 import type { DashboardTab, ClothingItem, PendingRating, ColorCombination } from '@/lib/types';
 
-const tabs: { key: DashboardTab; label: string }[] = [
-  { key: 'closet', label: 'Closet' },
-  { key: 'generator', label: 'Generator' },
-  { key: 'calendar', label: 'Calendar' },
-  { key: 'stats', label: 'Stats' },
-  { key: 'preferences', label: 'Preferences' },
+const tabs: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
+  { key: 'closet', label: 'Closet', icon: Shirt },
+  { key: 'generator', label: 'Outfits', icon: Sparkles },
+  { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { key: 'stats', label: 'Stats', icon: BarChart3 },
+  { key: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
 ];
 
 export default function Page() {
@@ -198,13 +199,15 @@ export default function Page() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)] px-4">
-        <h1 className="logo text-5xl mb-2">
-          Fit<span className="logo-accent">Finder</span>
+      <main className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)] px-4 py-12">
+        <h1 className="mb-2">
+          <Wordmark size="lg" />
         </h1>
-        <p className="text-[var(--text-secondary)] mb-8 text-sm">Your smart wardrobe assistant</p>
+        <p className="text-[var(--text-secondary)] mb-8 text-center">
+          Your closet, tagged and sorted. Outfits picked for the weather.
+        </p>
         <AuthForm />
-      </div>
+      </main>
     );
   }
 
@@ -225,54 +228,55 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      {/* ===== TOP NAV BAR ===== */}
+      {/* ===== TOP BAR ===== */}
       <header className="sticky top-0 z-40 bg-white border-b border-[var(--border)] px-4 lg:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-14">
-          {/* Logo */}
-          <h1 className="logo text-xl">
-            Fit<span className="logo-accent">Finder</span>
+        <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
+          <h1>
+            <Wordmark />
           </h1>
 
-          {/* Tab navigation */}
-          <nav className="hidden sm:flex items-center gap-1">
+          <nav aria-label="Main" className="hidden sm:flex items-center gap-1 self-stretch">
             {tabs.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={activeTab === key ? 'nav-tab-active' : 'nav-tab'}
+                aria-current={activeTab === key ? 'page' : undefined}
+                className={`${activeTab === key ? 'nav-tab-active' : 'nav-tab'} h-full rounded-none`}
               >
-                <span>{label}</span>
+                {label}
               </button>
             ))}
           </nav>
 
-          {/* Sign out */}
-          <button onClick={signOut} className="btn-ghost text-xs gap-1">
-            <LogOut size={14} />
-            <span className="hidden sm:inline">Sign Out</span>
+          <button onClick={signOut} className="btn-ghost px-3" aria-label="Sign out">
+            <LogOut size={16} aria-hidden="true" />
+            <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
-
-        {/* Mobile tab bar */}
-        <nav className="sm:hidden flex items-center justify-around py-1 -mx-4 px-2 border-t border-[var(--border)]">
-          {tabs.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-                activeTab === key
-                  ? 'text-[var(--accent)] bg-[var(--accent-light)]'
-                  : 'text-[var(--text-secondary)]'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
       </header>
 
+      {/* Mobile tab bar: fixed to the bottom, within thumb reach */}
+      <nav
+        aria-label="Main"
+        className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[var(--border)] grid grid-cols-5 pb-[env(safe-area-inset-bottom)]"
+      >
+        {tabs.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            aria-current={activeTab === key ? 'page' : undefined}
+            className={`flex flex-col items-center justify-center gap-1 min-h-[60px] text-[11px] font-semibold ${
+              activeTab === key ? 'text-[var(--carbon)]' : 'text-[var(--text-secondary)]'
+            }`}
+          >
+            <Icon size={20} aria-hidden="true" strokeWidth={activeTab === key ? 2.5 : 2} />
+            {label}
+          </button>
+        ))}
+      </nav>
+
       {/* ===== MAIN CONTENT ===== */}
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-28 sm:pb-10">
         {activeTab === 'closet' && (
           <Closet
             key={closetRefreshKey}
@@ -317,9 +321,9 @@ export default function Page() {
       {pendingRating && ratingMinimized && (
         <button
           onClick={() => setRatingMinimized(false)}
-          className="fixed bottom-4 right-4 z-50 btn-primary shadow-lg"
+          className="fixed bottom-24 sm:bottom-6 right-4 z-50 btn-primary shadow-lg"
         >
-          Rate Yesterday&apos;s Outfit
+          Rate yesterday&apos;s outfit
         </button>
       )}
     </div>
