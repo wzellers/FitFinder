@@ -340,7 +340,7 @@ export default function OutfitCalendar() {
             }`}
             className={`group min-h-[72px] sm:min-h-[116px] p-1 sm:p-1.5 text-left flex flex-col transition-colors hover:bg-[var(--accent-light)] ${
               day.outfit ? 'bg-[#fbf6e9]' : 'bg-white'
-            } ${!day.isCurrentMonth ? 'opacity-45' : ''}`}
+            } ${!day.isCurrentMonth ? '!bg-[var(--muted)] text-[var(--text-secondary)]' : ''}`}
           >
             <span
               className={`tabular text-xs sm:text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
