@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
-import { throwIfAnyError } from '@/lib/supabaseResult';
+import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
@@ -188,6 +188,11 @@ export default function OutfitCalendar() {
         : await supabase
             .from('outfit_wears')
             .insert({ user_id: user.id, worn_date: dateStr, ...payload });
+      if (isUniqueViolation(error)) {
+        showToast('This day already has an outfit. Reopen the day to edit it.', 'warning');
+        loadData();
+        return;
+      }
       if (error) throw error;
       setShowLogModal(false);
       loadData();

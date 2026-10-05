@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
-import { throwIfAnyError } from '@/lib/supabaseResult';
+import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
@@ -351,6 +351,10 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         shoes_id: shoes.id,
         occasion,
       });
+      if (isUniqueViolation(insertError)) {
+        showToast("You've already logged today's outfit. Edit it in Calendar.", 'warning');
+        return;
+      }
       if (insertError) throw insertError;
       showToast("Logged as today's outfit!", 'success');
     } catch {
