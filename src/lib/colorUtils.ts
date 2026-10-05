@@ -1,6 +1,6 @@
 // Color utilities — thin wrappers around the canonical data in constants.ts
 
-import { colorMap, colorNameMap, lightColors } from '@/lib/constants';
+import { colorMap, colorNameMap } from '@/lib/constants';
 
 /** Returns CSS background-color style for a given color name */
 export function getColorStyle(color: string): { backgroundColor: string } {
@@ -19,6 +19,13 @@ export function getColorName(color: string): string {
 
 /** Returns appropriate text color (black / white) for contrast on a bg color */
 export function getContrastTextColor(backgroundColor: string): string {
-  const hex = colorMap[backgroundColor] || backgroundColor;
-  return lightColors.includes(hex) ? '#000000' : '#ffffff';
+  const hex = (colorMap[backgroundColor] || backgroundColor).replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return '#000000';
+  // Relative luminance (WCAG); dark text on light colours, white on dark.
+  const channel = (i: number) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+  return lum > 0.4 ? '#000000' : '#ffffff';
 }

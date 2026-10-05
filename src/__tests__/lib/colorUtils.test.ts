@@ -4,7 +4,7 @@ import { colorPalette, colorMap, colorNameMap } from '@/lib/constants';
 
 describe('getColorStyle', () => {
   it('returns backgroundColor hex for known color name', () => {
-    expect(getColorStyle('blue')).toEqual({ backgroundColor: '#0000ff' });
+    expect(getColorStyle('blue')).toEqual({ backgroundColor: colorMap.blue });
   });
 
   it('passes through unknown color strings', () => {

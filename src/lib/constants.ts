@@ -26,23 +26,24 @@ export const colorPalette = [
 ] as const;
 
 /** Color name → hex value */
+// Swatch colours tuned to look like fabric rather than pure screen colours.
 export const colorMap: Record<string, string> = {
-  black: '#000000',
-  white: '#ffffff',
-  gray: '#808080',
-  beige: '#f5f5dc',
-  'light blue': '#87ceeb',
-  blue: '#0000ff',
-  'navy blue': '#000080',
-  denim: '#191970',
-  'light green': '#90ee90',
-  'dark green': '#006400',
-  brown: '#7B3F00',
-  yellow: '#ffff00',
-  orange: '#ffa500',
-  red: '#ff0000',
-  pink: '#ffc0cb',
-  purple: '#800080',
+  black: '#1c1c1e',
+  white: '#fafaf7',
+  gray: '#8e8e8c',
+  beige: '#ddd0b5',
+  'light blue': '#9fc9e6',
+  blue: '#2f5fb3',
+  'navy blue': '#1f2a4a',
+  denim: '#4a6a91',
+  'light green': '#a9d3a0',
+  'dark green': '#2e5339',
+  brown: '#6b4428',
+  yellow: '#f2cf4a',
+  orange: '#e9853a',
+  red: '#b8262f',
+  pink: '#f1b5c4',
+  purple: '#5f3b78',
 };
 
 /** Hex/name → display name */
@@ -83,7 +84,7 @@ export const colorNameMap: Record<string, string> = {
 };
 
 /** Colors that should use dark text for readability */
-export const lightColors = ['#ffffff', '#f5f5dc', '#87ceeb', '#90ee90', '#ffff00', '#ffc0cb'];
+export const lightColors = ['#fafaf7', '#ddd0b5', '#9fc9e6', '#a9d3a0', '#f2cf4a', '#f1b5c4', '#8e8e8c'];
 
 // ============================================================================
 // CLOTHING CATEGORIES
