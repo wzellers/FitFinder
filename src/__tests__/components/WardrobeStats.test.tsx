@@ -70,11 +70,11 @@ describe('WardrobeStats', () => {
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
-  it('renders stat cards after loading', async () => {
+  it('renders the closet receipt after loading', async () => {
     renderWithProviders(<WardrobeStats />);
     await waitFor(
       () => {
-        expect(screen.getByText('Wardrobe Statistics')).toBeTruthy();
+        expect(screen.getByText('Closet receipt')).toBeTruthy();
       },
       { timeout: 3000 },
     );
@@ -88,7 +88,7 @@ describe('WardrobeStats', () => {
       },
       { timeout: 3000 },
     );
-    expect(screen.getByText('Month')).toBeTruthy();
-    expect(screen.getByText('All Time')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Month' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('All time')).toBeTruthy();
   });
 });

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import { useToast } from '@/components/ToastProvider';
+import { describeItem } from '@/lib/itemLabels';
 import { supabase } from '@/lib/supabaseClient';
 import { throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -186,256 +187,258 @@ export default function WardrobeStats() {
     return (
       <div className="w-full max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="section-header border-0 mb-0 pb-0">Wardrobe Statistics</h2>
+          <h2 className="text-3xl">Stats</h2>
         </div>
         <SkeletonStatCards />
       </div>
     );
   }
 
+  const periodLabel =
+    timePeriod === 'week' ? 'this week' : timePeriod === 'month' ? 'this month' : 'all time';
+
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="section-header border-0 mb-0 pb-0">Wardrobe Statistics</h2>
-        <div className="flex gap-1">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <h2 className="text-3xl">Stats</h2>
+        <div
+          className="inline-flex rounded-md border border-[var(--line-strong)] bg-white p-1"
+          role="group"
+          aria-label="Time period"
+        >
           {(['week', 'month', 'all'] as TimePeriod[]).map((period) => (
             <button
               key={period}
               onClick={() => setTimePeriod(period)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+              aria-pressed={timePeriod === period}
+              className={`min-h-[36px] px-4 rounded text-sm font-semibold ${
                 timePeriod === period
-                  ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                  : 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
+                  ? 'bg-[var(--text)] text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
               }`}
             >
-              {period === 'week' ? 'Week' : period === 'month' ? 'Month' : 'All Time'}
+              {period === 'week' ? 'Week' : period === 'month' ? 'Month' : 'All time'}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Overview Card */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Overview</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--accent)]">{stats.totalItems}</div>
-              <div className="text-xs text-[var(--text-secondary)]">Total Items</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--accent)]">{stats.totalWears}</div>
-              <div className="text-xs text-[var(--text-secondary)]">Outfits Logged</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--success)]">{stats.cleanItems}</div>
-              <div className="text-xs text-[var(--text-secondary)]">Clean Items</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--warning)]">{stats.dirtyItems}</div>
-              <div className="text-xs text-[var(--text-secondary)]">Dirty Items</div>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[22rem_minmax(0,1fr)] gap-8 items-start">
+        {/* ====== Receipt ====== */}
+        <div className="ticket px-6 pt-8 pb-7">
+          <div className="flex items-baseline justify-between">
+            <span className="ticket-header">Closet receipt</span>
+            <span className="text-xs text-[var(--text-secondary)]">{periodLabel}</span>
           </div>
-        </div>
-
-        {/* Items by Category */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Items by Category</h3>
-          <div className="flex flex-col gap-3">
+          <dl className="mt-4 text-sm">
+            <ReceiptLine label="Items on the rack" value={stats.totalItems} strong />
             {sectionNames.map((section) => (
-              <div key={section} className="flex items-center gap-3">
-                <span className="text-xs text-[var(--text)] w-20 shrink-0">{section}</span>
-                <div className="flex-1 h-5 bg-[var(--muted)] rounded overflow-hidden">
-                  <div
-                    className="h-full bg-[var(--accent)] rounded transition-all duration-300"
-                    style={{
-                      width: `${stats.totalItems > 0 ? (stats.itemsByCategory[section] / stats.totalItems) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-[var(--text-secondary)] w-6 text-right">
-                  {stats.itemsByCategory[section]}
-                </span>
-              </div>
+              <ReceiptLine
+                key={section}
+                label={section}
+                value={stats.itemsByCategory[section]}
+                indent
+              />
             ))}
-          </div>
-        </div>
-
-        {/* Most Worn */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Most Worn Items</h3>
-          {stats.mostWornItems.length === 0 ? (
-            <div className="text-center text-[var(--text-secondary)] text-xs py-4">
-              No wear data yet
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {stats.mostWornItems.map((wc, idx) => (
-                <div key={wc.itemId} className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-[var(--accent)] w-5">#{idx + 1}</span>
-                  <ClothingImage
-                    src={wc.item.image_url}
-                    alt={wc.item.type}
-                    className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-[var(--text)] truncate">{wc.item.type}</div>
-                    <div className="text-xs text-[var(--text-secondary)]">{wc.count} times</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Outfit Variety */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Outfit Variety</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--accent)]">{stats.totalWears}</div>
-              <div className="text-xs text-[var(--text-secondary)]">Outfits Logged</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--accent)]">
-                {stats.avgDaysBetweenRepeat > 0 ? stats.avgDaysBetweenRepeat : '-'}
-              </div>
-              <div className="text-xs text-[var(--text-secondary)]">Avg Days Between Repeats</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Closet Utilization */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Closet Utilization</h3>
-          <div className="text-center mb-3">
-            <div className="text-3xl font-bold text-[var(--accent)]">
-              {Math.round(stats.closetUtilization)}%
-            </div>
-            <div className="text-xs text-[var(--text-secondary)]">
-              of items worn (
-              {timePeriod === 'week'
-                ? 'this week'
-                : timePeriod === 'month'
-                  ? 'this month'
-                  : 'all time'}
-              )
-            </div>
-          </div>
-          <div className="h-3 bg-[var(--muted)] rounded-full overflow-hidden">
+            <ReceiptLine label="Clean" value={stats.cleanItems} />
+            <ReceiptLine label="In the wash" value={stats.dirtyItems} />
+          </dl>
+          <div className="ticket-rule my-4" />
+          <dl className="text-sm">
+            <ReceiptLine label="Outfits logged" value={stats.totalWears} strong />
+            <ReceiptLine
+              label="Share of closet worn"
+              value={`${Math.round(stats.closetUtilization)}%`}
+            />
+            <ReceiptLine
+              label="Days between repeats"
+              value={stats.avgDaysBetweenRepeat > 0 ? stats.avgDaysBetweenRepeat : '—'}
+            />
+            <ReceiptLine
+              label="Average rating"
+              value={stats.avgRating > 0 ? `${stats.avgRating.toFixed(1)} / 10` : '—'}
+            />
+          </dl>
+          <div className="ticket-rule my-4" />
+          <div aria-hidden="true" className="h-2 rounded-full bg-[var(--muted)] overflow-hidden">
             <div
-              className="h-full bg-[var(--accent)] rounded-full transition-all duration-300"
+              className="h-full bg-[var(--carbon)] transition-all duration-300"
               style={{ width: `${Math.min(stats.closetUtilization, 100)}%` }}
             />
           </div>
+          <p className="text-xs text-[var(--text-secondary)] mt-2">
+            {stats.totalWears === 0
+              ? `No outfits logged ${periodLabel}. Tap Wear today on an outfit to start tracking.`
+              : `You've worn ${Math.round(stats.closetUtilization)}% of your closet ${periodLabel}.`}
+          </p>
         </div>
 
-        {/* Neglected Items */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Neglected Items</h3>
-          {stats.leastWornItems.length === 0 ? (
-            <div className="text-center text-[var(--text-secondary)] text-xs py-4">
-              Add items to see stats
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {stats.leastWornItems.map((item) => (
-                <div key={item.id} className="flex items-center gap-3">
-                  <ClothingImage
-                    src={item.image_url}
-                    alt={item.type}
-                    className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]"
+        {/* ====== Detail panels ====== */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <section className="card p-5" aria-labelledby="most-worn">
+            <h3 id="most-worn" className="text-lg mb-3">
+              Most worn
+            </h3>
+            {stats.mostWornItems.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                Nothing worn {periodLabel} yet. Your favourites will show up here.
+              </p>
+            ) : (
+              <ol className="flex flex-col gap-2">
+                {stats.mostWornItems.map((wc) => (
+                  <ItemRow
+                    key={wc.itemId}
+                    item={wc.item}
+                    detail={`Worn ${wc.count} ${wc.count === 1 ? 'time' : 'times'}`}
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-[var(--text)] truncate">{item.type}</div>
-                    <div
-                      className={`text-xs ${item.wearCount === 0 ? 'text-[var(--warning)]' : 'text-[var(--text-secondary)]'}`}
-                    >
-                      {item.wearCount === 0 ? 'Never worn' : `${item.wearCount} times`}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </ol>
+            )}
+          </section>
 
-        {/* Color Distribution */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Color Distribution</h3>
-          {stats.colorDistribution.length === 0 ? (
-            <div className="text-center text-[var(--text-secondary)] text-xs py-4">
-              No color data
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {stats.colorDistribution.slice(0, 10).map(({ color, count }) => (
-                <div
-                  key={color}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--muted)] rounded-full text-xs"
-                >
-                  <div
-                    className="w-3 h-3 rounded-full border border-[var(--border)]"
-                    style={{ backgroundColor: getColorStyle(color).backgroundColor }}
+          <section className="card p-5" aria-labelledby="neglected">
+            <h3 id="neglected" className="text-lg mb-3">
+              Waiting for a turn
+            </h3>
+            {stats.leastWornItems.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                Add items to your closet to see which ones you skip.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {stats.leastWornItems.map((item) => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    detail={
+                      item.wearCount === 0
+                        ? timePeriod === 'all'
+                          ? 'Never worn'
+                          : `Not worn ${periodLabel}`
+                        : `Worn ${item.wearCount} ${item.wearCount === 1 ? 'time' : 'times'}`
+                    }
                   />
-                  <span className="text-[var(--text)]">{color}</span>
-                  <span className="text-[var(--text-secondary)]">({count})</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </ul>
+            )}
+          </section>
 
-        {/* Ratings */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Outfit Ratings</h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--warning)]">
-                {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : '-'}
-              </div>
-              <div className="text-xs text-[var(--text-secondary)]">Avg Rating (1-10)</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[var(--accent)]">
-                {stats.topRatedOutfits.length}
-              </div>
-              <div className="text-xs text-[var(--text-secondary)]">Rated Outfits</div>
-            </div>
-          </div>
-
-          {stats.topRatedOutfits.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-[var(--text)] mb-2">Top Rated:</h4>
-              <div className="flex flex-col gap-2">
-                {stats.topRatedOutfits.slice(0, 3).map((outfit) => (
-                  <div
-                    key={outfit.id}
-                    className="flex items-center gap-2 p-2 bg-[var(--muted)] rounded-lg"
+          <section className="card p-5" aria-labelledby="colors">
+            <h3 id="colors" className="text-lg mb-3">
+              Colors on the rack
+            </h3>
+            {stats.colorDistribution.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                Colors appear once you add items.
+              </p>
+            ) : (
+              <ul className="flex flex-wrap gap-2">
+                {stats.colorDistribution.slice(0, 10).map(({ color, count }) => (
+                  <li
+                    key={color}
+                    className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 bg-[var(--muted)] rounded-full text-sm"
                   >
-                    <div className="flex gap-0.5">
-                      {[outfit.top_id, outfit.bottom_id].map((id, idx) => {
+                    <span
+                      aria-hidden="true"
+                      className="w-4 h-4 rounded-full border border-black/20"
+                      style={{ backgroundColor: getColorStyle(color).backgroundColor }}
+                    />
+                    <span>{color}</span>
+                    <span className="tabular text-[var(--text-secondary)]">{count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="card p-5" aria-labelledby="best-rated">
+            <h3 id="best-rated" className="text-lg mb-3">
+              Best-rated outfits
+            </h3>
+            {stats.topRatedOutfits.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                Rate outfits in the Calendar to see your favourites here.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {stats.topRatedOutfits.slice(0, 3).map((outfit) => (
+                  <li
+                    key={outfit.id}
+                    className="flex items-center gap-3 p-2 bg-[var(--muted)] rounded-md"
+                  >
+                    <div className="flex gap-1">
+                      {[outfit.top_id, outfit.bottom_id, outfit.shoes_id].map((id, idx) => {
                         const imgUrl = getItemImage(id);
                         return imgUrl ? (
                           <ClothingImage
                             key={idx}
                             src={imgUrl}
                             alt=""
-                            className="w-6 h-6 rounded object-cover"
+                            className="w-8 h-8 rounded-sm object-contain bg-white"
                           />
                         ) : null;
                       })}
                     </div>
-                    <span className="text-sm font-semibold text-[var(--warning)]">{outfit.rating}/10</span>
-                    <span className="text-xs text-[var(--text-secondary)]">{outfit.worn_date}</span>
-                  </div>
+                    <span className="tabular text-sm font-bold">{outfit.rating}/10</span>
+                    <span className="text-xs text-[var(--text-secondary)] ml-auto">
+                      {new Date(outfit.worn_date + 'T00:00:00').toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </li>
                 ))}
-              </div>
-            </div>
-          )}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
     </div>
+  );
+}
+
+/** One receipt line: label, dotted leader, value. */
+function ReceiptLine({
+  label,
+  value,
+  strong = false,
+  indent = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  strong?: boolean;
+  indent?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-baseline gap-2 py-1 ${indent ? 'pl-4 text-[var(--text-secondary)]' : ''}`}
+    >
+      <dt className={strong ? 'font-semibold' : ''}>{label}</dt>
+      <span
+        aria-hidden="true"
+        className="flex-1 border-b border-dotted border-[var(--line-strong)] translate-y-[-3px]"
+      />
+      <dd
+        className={`tabular font-display [font-stretch:85%] ${strong ? 'text-lg font-bold' : 'font-semibold'}`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function ItemRow({ item, detail }: { item: ClothingItem; detail: string }) {
+  return (
+    <li className="flex items-center gap-3">
+      <ClothingImage
+        src={item.image_url}
+        alt=""
+        className="w-10 h-10 rounded-md object-contain bg-white border border-[var(--border)]"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold truncate">{describeItem(item)}</div>
+        <div className="text-xs text-[var(--text-secondary)]">{detail}</div>
+      </div>
+    </li>
   );
 }
