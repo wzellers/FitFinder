@@ -176,7 +176,8 @@ All per-user tables use the same Row-Level-Security pattern established in
   place a model is called, keeping credentials off the client. It requires a
   signed-in user, and `src/lib/claudeClient.ts` chooses the provider: the
   Anthropic API by default, or Amazon Bedrock (`AnthropicBedrockMantle`,
-  SigV4-signed with IAM credentials limited to `bedrock-mantle:CreateInference`)
+  SigV4-signed with IAM credentials limited to `bedrock-mantle:CreateInference`
+  on the account's default Bedrock project)
   when `CLAUDE_PROVIDER=bedrock`. Both expose the same Messages API, so the
   route code is identical either way.
 - **Constants as one source of truth.** Clothing types, sections, color palette,

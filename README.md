@@ -146,11 +146,28 @@ The `/api/detect-clothing` route calls Claude Haiku 4.5 through
 default is the Anthropic API (`ANTHROPIC_API_KEY`). To serve it from Amazon
 Bedrock instead:
 
-1. In the AWS console, open **Amazon Bedrock → Model access** and make sure
-   Claude Haiku 4.5 is available in your account.
-2. Create an IAM user (or a role, if you federate Vercel into AWS) whose policy
-   allows only `bedrock-mantle:CreateInference`, scoped to the Haiku model, and
-   create an access key for it.
+1. Make sure the AWS account can use Anthropic models: it must be on a paid
+   plan (the Free plan can't use third-party Marketplace models), and the
+   one-time Anthropic use-case form in the Bedrock console must be submitted.
+   A quick check is sending a message to Claude Haiku 4.5 in the Bedrock
+   Playground in your region.
+2. Create an IAM user (or a role, if you federate Vercel into AWS) with an
+   access key and only this permission. Bedrock authorizes Claude requests
+   against the account's default Bedrock project, not the model:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": "bedrock-mantle:CreateInference",
+         "Resource": "arn:aws:bedrock-mantle:<region>:<account-id>:project/default"
+       }
+     ]
+   }
+   ```
+
 3. Set these environment variables (in `.env.local`, and in Vercel's project
    settings for production). Vercel reserves the standard `AWS_*` names, so the
    app reads `BEDROCK_AWS_*` instead:
