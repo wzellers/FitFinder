@@ -10,10 +10,7 @@
 // fills the corresponding field in manually.
 
 import { supabase } from '@/lib/supabaseClient';
-import {
-  CLOTHING_BUCKET as BUCKET,
-  removeClothingImages,
-} from '@/lib/clothingImages';
+import { CLOTHING_BUCKET as BUCKET, removeClothingImages } from '@/lib/clothingImages';
 import { typeToSection } from '@/lib/constants';
 import { detectColors } from '@/lib/imageColor';
 import type { ClothingSection } from '@/lib/types';

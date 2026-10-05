@@ -19,6 +19,7 @@ dist/
 
 # Test / build artifacts
 coverage/
+.playwright-mcp/
 tsconfig.tsbuildinfo
 
 # Editor / IDE
