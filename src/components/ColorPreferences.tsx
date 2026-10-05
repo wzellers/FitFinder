@@ -154,7 +154,7 @@ export default function ColorPreferences() {
       setSelectedTopColor('');
       setSelectedBottomColor('');
     } catch {
-      showToast('Failed to save', 'error');
+      showToast("Couldn't save. Try again.", 'error');
     } finally {
       setBusy(false);
     }
@@ -164,7 +164,7 @@ export default function ColorPreferences() {
     if (!user) return;
     const nextLiked = likedCombinations.filter((c) => c.id !== id);
     if (!(await persistColorPrefs(nextLiked))) {
-      showToast('Failed to delete', 'error');
+      showToast("Couldn't delete. Try again.", 'error');
       return;
     }
     setLikedCombinations(nextLiked);
@@ -182,7 +182,7 @@ export default function ColorPreferences() {
 
     const nextLiked = likedCombinations.map((c) => (c.id === updated.id ? updated : c));
     if (!(await persistColorPrefs(nextLiked))) {
-      showToast('Failed to update', 'error');
+      showToast("Couldn't update. Try again.", 'error');
       return false;
     }
     setLikedCombinations(nextLiked);
@@ -210,10 +210,10 @@ export default function ColorPreferences() {
       .from('profiles')
       .update({ zip_code: zipCode || null })
       .eq('id', user.id);
-    if (error) showToast('Failed to save zip code', 'error');
+    if (error) showToast("Couldn't save your ZIP code. Try again.", 'error');
     else {
       clearWeatherCache();
-      showToast('Zip code saved', 'success');
+      showToast('ZIP code saved.', 'success');
     }
     setSavingZip(false);
   };
@@ -268,7 +268,7 @@ export default function ColorPreferences() {
       if (error) throw error;
       showToast('Reset to defaults', 'success');
     } catch {
-      showToast('Failed to reset', 'error');
+      showToast("Couldn't reset. Try again.", 'error');
     } finally {
       setSavingWeather(false);
     }
@@ -380,7 +380,7 @@ export default function ColorPreferences() {
       if (error) throw error;
       showToast('Reset to defaults', 'success');
     } catch {
-      showToast('Failed to reset', 'error');
+      showToast("Couldn't reset. Try again.", 'error');
     } finally {
       setSavingOccasion(false);
     }
@@ -398,38 +398,50 @@ export default function ColorPreferences() {
       {/* Zip code */}
       <div className="card p-5 mb-6">
         <h3 className="text-sm font-semibold text-[var(--text)] mb-3 flex items-center gap-2">
-          <MapPin size={16} className="text-[var(--accent)]" /> Weather Location
+          <MapPin size={16} className="text-[var(--accent)]" aria-hidden="true" /> Weather location
         </h3>
+        <label htmlFor="pref-zip" className="text-sm font-semibold block mb-1.5">
+          US ZIP code
+        </label>
         <div className="flex items-center gap-2">
           <input
+            id="pref-zip"
             type="text"
-            placeholder="Enter zip code (e.g. 10001)"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            placeholder="e.g. 10001"
+            aria-describedby="pref-zip-hint"
             value={zipCode}
             onChange={(e) => setZipCode(e.target.value)}
-            className="w-44"
+            className="w-44 min-h-[44px]"
             maxLength={5}
           />
-          <button onClick={saveZipCode} disabled={savingZip} className="btn-primary text-xs">
-            {savingZip ? 'Saving...' : 'Save'}
+          <button onClick={saveZipCode} disabled={savingZip} className="btn-primary">
+            {savingZip ? 'Saving…' : 'Save'}
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)] mt-2">
-          Used for weather-aware outfit suggestions in the Generator tab.
+        <p id="pref-zip-hint" className="text-xs text-[var(--text-secondary)] mt-2">
+          Used to pick outfits for today&apos;s weather.
         </p>
       </div>
 
       {/* Temperature thresholds */}
       <div className="card p-5 mb-6">
         <h3 className="text-sm font-semibold text-[var(--text)] mb-3 flex items-center gap-2">
-          <Thermometer size={16} className="text-[var(--accent)]" /> Temperature Thresholds
+          <Thermometer size={16} className="text-[var(--accent)]" aria-hidden="true" /> Temperature
+          ranges
         </h3>
         <div className="flex flex-wrap gap-4 mb-3">
           {(['cold', 'cool', 'warm'] as const).map((key) => (
             <div key={key} className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-[var(--text-secondary)] capitalize">
+              <label
+                htmlFor={`pref-threshold-${key}`}
+                className="text-xs font-medium text-[var(--text-secondary)] capitalize"
+              >
                 {key} below (&deg;F)
               </label>
               <input
+                id={`pref-threshold-${key}`}
                 type="number"
                 value={thresholds[key]}
                 onChange={(e) =>
@@ -450,7 +462,7 @@ export default function ColorPreferences() {
       {/* Clothing Weather Rules */}
       <div className="card p-5 mb-6">
         <h4 className="text-sm font-semibold text-[var(--text)] mb-2">
-          Clothing Rules per Temperature
+          What to wear in each range
         </h4>
         <p className="text-xs text-[var(--text-secondary)] mb-3">
           Add clothing types you want to customize weather rules for. Types not listed here will use
@@ -461,6 +473,7 @@ export default function ColorPreferences() {
         {availableTypes.length > 0 && (
           <div className="flex items-center gap-2 mb-4">
             <select
+              aria-label="Add a clothing type"
               onChange={(e) => {
                 if (e.target.value) {
                   addClothingTypeRule(e.target.value);
@@ -471,7 +484,7 @@ export default function ColorPreferences() {
               defaultValue=""
             >
               <option value="" disabled>
-                Add clothing type...
+                Add a clothing type…
               </option>
               {availableTypes.map((type) => (
                 <option key={type} value={type}>
