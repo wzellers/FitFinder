@@ -1,5 +1,6 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -107,8 +108,8 @@ export default function EditItem({
   if (!isOpen || !item) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-xl" onClick={(e) => e.stopPropagation()}>
+    <>
+      <Modal label="Edit item" onClose={onClose} className="max-w-xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-[var(--text)]">Edit Item</h2>
@@ -224,7 +225,7 @@ export default function EditItem({
             Reset
           </button>
         </div>
-      </div>
+      </Modal>
 
       {/* Confirm delete dialog */}
       <ConfirmDialog
@@ -236,6 +237,6 @@ export default function EditItem({
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}
       />
-    </div>
+    </>
   );
 }

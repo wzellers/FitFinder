@@ -92,7 +92,7 @@ describe('EditItem', () => {
     const onClose = vi.fn();
     renderWithProviders(<EditItem isOpen={true} onClose={onClose} item={item} />);
     const overlay = document.querySelector('.modal-overlay');
-    if (overlay) fireEvent.click(overlay);
+    if (overlay) fireEvent.mouseDown(overlay);
     expect(onClose).toHaveBeenCalled();
   });
 

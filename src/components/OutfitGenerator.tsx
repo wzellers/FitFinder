@@ -1,5 +1,6 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Lock,
@@ -830,76 +831,77 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
       {/* Save name modal */}
       {showSaveModal && (
-        <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
-          <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-[var(--text)] mb-4">Save Outfit</h3>
-            <label className="text-xs font-medium text-[var(--text)] mb-1 block">Outfit Name</label>
-            <input
-              type="text"
-              value={pendingSaveName}
-              onChange={(e) => setPendingSaveName(e.target.value)}
-              placeholder="e.g. Casual Friday"
-              className="w-full mb-4"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') confirmSaveOutfit();
-              }}
-            />
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowSaveModal(false)} className="btn-secondary text-xs">
-                Cancel
-              </button>
-              <button onClick={confirmSaveOutfit} className="btn-primary text-xs">
-                Save
-              </button>
-            </div>
+        <Modal label="Save outfit" onClose={() => setShowSaveModal(false)} className="max-w-sm">
+          <h3 className="text-base font-semibold text-[var(--text)] mb-4">Save Outfit</h3>
+          <label className="text-xs font-medium text-[var(--text)] mb-1 block">Outfit Name</label>
+          <input
+            type="text"
+            value={pendingSaveName}
+            onChange={(e) => setPendingSaveName(e.target.value)}
+            placeholder="e.g. Casual Friday"
+            className="w-full mb-4"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') confirmSaveOutfit();
+            }}
+          />
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowSaveModal(false)} className="btn-secondary text-xs">
+              Cancel
+            </button>
+            <button onClick={confirmSaveOutfit} className="btn-primary text-xs">
+              Save
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Item picker modal */}
       {pickerSlot && (
-        <div className="modal-overlay" onClick={() => setPickerSlot(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-[var(--text)]">
-                Choose {pickerSlot.charAt(0).toUpperCase() + pickerSlot.slice(1)}
-              </h3>
-              <button
-                onClick={() => setPickerSlot(null)}
-                className="p-1 rounded-md hover:bg-gray-100"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {pickerItems.length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)] text-center py-6">
-                No items in this category.
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
-                {pickerItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handlePickItem(item)}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
-                  >
-                    <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
-                      <ClothingImage
-                        src={item.image_url}
-                        alt={item.type}
-                        className="w-full h-full object-contain p-1"
-                      />
-                    </div>
-                    <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-center">
-                      {item.type}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+        <Modal
+          label={`Choose a ${pickerSlot}`}
+          onClose={() => setPickerSlot(null)}
+          className="max-w-md"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-[var(--text)]">
+              Choose {pickerSlot.charAt(0).toUpperCase() + pickerSlot.slice(1)}
+            </h3>
+            <button
+              onClick={() => setPickerSlot(null)}
+              className="btn-ghost px-2"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
           </div>
-        </div>
+          {pickerItems.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)] text-center py-6">
+              No items in this category.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
+              {pickerItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handlePickItem(item)}
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
+                >
+                  <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
+                    <ClothingImage
+                      src={item.image_url}
+                      alt={item.type}
+                      className="w-full h-full object-contain p-1"
+                    />
+                  </div>
+                  <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-center">
+                    {item.type}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Modal>
       )}
 
       {/* Confirm delete dialog */}

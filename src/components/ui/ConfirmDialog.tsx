@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React from 'react';
 
 interface ConfirmDialogProps {
@@ -22,21 +23,19 @@ export default function ConfirmDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <p className="text-sm text-[var(--text)] mb-6">{message}</p>
-        <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="btn-secondary text-xs">
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            className={`text-xs ${variant === 'danger' ? 'btn-danger' : 'btn-primary'}`}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+    <Modal label={message} onClose={onCancel} className="max-w-sm">
+      <p className="text-sm text-[var(--text)] mb-6">{message}</p>
+      <div className="flex gap-3 justify-end">
+        <button onClick={onCancel} className="btn-secondary text-xs">
+          {cancelLabel}
+        </button>
+        <button
+          onClick={onConfirm}
+          className={`text-xs ${variant === 'danger' ? 'btn-danger' : 'btn-primary'}`}
+        >
+          {confirmLabel}
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { Minus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,80 +67,76 @@ export default function RatingPrompt({
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content max-w-sm">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-base font-semibold text-[var(--text)]">
-              Rate Yesterday&apos;s Outfit
-            </h3>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              {formatDate(pendingRating.worn_date)}
-            </p>
-          </div>
-          <button onClick={onMinimize} className="btn-ghost text-xs p-1.5">
-            <Minus size={14} />
-          </button>
+    <Modal label="Rate yesterday's outfit" onClose={onMinimize} className="max-w-sm">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-base font-semibold text-[var(--text)]">
+            Rate Yesterday&apos;s Outfit
+          </h3>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            {formatDate(pendingRating.worn_date)}
+          </p>
         </div>
+        <button onClick={onMinimize} className="btn-ghost px-2" aria-label="Remind me later">
+          <Minus size={14} />
+        </button>
+      </div>
 
-        {/* Outfit Preview */}
-        <div className="flex justify-center gap-2 mb-5 flex-wrap">
-          {loading ? (
-            <div className="text-sm text-[var(--text-secondary)]">Loading...</div>
-          ) : (
-            [
-              pendingRating.outfit_items.top_id,
-              pendingRating.outfit_items.bottom_id,
-              pendingRating.outfit_items.shoes_id,
-            ].map((id, idx) => {
-              const item = getItem(id);
-              return item ? (
-                <ClothingImage
-                  key={idx}
-                  src={item.image_url}
-                  alt={item.type}
-                  className="w-16 h-16 object-cover rounded-xl border-2 border-[var(--border)]"
-                />
-              ) : null;
-            })
-          )}
+      {/* Outfit Preview */}
+      <div className="flex justify-center gap-2 mb-5 flex-wrap">
+        {loading ? (
+          <div className="text-sm text-[var(--text-secondary)]">Loading...</div>
+        ) : (
+          [
+            pendingRating.outfit_items.top_id,
+            pendingRating.outfit_items.bottom_id,
+            pendingRating.outfit_items.shoes_id,
+          ].map((id, idx) => {
+            const item = getItem(id);
+            return item ? (
+              <ClothingImage
+                key={idx}
+                src={item.image_url}
+                alt={item.type}
+                className="w-16 h-16 object-cover rounded-xl border-2 border-[var(--border)]"
+              />
+            ) : null;
+          })
+        )}
+      </div>
+
+      {/* Overall Rating */}
+      <div className="mb-5">
+        <label className="text-sm font-medium text-[var(--text)] block mb-2">Overall Rating</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={rating}
+            onChange={(e) => setRating(Number(e.target.value))}
+            className="flex-1 h-2 accent-[var(--accent)] cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
+          />
+          <span className="text-2xl font-bold text-[var(--accent)] min-w-[40px] text-center">
+            {rating}
+          </span>
         </div>
-
-        {/* Overall Rating */}
-        <div className="mb-5">
-          <label className="text-sm font-medium text-[var(--text)] block mb-2">
-            Overall Rating
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min="1"
-              max="10"
-              value={rating}
-              onChange={(e) => setRating(Number(e.target.value))}
-              className="flex-1 h-2 accent-[var(--accent)] cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
-            />
-            <span className="text-2xl font-bold text-[var(--accent)] min-w-[40px] text-center">
-              {rating}
-            </span>
-          </div>
-          <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
-            <span>Not great</span>
-            <span>Amazing</span>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <button onClick={onSkip} className="btn-secondary flex-1">
-            Skip
-          </button>
-          <button onClick={handleSubmit} className="btn-primary flex-[2]">
-            Submit Rating
-          </button>
+        <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
+          <span>Not great</span>
+          <span>Amazing</span>
         </div>
       </div>
-    </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <button onClick={onSkip} className="btn-secondary flex-1">
+          Skip
+        </button>
+        <button onClick={handleSubmit} className="btn-primary flex-[2]">
+          Submit Rating
+        </button>
+      </div>
+    </Modal>
   );
 }

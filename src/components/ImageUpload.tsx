@@ -1,5 +1,6 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useState, useRef } from 'react';
 import { X, Upload, Loader2, Eraser, Check, AlertCircle, Crop, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -282,137 +283,136 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
   const incompleteCount = drafts.filter((d) => !d.detecting && !isComplete(d)).length;
 
   return (
-    <div className="modal-overlay" onClick={closeModal}>
-      <div
-        className={`modal-content ${isGrid ? 'max-w-3xl' : 'max-w-xl'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[var(--text)]">
-            {isGrid ? `Add ${drafts.length} Items` : 'Add Clothing Item'}
-          </h2>
-          <button onClick={closeModal} className="btn-ghost p-1">
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Shared hidden file input (used by both the select and review stages). */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-
-        {/* Stage: select file */}
-        {stage === 'select' && (
-          <div className="flex flex-col items-center gap-3 mb-5">
-            <button onClick={() => fileInputRef.current?.click()} className="btn-secondary">
-              <Upload size={16} /> Upload Photos
-            </button>
-            <p className="text-xs text-[var(--text-secondary)] text-center">
-              Pick one photo or several at once. We&apos;ll detect the type and colors automatically
-              — you can remove the background and fix anything before saving. You can also add more
-              items one at a time on the next screen.
-            </p>
-          </div>
-        )}
-
-        {/* Stage: review + correct */}
-        {stage === 'review' && drafts.length > 0 && (
-          <>
-            {isGrid ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-                {drafts.map((draft) => (
-                  <DraftCard
-                    key={draft.id}
-                    draft={draft}
-                    invalidType={!draft.detecting && !draft.type}
-                    invalidColor={!draft.detecting && !draft.primaryColor}
-                    onRemoveBackground={() => handleRemoveBackground(draft.id)}
-                    onCrop={() => setCropDraftId(draft.id)}
-                    onRevert={() => handleRevertOriginal(draft.id)}
-                    onCategoryChange={(c) => handleCategoryChange(draft.id, c)}
-                    onTypeChange={(t) => updateDraft(draft.id, { type: t })}
-                    onPrimarySelect={(c) => handlePrimarySelect(draft, c)}
-                    onSecondarySelect={(c) => handleSecondarySelect(draft, c)}
-                    onClearSecondary={() => updateDraft(draft.id, { secondaryColor: null })}
-                    onToggleDirty={() => updateDraft(draft.id, { isDirty: !draft.isDirty })}
-                    onRemove={() => removeDraft(draft.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DraftDetail
-                draft={drafts[0]}
-                invalidType={!drafts[0].detecting && !drafts[0].type}
-                invalidColor={!drafts[0].detecting && !drafts[0].primaryColor}
-                onRemoveBackground={() => handleRemoveBackground(drafts[0].id)}
-                onCrop={() => setCropDraftId(drafts[0].id)}
-                onRevert={() => handleRevertOriginal(drafts[0].id)}
-                onCategoryChange={(c) => handleCategoryChange(drafts[0].id, c)}
-                onTypeChange={(t) => updateDraft(drafts[0].id, { type: t })}
-                onPrimarySelect={(c) => handlePrimarySelect(drafts[0], c)}
-                onSecondarySelect={(c) => handleSecondarySelect(drafts[0], c)}
-                onClearSecondary={() => updateDraft(drafts[0].id, { secondaryColor: null })}
-                onToggleDirty={() => updateDraft(drafts[0].id, { isDirty: !drafts[0].isDirty })}
-              />
-            )}
-
-            {/* Validation summary */}
-            {incompleteCount > 0 && (
-              <p className="flex items-center justify-center gap-1.5 text-sm text-red-600 mb-3">
-                <AlertCircle size={14} />
-                {incompleteCount} {incompleteCount === 1 ? 'item needs' : 'items need'} a type and
-                primary color (highlighted in red).
-              </p>
-            )}
-
-            {/* Actions */}
-            <div className="flex flex-wrap gap-3 justify-center">
-              <button
-                onClick={handleUploadAll}
-                disabled={uploading || !allComplete}
-                className="btn-primary disabled:opacity-50"
-              >
-                {uploading
-                  ? 'Uploading...'
-                  : isGrid
-                    ? `Upload All (${drafts.length})`
-                    : 'Upload Item'}
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="btn-secondary disabled:opacity-50"
-              >
-                <Upload size={16} /> Add another
-              </button>
-              <button onClick={resetForm} className="btn-secondary" disabled={uploading}>
-                Reset
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Crop overlay (renders above the modal content). */}
-        {cropDraftId &&
-          (() => {
-            const d = drafts.find((x) => x.id === cropDraftId);
-            if (!d) return null;
-            return (
-              <ImageCropper
-                imageSrc={d.previewUrl}
-                onCancel={() => setCropDraftId(null)}
-                onCropComplete={(blob) => handleCropApplied(cropDraftId, blob)}
-              />
-            );
-          })()}
+    <Modal
+      label={isGrid ? `Add ${drafts.length} items` : 'Add a clothing item'}
+      onClose={closeModal}
+      className={isGrid ? 'max-w-3xl' : 'max-w-xl'}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold text-[var(--text)]">
+          {isGrid ? `Add ${drafts.length} Items` : 'Add Clothing Item'}
+        </h2>
+        <button onClick={closeModal} className="btn-ghost p-1">
+          <X size={18} />
+        </button>
       </div>
-    </div>
+
+      {/* Shared hidden file input (used by both the select and review stages). */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Stage: select file */}
+      {stage === 'select' && (
+        <div className="flex flex-col items-center gap-3 mb-5">
+          <button onClick={() => fileInputRef.current?.click()} className="btn-secondary">
+            <Upload size={16} /> Upload Photos
+          </button>
+          <p className="text-xs text-[var(--text-secondary)] text-center">
+            Pick one photo or several at once. We&apos;ll detect the type and colors automatically —
+            you can remove the background and fix anything before saving. You can also add more
+            items one at a time on the next screen.
+          </p>
+        </div>
+      )}
+
+      {/* Stage: review + correct */}
+      {stage === 'review' && drafts.length > 0 && (
+        <>
+          {isGrid ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              {drafts.map((draft) => (
+                <DraftCard
+                  key={draft.id}
+                  draft={draft}
+                  invalidType={!draft.detecting && !draft.type}
+                  invalidColor={!draft.detecting && !draft.primaryColor}
+                  onRemoveBackground={() => handleRemoveBackground(draft.id)}
+                  onCrop={() => setCropDraftId(draft.id)}
+                  onRevert={() => handleRevertOriginal(draft.id)}
+                  onCategoryChange={(c) => handleCategoryChange(draft.id, c)}
+                  onTypeChange={(t) => updateDraft(draft.id, { type: t })}
+                  onPrimarySelect={(c) => handlePrimarySelect(draft, c)}
+                  onSecondarySelect={(c) => handleSecondarySelect(draft, c)}
+                  onClearSecondary={() => updateDraft(draft.id, { secondaryColor: null })}
+                  onToggleDirty={() => updateDraft(draft.id, { isDirty: !draft.isDirty })}
+                  onRemove={() => removeDraft(draft.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <DraftDetail
+              draft={drafts[0]}
+              invalidType={!drafts[0].detecting && !drafts[0].type}
+              invalidColor={!drafts[0].detecting && !drafts[0].primaryColor}
+              onRemoveBackground={() => handleRemoveBackground(drafts[0].id)}
+              onCrop={() => setCropDraftId(drafts[0].id)}
+              onRevert={() => handleRevertOriginal(drafts[0].id)}
+              onCategoryChange={(c) => handleCategoryChange(drafts[0].id, c)}
+              onTypeChange={(t) => updateDraft(drafts[0].id, { type: t })}
+              onPrimarySelect={(c) => handlePrimarySelect(drafts[0], c)}
+              onSecondarySelect={(c) => handleSecondarySelect(drafts[0], c)}
+              onClearSecondary={() => updateDraft(drafts[0].id, { secondaryColor: null })}
+              onToggleDirty={() => updateDraft(drafts[0].id, { isDirty: !drafts[0].isDirty })}
+            />
+          )}
+
+          {/* Validation summary */}
+          {incompleteCount > 0 && (
+            <p className="flex items-center justify-center gap-1.5 text-sm text-red-600 mb-3">
+              <AlertCircle size={14} />
+              {incompleteCount} {incompleteCount === 1 ? 'item needs' : 'items need'} a type and
+              primary color (highlighted in red).
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={handleUploadAll}
+              disabled={uploading || !allComplete}
+              className="btn-primary disabled:opacity-50"
+            >
+              {uploading
+                ? 'Uploading...'
+                : isGrid
+                  ? `Upload All (${drafts.length})`
+                  : 'Upload Item'}
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="btn-secondary disabled:opacity-50"
+            >
+              <Upload size={16} /> Add another
+            </button>
+            <button onClick={resetForm} className="btn-secondary" disabled={uploading}>
+              Reset
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Crop overlay (renders above the modal content). */}
+      {cropDraftId &&
+        (() => {
+          const d = drafts.find((x) => x.id === cropDraftId);
+          if (!d) return null;
+          return (
+            <ImageCropper
+              imageSrc={d.previewUrl}
+              onCancel={() => setCropDraftId(null)}
+              onCropComplete={(blob) => handleCropApplied(cropDraftId, blob)}
+            />
+          );
+        })()}
+    </Modal>
   );
 }
 

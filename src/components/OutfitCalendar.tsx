@@ -1,5 +1,6 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -365,167 +366,165 @@ export default function OutfitCalendar() {
 
       {/* Log Modal */}
       {showLogModal && selectedDate && (
-        <div className="modal-overlay" onClick={() => setShowLogModal(false)}>
-          <div
-            className="card p-6 w-[95vw] max-w-3xl max-h-[90vh] overflow-auto relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-semibold text-[var(--text)]">
-                {selectedOutfitWear ? 'Edit' : 'Log'} Outfit —{' '}
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </h3>
-              <button onClick={() => setShowLogModal(false)} className="btn-ghost p-1 text-lg">
-                &times;
-              </button>
-            </div>
+        <Modal
+          label={`${selectedOutfitWear ? 'Edit' : 'Log'} outfit for ${selectedDate.toLocaleDateString(
+            'en-US',
+            { weekday: 'long', month: 'long', day: 'numeric' },
+          )}`}
+          onClose={() => setShowLogModal(false)}
+          className="max-w-3xl"
+        >
+          <div className="flex justify-between items-center mb-5">
+            <h3 className="text-lg font-semibold text-[var(--text)]">
+              {selectedOutfitWear ? 'Edit' : 'Log'} Outfit —{' '}
+              {selectedDate.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </h3>
+            <button onClick={() => setShowLogModal(false)} className="btn-ghost p-1 text-lg">
+              &times;
+            </button>
+          </div>
 
-            {/* Mode toggle */}
-            <div className="flex gap-2 mb-5">
-              <button
-                onClick={() => {
-                  setLogMode('custom');
-                  resetForm();
-                }}
-                className={
-                  logMode === 'custom'
-                    ? 'btn-primary text-sm flex-1'
-                    : 'btn-secondary text-sm flex-1'
-                }
-              >
-                Pick Items
-              </button>
-              <button
-                onClick={() => setLogMode('saved')}
-                className={
-                  logMode === 'saved'
-                    ? 'btn-primary text-sm flex-1'
-                    : 'btn-secondary text-sm flex-1'
-                }
-              >
-                From Saved
-              </button>
-            </div>
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-5">
+            <button
+              onClick={() => {
+                setLogMode('custom');
+                resetForm();
+              }}
+              className={
+                logMode === 'custom' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'
+              }
+            >
+              Pick Items
+            </button>
+            <button
+              onClick={() => setLogMode('saved')}
+              className={
+                logMode === 'saved' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'
+              }
+            >
+              From Saved
+            </button>
+          </div>
 
-            {logMode === 'saved' && (
-              <select
-                value={selectedSavedOutfit}
-                onChange={(e) => handleSavedOutfitSelect(e.target.value)}
-                className="w-full mb-5"
-              >
-                <option value="">Select saved outfit...</option>
-                {savedOutfits.map((o, idx) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name ||
-                      (o.created_at
-                        ? `Outfit from ${new Date(o.created_at).toLocaleDateString()}`
-                        : `Outfit #${idx + 1}`)}
-                  </option>
-                ))}
-              </select>
-            )}
+          {logMode === 'saved' && (
+            <select
+              value={selectedSavedOutfit}
+              onChange={(e) => handleSavedOutfitSelect(e.target.value)}
+              className="w-full mb-5"
+            >
+              <option value="">Select saved outfit...</option>
+              {savedOutfits.map((o, idx) => (
+                <option key={o.id} value={o.id}>
+                  {o.name ||
+                    (o.created_at
+                      ? `Outfit from ${new Date(o.created_at).toLocaleDateString()}`
+                      : `Outfit #${idx + 1}`)}
+                </option>
+              ))}
+            </select>
+          )}
 
-            <div className="space-y-5 mb-5">
-              {(['Tops', 'Bottoms', 'Shoes'] as const).map((section) => {
-                const val =
-                  section === 'Tops'
-                    ? selectedTop
-                    : section === 'Bottoms'
-                      ? selectedBottom
-                      : selectedShoes;
-                const setter =
-                  section === 'Tops'
-                    ? setSelectedTop
-                    : section === 'Bottoms'
-                      ? setSelectedBottom
-                      : setSelectedShoes;
-                const sectionItems = getItemsBySection(section);
-                return (
-                  <div key={section}>
-                    <label className="text-sm font-medium text-[var(--text)] mb-2 block">
-                      {section}
-                    </label>
-                    <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-4 max-h-48 overflow-y-auto p-1">
-                      {/* None option */}
+          <div className="space-y-5 mb-5">
+            {(['Tops', 'Bottoms', 'Shoes'] as const).map((section) => {
+              const val =
+                section === 'Tops'
+                  ? selectedTop
+                  : section === 'Bottoms'
+                    ? selectedBottom
+                    : selectedShoes;
+              const setter =
+                section === 'Tops'
+                  ? setSelectedTop
+                  : section === 'Bottoms'
+                    ? setSelectedBottom
+                    : setSelectedShoes;
+              const sectionItems = getItemsBySection(section);
+              return (
+                <div key={section}>
+                  <label className="text-sm font-medium text-[var(--text)] mb-2 block">
+                    {section}
+                  </label>
+                  <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-4 max-h-48 overflow-y-auto p-1">
+                    {/* None option */}
+                    <button
+                      onClick={() => setter('')}
+                      className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
+                        val === ''
+                          ? 'border-[var(--accent)] bg-[var(--accent-light)]'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      None
+                    </button>
+                    {sectionItems.map((item) => (
                       <button
-                        onClick={() => setter('')}
-                        className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
-                          val === ''
-                            ? 'border-[var(--accent)] bg-[var(--accent-light)]'
-                            : 'border-gray-300 hover:border-gray-400'
+                        key={item.id}
+                        onClick={() => setter(item.id)}
+                        className={`w-20 h-20 rounded-xl border-2 overflow-hidden bg-white transition-all ${
+                          val === item.id
+                            ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
+                            : 'border-[var(--border)] hover:border-gray-400'
                         }`}
                       >
-                        None
+                        <ClothingImage
+                          src={item.image_url}
+                          alt={item.type}
+                          className="w-full h-full object-cover"
+                        />
                       </button>
-                      {sectionItems.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => setter(item.id)}
-                          className={`w-20 h-20 rounded-xl border-2 overflow-hidden bg-white transition-all ${
-                            val === item.id
-                              ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
-                              : 'border-[var(--border)] hover:border-gray-400'
-                          }`}
-                        >
-                          <ClothingImage
-                            src={item.image_url}
-                            alt={item.type}
-                            className="w-full h-full object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Preview */}
-            <div className="flex gap-3 justify-center mb-5">
-              {[selectedTop, selectedBottom, selectedShoes].filter(Boolean).map((id, i) => {
-                const url = getItemImage(id);
-                return url ? (
-                  <ClothingImage
-                    key={i}
-                    src={url}
-                    alt=""
-                    className="w-16 h-16 rounded-xl object-cover border border-[var(--border)]"
-                  />
-                ) : null;
-              })}
-            </div>
-
-            {/* Rating */}
-            <div className="mb-5">
-              <StarRating value={rating} onChange={setRating} label="Outfit Rating" />
-            </div>
-
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notes (optional)"
-              className="w-full mb-5 min-h-[60px]"
-            />
-
-            <div className="flex gap-2 justify-end">
-              {selectedOutfitWear && (
-                <button onClick={requestDelete} className="btn-danger text-sm mr-auto">
-                  Delete
-                </button>
-              )}
-              <button onClick={() => setShowLogModal(false)} className="btn-secondary text-sm">
-                Cancel
-              </button>
-              <button onClick={handleSave} className="btn-primary text-sm">
-                {selectedOutfitWear ? 'Update' : 'Save'}
-              </button>
-            </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+
+          {/* Preview */}
+          <div className="flex gap-3 justify-center mb-5">
+            {[selectedTop, selectedBottom, selectedShoes].filter(Boolean).map((id, i) => {
+              const url = getItemImage(id);
+              return url ? (
+                <ClothingImage
+                  key={i}
+                  src={url}
+                  alt=""
+                  className="w-16 h-16 rounded-xl object-cover border border-[var(--border)]"
+                />
+              ) : null;
+            })}
+          </div>
+
+          {/* Rating */}
+          <div className="mb-5">
+            <StarRating value={rating} onChange={setRating} label="Outfit Rating" />
+          </div>
+
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notes (optional)"
+            className="w-full mb-5 min-h-[60px]"
+          />
+
+          <div className="flex gap-2 justify-end">
+            {selectedOutfitWear && (
+              <button onClick={requestDelete} className="btn-danger text-sm mr-auto">
+                Delete
+              </button>
+            )}
+            <button onClick={() => setShowLogModal(false)} className="btn-secondary text-sm">
+              Cancel
+            </button>
+            <button onClick={handleSave} className="btn-primary text-sm">
+              {selectedOutfitWear ? 'Update' : 'Save'}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* Confirm delete dialog */}
