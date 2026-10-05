@@ -39,6 +39,10 @@ export default function Page() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<DashboardTab>('closet');
+  const [generatorOpened, setGeneratorOpened] = useState(false);
+  useEffect(() => {
+    if (activeTab === 'generator') setGeneratorOpened(true);
+  }, [activeTab]);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showEditItem, setShowEditItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
@@ -283,8 +287,14 @@ export default function Page() {
           />
         )}
         {activeTab === 'preferences' && <ColorPreferences />}
-        {activeTab === 'generator' && (
-          <OutfitGenerator onNavigateToCalendar={() => setActiveTab('calendar')} />
+        {/* Kept mounted once opened, so the generated outfit survives tab switches. */}
+        {generatorOpened && (
+          <div hidden={activeTab !== 'generator'}>
+            <OutfitGenerator
+              onNavigateToCalendar={() => setActiveTab('calendar')}
+              refreshKey={closetRefreshKey}
+            />
+          </div>
         )}
         {activeTab === 'calendar' && <OutfitCalendar />}
         {activeTab === 'stats' && <WardrobeStats />}

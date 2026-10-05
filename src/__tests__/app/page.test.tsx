@@ -205,7 +205,8 @@ describe('Page — Logged In Navigation', () => {
     // Go to Calendar
     fireEvent.click(screen.queryAllByText('Calendar')[0]);
     await waitFor(() => screen.getByTestId('calendar'), { timeout: 3000 });
-    expect(screen.queryByTestId('generator')).toBeNull();
+    // The generator stays mounted (hidden) so its outfit survives tab switches.
+    expect(screen.getByTestId('generator').closest('[hidden]')).toBeTruthy();
 
     // Back to Closet
     fireEvent.click(screen.queryAllByText('Closet')[0]);

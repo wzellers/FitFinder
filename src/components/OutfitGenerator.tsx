@@ -59,9 +59,14 @@ import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
 
 interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
+  /** Changes when closet items change, so the generator reloads its data. */
+  refreshKey?: number;
 }
 
-export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGeneratorProps) {
+export default function OutfitGenerator({
+  onNavigateToCalendar,
+  refreshKey = 0,
+}: OutfitGeneratorProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -203,7 +208,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       }
     };
     fetchAll();
-  }, [user]);
+  }, [user, refreshKey]);
 
   // Generate outfit — featurize candidates, then let the bandit select via
   // ε-greedy (explore/exploit) using the user's learned weights. Locked slots
