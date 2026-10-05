@@ -1,33 +1,41 @@
 /**
- * Bandit convergence simulation (measurement tool — NOT app code, NOT a real test).
+ * Bandit convergence simulation — a measurement of the online learning rule,
+ * with guard-rail assertions so it fails if learning regresses.
  *
- * Purpose: produce a defensible, reproducible "converges within ~N ratings" figure
- * for the contextual bandit in `src/lib/banditModel.ts`. It imports the ACTUAL
- * production functions (`defaultModel`, `updateWeights`, `predict`, `selectOutfits`)
- * so the number reflects real learning behavior, not a re-implementation.
+ * Purpose: a reproducible, defensible description of how the contextual bandit
+ * in `src/lib/banditModel.ts` learns a user's taste. It imports the ACTUAL
+ * production functions (`defaultModel`, `updateWeights`, `predict`,
+ * `selectOutfits`) so the numbers reflect real learning behaviour, not a
+ * re-implementation.
  *
- * Run:  npx vitest run scripts/banditConvergence.sim.ts
+ * Run:  npx vitest run src/__tests__/banditConvergence.sim.test.ts
  *
- * Methodology
- * -----------
- * - A synthetic "user" has a fixed hidden preference vector over the 5 features
- *   (color, weather, variety, occasion, rating). Their reward for an outfit is the
- *   dot product of that preference with the outfit's feature vector (+ small noise),
- *   squashed to [0,1]. This is the ground-truth reward the bandit is trying to learn.
- * - Each "round" the bandit uses ε-greedy `selectOutfits` to pick one outfit from a
- *   fresh pool of random candidates, observes the user's noisy reward, and applies
- *   one online `updateWeights` step (lr = 0.05, the production default).
- * - "Converged" = on a fixed held-out evaluation set, the model's RANKING of outfits
- *   agrees with the ground-truth ranking (top-5 overlap >= 4 of 5) AND the mean
- *   predicted-vs-true reward error stays below tolerance, sustained for a window of
- *   rounds. We use ranking agreement rather than exact top-1 because the app's job is
- *   to surface good outfits (a ranked list), not to identify one single best outfit;
- *   near-tied candidates make exact top-1 needlessly brittle.
- * - We report the median convergence round across many independent simulated users
- *   (different random preferences + candidate pools) so the figure isn't a fluke.
+ * Methodology (Monte Carlo over synthetic users)
+ * ----------------------------------------------
+ * - Each synthetic user has a hidden preference over the 5 features (color,
+ *   weather, variety, occasion, rating): 5 uniform draws normalised to sum to 1.
+ *   Their reward for an outfit is preference · features (+ uniform noise ±0.05),
+ *   clamped to [0,1]. Features are i.i.d. uniform in [0,1] — idealised, not
+ *   built from real closet items — and the reward is exactly linear, so the
+ *   model class can represent every user (a best case for the learner).
+ * - Every user starts from the production cold-start weights. Each round the
+ *   bandit picks one of 12 fresh random candidates with ε-greedy `selectOutfits`
+ *   (ε = 0.15), observes the noisy reward and applies one `updateWeights` step
+ *   (lr = 0.05). Each round is one rating; every user gives 400 ratings.
+ * - "Converged" = on a fixed 30-outfit held-out set, mean |predicted − true|
+ *   reward <= 0.08 AND >= 4 of the model's top 5 are in the true top 5, held for
+ *   10 consecutive ratings. Ranking agreement is used because the app surfaces a
+ *   ranked list, not one single best outfit.
+ * - Many users already satisfy that criterion with the cold-start weights alone
+ *   (their taste is close to the defaults). They are reported separately, so the
+ *   headline figure is "ratings to converge for users who actually had to learn".
+ * - A learning curve (error, top-5 agreement, and distance between learned and
+ *   hidden weights at fixed rating counts) shows the convergence directly.
+ * - The primary batch is 500 users (seeds 1000–1499); two further independent
+ *   batches check that the figures are stable rather than a seed artefact.
  */
 
-import { describe, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   defaultModel,
   updateWeights,
@@ -113,8 +121,24 @@ function topKOverlap(
   return hit;
 }
 
-/** Simulate one user; return the round index at which the model converged (or null). */
-function simulateUser(seed: number, cfg: SimConfig): number | null {
+const CHECKPOINTS = [0, 25, 50, 100, 200, 400] as const;
+
+interface Snapshot {
+  meanErr: number; // mean |predicted − true| reward on the held-out set
+  overlap: number; // model top-K ∩ true top-K
+  weightGap: number; // mean |learned weight − hidden preference| per feature
+}
+
+interface UserResult {
+  /** Meets the convergence criterion with the cold-start weights, before any rating. */
+  satisfiedAtStart: boolean;
+  /** First rating of the stable window that met the criterion, or null. */
+  convergedAt: number | null;
+  checkpoints: Map<number, Snapshot>;
+}
+
+/** Simulate one user for the full rating budget, recording convergence and a learning curve. */
+function simulateUser(seed: number, cfg: SimConfig): UserResult {
   const rng = mulberry32(seed);
   const pref = randomPreference(rng);
 
@@ -128,8 +152,28 @@ function simulateUser(seed: number, cfg: SimConfig): number | null {
       .map((x) => x.i),
   );
 
+  const snapshot = (model: BanditModel): Snapshot => {
+    let absErr = 0;
+    const scores = evalSet.map((fv, i) => {
+      const p = predict(model.params, fv);
+      absErr += Math.abs(p - trueRewardClean(pref, fv));
+      return { i, s: p };
+    });
+    let gap = 0;
+    for (const name of FEATURE_NAMES) gap += Math.abs(model.params.weights[name] - pref[name]);
+    return {
+      meanErr: absErr / cfg.evalSize,
+      overlap: topKOverlap(scores, trueTopSet, cfg.topK),
+      weightGap: gap / FEATURE_NAMES.length,
+    };
+  };
+  const meets = (s: Snapshot) => s.meanErr <= cfg.tolerance && s.overlap >= cfg.minOverlap;
+
   let model: BanditModel = defaultModel();
+  const start = snapshot(model);
+  const checkpoints = new Map<number, Snapshot>([[0, start]]);
   let stable = 0;
+  let convergedAt: number | null = null;
 
   for (let round = 1; round <= cfg.maxRounds; round++) {
     // Present a fresh pool; bandit selects one via ε-greedy (production selector).
@@ -145,24 +189,18 @@ function simulateUser(seed: number, cfg: SimConfig): number | null {
     const reward = trueReward(pref, chosen.features, cfg.noise, rng);
     model = updateWeights(model, chosen.features, reward, cfg.learningRate);
 
-    // Convergence check on the held-out set.
-    let absErr = 0;
-    const modelScores = evalSet.map((fv, i) => {
-      const p = predict(model.params, fv);
-      absErr += Math.abs(p - trueRewardClean(pref, fv));
-      return { i, s: p };
-    });
-    const meanErr = absErr / cfg.evalSize;
-    const overlap = topKOverlap(modelScores, trueTopSet, cfg.topK);
-
-    if (meanErr <= cfg.tolerance && overlap >= cfg.minOverlap) {
-      stable++;
-      if (stable >= cfg.stableWindow) return round - cfg.stableWindow + 1;
-    } else {
-      stable = 0;
+    const snap = snapshot(model);
+    if ((CHECKPOINTS as readonly number[]).includes(round)) checkpoints.set(round, snap);
+    if (convergedAt === null) {
+      if (meets(snap)) {
+        stable++;
+        if (stable >= cfg.stableWindow) convergedAt = round - cfg.stableWindow + 1;
+      } else {
+        stable = 0;
+      }
     }
   }
-  return null;
+  return { satisfiedAtStart: meets(start), convergedAt, checkpoints };
 }
 
 function median(nums: number[]): number {
@@ -177,57 +215,102 @@ function percentile(nums: number[], p: number): number {
   return s[idx];
 }
 
-describe('bandit convergence measurement', () => {
-  it('reports how many ratings until per-user weights converge', () => {
-    const cfg: SimConfig = {
-      poolSize: 12,
-      evalSize: 30,
-      noise: 0.05,
-      maxRounds: 400,
-      tolerance: 0.08,
-      topK: 5,
-      minOverlap: 4, // >= 4 of the true top-5 present in the model's top-5
-      stableWindow: 10,
-      learningRate: DEFAULT_LEARNING_RATE, // 0.05 (production)
-      epsilon: DEFAULT_EPSILON, // 0.15 (production)
-    };
+const pctOf = (n: number, d: number) => `${((n / d) * 100).toFixed(1)}%`;
 
-    const NUM_USERS = 500;
-    const results: number[] = [];
-    let nonConverged = 0;
+interface BatchSummary {
+  users: number;
+  satisfiedAtStart: number;
+  learners: number;
+  learnersConverged: number;
+  learnerRounds: number[];
+  allConverged: number;
+  curve: Map<number, { err: number; top5: number; gap: number }>;
+}
 
-    for (let u = 0; u < NUM_USERS; u++) {
-      const r = simulateUser(1000 + u, cfg);
-      if (r === null) nonConverged++;
-      else results.push(r);
-    }
+function runBatch(seedBase: number, users: number, cfg: SimConfig): BatchSummary {
+  const results = Array.from({ length: users }, (_, u) => simulateUser(seedBase + u, cfg));
+  const learners = results.filter((r) => !r.satisfiedAtStart);
+  const learnerRounds = learners.filter((r) => r.convergedAt !== null).map((r) => r.convergedAt!);
+  const curve = new Map<number, { err: number; top5: number; gap: number }>();
+  for (const c of CHECKPOINTS) {
+    const snaps = results.map((r) => r.checkpoints.get(c)!);
+    curve.set(c, {
+      err: median(snaps.map((s) => s.meanErr)),
+      top5: snaps.filter((s) => s.overlap >= cfg.minOverlap).length / users,
+      gap: median(snaps.map((s) => s.weightGap)),
+    });
+  }
+  return {
+    users,
+    satisfiedAtStart: results.length - learners.length,
+    learners: learners.length,
+    learnersConverged: learnerRounds.length,
+    learnerRounds,
+    allConverged: results.filter((r) => r.convergedAt !== null).length,
+    curve,
+  };
+}
+
+describe('bandit convergence simulation', () => {
+  const cfg: SimConfig = {
+    poolSize: 12,
+    evalSize: 30,
+    noise: 0.05,
+    maxRounds: 400,
+    tolerance: 0.08,
+    topK: 5,
+    minOverlap: 4, // >= 4 of the true top-5 present in the model's top-5
+    stableWindow: 10,
+    learningRate: DEFAULT_LEARNING_RATE, // 0.05 (production)
+    epsilon: DEFAULT_EPSILON, // 0.15 (production)
+  };
+  const NUM_USERS = 500;
+
+  it("learns simulated users' rankings, reported per cohort with a learning curve", () => {
+    const main = runBatch(1000, NUM_USERS, cfg);
+    const others = [50_000, 90_000].map((seed) => runBatch(seed, NUM_USERS, cfg));
+    const lr = main.learnerRounds;
 
     const out = [
       '',
       '================ BANDIT CONVERGENCE SIMULATION ================',
       `Model: online linear contextual bandit (src/lib/banditModel.ts)`,
-      `Params: lr=${cfg.learningRate}, epsilon=${cfg.epsilon}, ${FEATURE_NAMES.length} features`,
-      `Users simulated: ${NUM_USERS}  |  converged: ${results.length}  |  did not converge within ${cfg.maxRounds}: ${nonConverged}`,
-      `Convergence criterion: mean |pred-true| <= ${cfg.tolerance} AND >=${cfg.minOverlap}/${cfg.topK} top-${cfg.topK} ranking overlap`,
-      `                       held for ${cfg.stableWindow} consecutive ratings on a ${cfg.evalSize}-outfit held-out set`,
-      `Reward noise: +/-${cfg.noise}`,
+      `Params: lr=${cfg.learningRate}, epsilon=${cfg.epsilon}, ${FEATURE_NAMES.length} features, ${cfg.maxRounds} ratings per user`,
+      `Converged: mean |pred-true| <= ${cfg.tolerance} AND >= ${cfg.minOverlap}/${cfg.topK} top-${cfg.topK} overlap,`,
+      `           held for ${cfg.stableWindow} consecutive ratings on a ${cfg.evalSize}-outfit held-out set`,
+      `Reward noise: +/-${cfg.noise}   Users: ${NUM_USERS} synthetic (seeds 1000-${1000 + NUM_USERS - 1})`,
       '--------------------------------------------------------------',
-      `  Ratings to converge  ->  median: ${median(results)}`,
-      `                           p25:    ${percentile(results, 25)}`,
-      `                           p75:    ${percentile(results, 75)}`,
-      `                           p90:    ${percentile(results, 90)}`,
-      `                           min:    ${Math.min(...results)}   max: ${Math.max(...results)}`,
+      `Already matched at cold start (no learning needed): ${main.satisfiedAtStart} (${pctOf(main.satisfiedAtStart, NUM_USERS)})`,
+      `Had to learn: ${main.learners}  ->  converged within ${cfg.maxRounds}: ${main.learnersConverged} (${pctOf(main.learnersConverged, main.learners)})`,
+      `  Ratings to converge (users who had to learn):`,
+      `     median ${median(lr)}   p25 ${percentile(lr, 25)}   p75 ${percentile(lr, 75)}   p90 ${percentile(lr, 90)}   max ${Math.max(...lr)}`,
+      `All users converged within ${cfg.maxRounds}: ${main.allConverged} / ${NUM_USERS} (${pctOf(main.allConverged, NUM_USERS)})`,
       '--------------------------------------------------------------',
-      `  Cumulative % of users converged by N ratings:`,
-      ...[10, 20, 30, 50, 75, 100].map((n) => {
-        const frac = results.filter((r) => r <= n).length / NUM_USERS;
-        return `     <= ${String(n).padStart(3)} ratings:  ${(frac * 100).toFixed(0)}%`;
+      `Learning curve (all ${NUM_USERS} users)`,
+      `  ratings   median error   top-5 agreement (>=${cfg.minOverlap}/5)   median weight gap`,
+      ...CHECKPOINTS.map((c) => {
+        const p = main.curve.get(c)!;
+        return `  ${String(c).padStart(7)}   ${p.err.toFixed(3).padStart(12)}   ${(p.top5 * 100).toFixed(1).padStart(23)}%   ${p.gap.toFixed(3).padStart(17)}`;
       }),
+      '--------------------------------------------------------------',
+      `Stability across independent batches (seeds 1000 / 50000 / 90000):`,
+      `  learners' median ratings: ${[main, ...others].map((b) => median(b.learnerRounds)).join(' / ')}`,
+      `  all users converged:      ${[main, ...others].map((b) => pctOf(b.allConverged, b.users)).join(' / ')}`,
+      `  top-5 agreement at ${cfg.maxRounds}:  ${[main, ...others].map((b) => `${(b.curve.get(cfg.maxRounds)!.top5 * 100).toFixed(1)}%`).join(' / ')}`,
       '==============================================================',
       '',
     ].join('\n');
-
-    // eslint-disable-next-line no-console
     console.log(out);
+
+    // Guard rails: fail if the learning rule regresses.
+    for (const b of [main, ...others]) {
+      const start = b.curve.get(0)!;
+      const end = b.curve.get(cfg.maxRounds)!;
+      expect(b.allConverged / b.users).toBeGreaterThanOrEqual(0.9);
+      expect(b.learnersConverged / b.learners).toBeGreaterThanOrEqual(0.85);
+      expect(end.err).toBeLessThan(start.err * 0.5);
+      expect(end.gap).toBeLessThan(start.gap * 0.5);
+      expect(end.top5).toBeGreaterThanOrEqual(0.9);
+    }
   });
 });
