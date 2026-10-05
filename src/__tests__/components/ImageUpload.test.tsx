@@ -50,7 +50,8 @@ describe('ImageUpload', () => {
 
   it('renders upload step when isOpen is true', () => {
     renderWithProviders(<ImageUpload isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByText(/Upload/i)).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Add a clothing item' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Choose photos/ })).toBeTruthy();
   });
 
   it('shows file input for uploading', () => {
