@@ -276,7 +276,7 @@ export default function OutfitCalendar() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
         <div>
-          <h2 className="text-3xl">Wear log</h2>
+          <h2 className="text-3xl">Calendar</h2>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
             {loggedThisMonth === 0
               ? `No outfits logged in ${monthNames[currentDate.getMonth()]}. Pick a day to log what you wore.`
@@ -294,7 +294,7 @@ export default function OutfitCalendar() {
             <ChevronLeft size={18} aria-hidden="true" />
           </button>
           <span
-            className="font-display text-lg font-bold [font-stretch:85%] min-w-[9.5rem] text-center"
+            className="font-semibold text-lg font-bold min-w-[9.5rem] text-center"
             aria-live="polite"
           >
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -339,7 +339,7 @@ export default function OutfitCalendar() {
                 : 'nothing logged'
             }`}
             className={`group min-h-[72px] sm:min-h-[116px] p-1 sm:p-1.5 text-left flex flex-col transition-colors hover:bg-[var(--accent-light)] ${
-              day.outfit ? 'bg-[#fbf6e9]' : 'bg-white'
+              day.outfit ? 'bg-[var(--purple-light)]' : 'bg-white'
             } ${!day.isCurrentMonth ? '!bg-[var(--muted)] text-[var(--text-secondary)]' : ''}`}
           >
             <span

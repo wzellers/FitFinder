@@ -224,14 +224,14 @@ export default function WardrobeStats() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[22rem_minmax(0,1fr)] gap-8 items-start">
-        {/* ====== Receipt ====== */}
-        <div className="ticket px-6 pt-8 pb-7">
+        {/* ====== Summary ====== */}
+        <div className="panel px-6 pt-8 pb-7">
           <div className="flex items-baseline justify-between">
-            <span className="ticket-header">Closet receipt</span>
+            <h3 className="text-lg">Summary</h3>
             <span className="text-xs text-[var(--text-secondary)]">{periodLabel}</span>
           </div>
           <dl className="mt-4 text-sm">
-            <ReceiptLine label="Items on the rack" value={stats.totalItems} strong />
+            <ReceiptLine label="Items" value={stats.totalItems} strong />
             {sectionNames.map((section) => (
               <ReceiptLine
                 key={section}
@@ -243,7 +243,7 @@ export default function WardrobeStats() {
             <ReceiptLine label="Clean" value={stats.cleanItems} />
             <ReceiptLine label="In the wash" value={stats.dirtyItems} />
           </dl>
-          <div className="ticket-rule my-4" />
+          <div className="divider my-4" />
           <dl className="text-sm">
             <ReceiptLine label="Outfits logged" value={stats.totalWears} strong />
             <ReceiptLine
@@ -259,7 +259,7 @@ export default function WardrobeStats() {
               value={stats.avgRating > 0 ? `${stats.avgRating.toFixed(1)} / 10` : '—'}
             />
           </dl>
-          <div className="ticket-rule my-4" />
+          <div className="divider my-4" />
           <div aria-hidden="true" className="h-2 rounded-full bg-[var(--muted)] overflow-hidden">
             <div
               className="h-full bg-[var(--carbon)] transition-all duration-300"
@@ -298,7 +298,7 @@ export default function WardrobeStats() {
 
           <section className="card p-5" aria-labelledby="neglected">
             <h3 id="neglected" className="text-lg mb-3">
-              Waiting for a turn
+              Least worn
             </h3>
             {stats.leastWornItems.length === 0 ? (
               <p className="text-sm text-[var(--text-secondary)]">
@@ -325,7 +325,7 @@ export default function WardrobeStats() {
 
           <section className="card p-5" aria-labelledby="colors">
             <h3 id="colors" className="text-lg mb-3">
-              Colors on the rack
+              Colors
             </h3>
             {stats.colorDistribution.length === 0 ? (
               <p className="text-sm text-[var(--text-secondary)]">
@@ -397,7 +397,7 @@ export default function WardrobeStats() {
   );
 }
 
-/** One receipt line: label, dotted leader, value. */
+/** One summary line: label, leader, value. */
 function ReceiptLine({
   label,
   value,
@@ -418,9 +418,7 @@ function ReceiptLine({
         aria-hidden="true"
         className="flex-1 border-b border-dotted border-[var(--line-strong)] translate-y-[-3px]"
       />
-      <dd
-        className={`tabular font-display [font-stretch:85%] ${strong ? 'text-lg font-bold' : 'font-semibold'}`}
-      >
+      <dd className={`tabular font-semibold ${strong ? 'text-lg font-bold' : 'font-semibold'}`}>
         {value}
       </dd>
     </div>

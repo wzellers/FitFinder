@@ -8,14 +8,21 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', 'system-ui', 'sans-serif'],
+        sans: [
+          'system-ui',
+          '-apple-system',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'sans-serif',
+        ],
       },
       colors: {
         accent: {
-          DEFAULT: '#14213D',
-          light: '#DCE3F2',
-          hover: '#0B1528',
+          DEFAULT: '#171717',
+          light: '#E5E7EB',
+          hover: '#000000',
         },
       },
     },

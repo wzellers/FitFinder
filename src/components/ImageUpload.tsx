@@ -317,10 +317,10 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
         <div className="mb-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full rounded-md border-2 border-dashed border-[var(--manila-deep)] bg-[#fbf6e9] hover:bg-[var(--manila)]/40 px-6 py-10 flex flex-col items-center gap-2 transition-colors"
+            className="w-full rounded-md border-2 border-dashed border-[var(--line-strong)] bg-[var(--muted)] hover:bg-white px-6 py-10 flex flex-col items-center gap-2 transition-colors"
           >
             <Upload size={28} aria-hidden="true" className="text-[var(--carbon)]" />
-            <span className="font-display text-xl font-bold [font-stretch:85%]">Choose photos</span>
+            <span className="font-semibold text-xl font-bold">Choose photos</span>
             <span className="text-sm text-[var(--text-secondary)] max-w-xs text-center">
               Add one or more photos. We&apos;ll guess the type and colors — you can fix anything
               before saving.
@@ -469,7 +469,7 @@ function DirtyToggle({ isDirty, onToggle }: { isDirty: boolean; onToggle: () => 
       aria-label={`Laundry status: ${isDirty ? 'dirty' : 'clean'}. Mark as ${isDirty ? 'clean' : 'dirty'}`}
       className="min-h-[36px] min-w-[44px] flex items-center justify-center"
     >
-      <span className={isDirty ? 'stamp-dirty' : 'stamp-clean'}>{isDirty ? 'Dirty' : 'Clean'}</span>
+      <span className={isDirty ? 'badge-dirty' : 'badge-clean'}>{isDirty ? 'Dirty' : 'Clean'}</span>
     </button>
   );
 }

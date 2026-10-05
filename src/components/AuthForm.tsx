@@ -77,7 +77,7 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="ticket w-full max-w-sm px-7 pt-9 pb-8">
+    <div className="panel w-full max-w-sm px-7 pt-9 pb-8">
       <h2 className="text-2xl mb-1">{isSignUp ? 'Create your account' : 'Welcome back'}</h2>
       <p className="text-sm text-[var(--text-secondary)] mb-6">
         {isSignUp ? 'Start tagging your closet.' : 'Log in to see your closet.'}
@@ -136,7 +136,7 @@ export default function AuthForm() {
               : 'Log in'}
         </button>
 
-        <div className="ticket-rule my-1" />
+        <div className="divider my-1" />
 
         <button
           type="button"

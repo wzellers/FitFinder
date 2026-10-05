@@ -8,7 +8,7 @@ import ClothingImage from '@/components/ui/ClothingImage';
 import { imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes } from '@/lib/constants';
-import { describeItem, ticketNumber } from '@/lib/itemLabels';
+import { describeItem } from '@/lib/itemLabels';
 import ColorSwatchGroup from '@/components/ui/ColorSwatchGroup';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ClothingItem, ClothingSection } from '@/lib/types';
@@ -114,9 +114,6 @@ export default function EditItem({
         <div className="flex items-start justify-between gap-3 mb-5">
           <div>
             <h2 className="text-2xl">Edit item</h2>
-            <p className="tabular text-sm text-[var(--text-secondary)]">
-              Tag No. {ticketNumber(item.id)}
-            </p>
           </div>
           <button onClick={onClose} className="btn-ghost px-2" aria-label="Close">
             <X size={18} aria-hidden="true" />
@@ -124,8 +121,8 @@ export default function EditItem({
         </div>
 
         <div className="flex items-center gap-5 mb-6">
-          <div className="hang-tag w-36 shrink-0">
-            <div className="hang-tag-photo aspect-square">
+          <div className="item-card w-36 shrink-0">
+            <div className="item-card-photo aspect-square">
               <ClothingImage
                 src={item.image_url}
                 alt={describeItem(item)}
@@ -134,7 +131,7 @@ export default function EditItem({
             </div>
           </div>
           <div className="flex flex-col items-start gap-3">
-            <span className={isDirty ? 'stamp-dirty text-sm' : 'stamp-clean text-sm'}>
+            <span className={isDirty ? 'badge-dirty' : 'badge-clean'}>
               {isDirty ? 'Dirty' : 'Clean'}
             </span>
             <button onClick={handleToggleDirty} disabled={updating} className="btn-secondary">
@@ -214,7 +211,7 @@ export default function EditItem({
           </div>
         </div>
 
-        <div className="ticket-rule pt-5 flex flex-wrap gap-3 items-center">
+        <div className="divider pt-5 flex flex-wrap gap-3 items-center">
           <button
             onClick={handleUpdate}
             disabled={updating || !selectedType || selectedColors.length === 0}

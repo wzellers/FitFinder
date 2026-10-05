@@ -14,7 +14,7 @@ import {
   Calendar,
   Trash2,
 } from 'lucide-react';
-import { describeItem, ticketNumber } from '@/lib/itemLabels';
+import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import { supabase } from '@/lib/supabaseClient';
@@ -454,7 +454,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           ? `Warm, ${thresholds.cool}–${thresholds.warm}°F`
           : `Hot, over ${thresholds.warm}°F`;
 
-  // What the ticket's "special instructions" line says about today's conditions.
+  // What the panel's "special instructions" line says about today's conditions.
   const instructions = [
     occasion ? `${occasion} outfit` : 'Any occasion',
     weather && !ignoreWeather
@@ -533,13 +533,10 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
       {activeTab === 'generator' && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,36rem)_320px] lg:justify-center gap-8 lg:gap-14 items-start">
-          {/* ====== The outfit, printed as a claim ticket ====== */}
-          <div className="ticket w-full max-w-xl mx-auto px-5 sm:px-7 pt-8 pb-7">
+          {/* ====== The outfit ====== */}
+          <div className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-8 pb-7">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="ticket-header">Claim ticket</span>
-              <span className="tabular font-display font-bold text-lg [font-stretch:75%]">
-                No. {hasOutfit ? ticketNumber(`${top!.id}${bottom!.id}${shoes!.id}`) : '----'}
-              </span>
+              <h3 className="text-lg">Your outfit</h3>
             </div>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
               {new Date().toLocaleDateString('en-US', {
@@ -552,7 +549,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
             <ul className="mt-5">
               {slots.map(({ key, label, item, locked, toggle }) => (
-                <li key={key} className="ticket-rule flex items-center gap-4 py-3">
+                <li key={key} className="divider flex items-center gap-4 py-3">
                   <button
                     type="button"
                     onClick={() => setPickerSlot(key)}
@@ -578,8 +575,8 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     )}
                   </button>
                   <div className="flex-1 min-w-0">
-                    <div className="ticket-header">{label}</div>
-                    <div className="font-display text-lg font-bold [font-stretch:85%] truncate">
+                    <div className="panel-label">{label}</div>
+                    <div className="font-semibold text-lg font-bold truncate">
                       {item ? item.type : 'Not picked yet'}
                     </div>
                     {item && (
@@ -619,7 +616,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
               </p>
             )}
 
-            <div className="ticket-rule pt-5 flex flex-col gap-3">
+            <div className="divider pt-5 flex flex-col gap-3">
               <button
                 onClick={pickOutfit}
                 disabled={loading}
@@ -683,7 +680,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                   <div className="flex items-center gap-3">
                     <img src={getWeatherIconUrl(weather.icon)} alt="" className="w-12 h-12 -my-1" />
                     <div>
-                      <div className="tabular font-display text-3xl font-bold [font-stretch:85%]">
+                      <div className="tabular font-semibold text-3xl font-bold">
                         {weather.temperature}°F
                       </div>
                       <div className="text-sm text-[var(--text-secondary)]">
@@ -752,11 +749,9 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                 const pieces = savedOutfitPieces(outfit);
                 const name = outfit.name || `Outfit ${idx + 1}`;
                 return (
-                  <li key={outfit.id ?? idx} className="ticket px-5 pt-7 pb-5 flex flex-col">
+                  <li key={outfit.id ?? idx} className="panel px-5 pt-7 pb-5 flex flex-col">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-display text-lg font-bold [font-stretch:85%] truncate">
-                        {name}
-                      </span>
+                      <span className="font-semibold text-lg font-bold truncate">{name}</span>
                       <span className="tabular text-xs text-[var(--text-secondary)] shrink-0">
                         {outfit.created_at
                           ? new Date(outfit.created_at).toLocaleDateString('en-US', {
@@ -779,7 +774,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                               className="w-full h-full object-contain p-1"
                             />
                             {item.is_dirty && (
-                              <span className="stamp-dirty absolute bottom-1 right-1 bg-white/80">
+                              <span className="badge-dirty absolute bottom-1 right-1 bg-white/80">
                                 Dirty
                               </span>
                             )}
@@ -794,7 +789,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                         ),
                       )}
                     </div>
-                    <div className="ticket-rule pt-3 mt-auto flex gap-2">
+                    <div className="divider pt-3 mt-auto flex gap-2">
                       <button
                         onClick={() => loadSavedOutfit(outfit)}
                         className="btn-secondary flex-1"

@@ -70,11 +70,11 @@ describe('WardrobeStats', () => {
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
-  it('renders the closet receipt after loading', async () => {
+  it('renders the summary after loading', async () => {
     renderWithProviders(<WardrobeStats />);
     await waitFor(
       () => {
-        expect(screen.getByText('Closet receipt')).toBeTruthy();
+        expect(screen.getByText('Summary')).toBeTruthy();
       },
       { timeout: 3000 },
     );

@@ -84,11 +84,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         ))}
       </ol>
 
-      <div className="ticket px-8 pt-10 pb-9 w-full max-w-md">
+      <div className="panel px-8 pt-10 pb-9 w-full max-w-md">
         {/* ===== WELCOME STEP ===== */}
         {step === 'welcome' && (
           <div className="text-center">
-            <h1 className="text-3xl mb-2">Let&apos;s open your closet</h1>
+            <h1 className="text-3xl mb-2">Welcome to FitFinder</h1>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
               Add your ZIP code and FitFinder will pick outfits for the day&apos;s weather.
             </p>
@@ -130,7 +130,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         {/* ===== UPLOAD STEP ===== */}
         {step === 'upload' && (
           <div>
-            <h2 className="text-2xl mb-1 text-center">Hang up your first items</h2>
+            <h2 className="text-2xl mb-1 text-center">Add your first items</h2>
             <p className="text-sm text-[var(--text-secondary)] text-center mb-5">
               Add photos of clothes you wear. FitFinder tags the type and colors for you, and you
               can add more any time.

@@ -204,7 +204,7 @@ export default function Page() {
           <Wordmark size="lg" />
         </h1>
         <p className="text-[var(--text-secondary)] mb-8 text-center">
-          Your closet, tagged and sorted. Outfits picked for the weather.
+          Your wardrobe and outfit planner.
         </p>
         <AuthForm />
       </main>

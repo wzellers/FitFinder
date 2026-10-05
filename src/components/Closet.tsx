@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { sectionNames, colorPalette, clothingTypes } from '@/lib/constants';
 import { getColorName, getColorStyle } from '@/lib/colorUtils';
-import { describeItem, ticketNumber } from '@/lib/itemLabels';
+import { describeItem } from '@/lib/itemLabels';
 import { SkeletonGrid } from '@/components/ui/Skeleton';
 import type { ClothingItem, ClothingSection } from '@/lib/types';
 
@@ -69,8 +69,6 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
   const [hideEmpty, setHideEmpty] = useState<boolean>(() => loadJson(STORAGE_KEYS.hideEmpty, true));
 
   const [laundryAction, setLaundryAction] = useState<LaundryAction>(null);
-  // Item ids whose stamp was just pressed, to play the stamp animation once.
-  const [justStamped, setJustStamped] = useState<string | null>(null);
 
   useEffect(() => {
     saveJson(STORAGE_KEYS.collapsedSections, collapsedSections);
@@ -142,11 +140,10 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
     fetchItems();
   };
 
-  // Stamp a single tag clean/dirty without opening the editor.
+  // Toggle a single item clean/dirty without opening the editor.
   const toggleItemDirty = async (item: ClothingItem) => {
     const next = !item.is_dirty;
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_dirty: next } : i)));
-    setJustStamped(item.id);
     const { error } = await supabase
       .from('clothing_items')
       .update({ is_dirty: next })
@@ -204,7 +201,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
           <h2 className="text-3xl">Your closet</h2>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
             {items.length === 0
-              ? 'Nothing on the rack yet.'
+              ? 'No items yet.'
               : `${items.length} ${items.length === 1 ? 'item' : 'items'}, ${dirtyCount} in the wash`}
           </p>
         </div>
@@ -294,7 +291,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
 
       {items.length === 0 && (
         <div className="card p-8 text-center mb-8">
-          <p className="text-lg font-semibold mb-1">Your rack is empty</p>
+          <p className="text-lg font-semibold mb-1">Your closet is empty</p>
           <p className="text-sm text-[var(--text-secondary)] mb-4">
             Add a few photos of clothes you wear and FitFinder will tag the type and colors for you.
           </p>
@@ -354,9 +351,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                           ) : (
                             <ChevronDown size={16} aria-hidden="true" />
                           )}
-                          <span className="font-display text-lg font-bold [font-stretch:85%]">
-                            {type}
-                          </span>
+                          <span className="font-semibold text-lg font-bold">{type}</span>
                           <span className="tabular text-sm text-[var(--text-secondary)]">
                             {typeItems.length}
                           </span>
@@ -367,9 +362,8 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                         <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                           {typeItems.map((item) => (
                             <li key={item.id}>
-                              <HangTag
+                              <ItemCard
                                 item={item}
-                                animateStamp={justStamped === item.id}
                                 onOpen={() => onEditItem?.(item)}
                                 onToggleDirty={() => toggleItemDirty(item)}
                               />
@@ -378,7 +372,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                           <li>
                             <button
                               onClick={onAddItem}
-                              className="w-full h-full min-h-[120px] rounded-md border-2 border-dashed border-[var(--manila-deep)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white/60 flex flex-col items-center justify-center gap-1 transition-colors"
+                              className="w-full h-full min-h-[120px] rounded-md border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white flex flex-col items-center justify-center gap-1 transition-colors"
                             >
                               <Plus size={20} aria-hidden="true" />
                               <span className="text-sm font-semibold">
@@ -399,7 +393,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                       <button
                         key={t}
                         onClick={onAddItem}
-                        className="min-h-[36px] px-3 rounded-full border border-dashed border-[var(--manila-deep)] font-semibold text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white/60"
+                        className="min-h-[36px] px-3 rounded-full border border-dashed border-[var(--line-strong)] font-semibold text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white"
                       >
                         + {t}
                       </button>
@@ -433,20 +427,19 @@ function singleTypeSection(types: string[]) {
   return types.length === 1;
 }
 
-interface HangTagProps {
+interface ItemCardProps {
   item: ClothingItem;
-  animateStamp: boolean;
   onOpen: () => void;
   onToggleDirty: () => void;
 }
 
-/** A closet item drawn as a manila hang-tag with a rubber-stamped laundry status. */
-function HangTag({ item, animateStamp, onOpen, onToggleDirty }: HangTagProps) {
+/** A closet item: photo, type, colors and a clean/dirty toggle. */
+function ItemCard({ item, onOpen, onToggleDirty }: ItemCardProps) {
   const name = describeItem(item);
   return (
-    <div className="hang-tag h-full flex flex-col">
+    <div className="item-card h-full flex flex-col">
       <button onClick={onOpen} className="text-left rounded-sm" aria-label={`Edit ${name}`}>
-        <div className="hang-tag-photo aspect-square w-full">
+        <div className="item-card-photo aspect-square w-full">
           <ClothingImage
             src={item.image_url}
             alt=""
@@ -456,12 +449,7 @@ function HangTag({ item, animateStamp, onOpen, onToggleDirty }: HangTagProps) {
           />
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-2 px-0.5">
-          <span className="font-display font-bold leading-tight [font-stretch:85%] truncate">
-            {item.type}
-          </span>
-          <span className="tabular text-[11px] text-[var(--text-secondary)] shrink-0">
-            No. {ticketNumber(item.id)}
-          </span>
+          <span className="font-semibold leading-tight truncate">{item.type}</span>
         </div>
       </button>
       <div className="flex items-center justify-between gap-2 mt-1.5 px-0.5">
@@ -482,12 +470,7 @@ function HangTag({ item, animateStamp, onOpen, onToggleDirty }: HangTagProps) {
           }`}
           className="min-h-[32px] min-w-[44px] flex items-center justify-end"
         >
-          <span
-            key={String(item.is_dirty)}
-            className={`${item.is_dirty ? 'stamp-dirty' : 'stamp-clean'} ${
-              animateStamp ? 'stamp-animate' : ''
-            }`}
-          >
+          <span className={item.is_dirty ? 'badge-dirty' : 'badge-clean'}>
             {item.is_dirty ? 'Dirty' : 'Clean'}
           </span>
         </button>

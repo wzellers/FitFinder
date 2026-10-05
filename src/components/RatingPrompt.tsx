@@ -122,7 +122,7 @@ export default function RatingPrompt({
             className="flex-1 h-2 accent-[var(--accent)] cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
           />
           <span
-            className="tabular font-display text-2xl font-bold min-w-[40px] text-center"
+            className="tabular font-semibold text-2xl font-bold min-w-[40px] text-center"
             aria-hidden="true"
           >
             {rating}
