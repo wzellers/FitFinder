@@ -107,7 +107,7 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   NEXT_PUBLIC_OPENWEATHERMAP_API_KEY=your_openweathermap_key
+   OPENWEATHERMAP_API_KEY=your_openweathermap_key
    # Server-side; used by the /api/detect-clothing route for auto-detection
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
