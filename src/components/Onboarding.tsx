@@ -61,7 +61,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 step === key
                   ? 'bg-[var(--accent)] text-white'
                   : steps.findIndex((s) => s.key === step) > idx
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-[#e6f2ec] text-[var(--success)]'
                     : 'bg-[var(--muted)] text-[var(--text-secondary)]'
               }`}
             >
@@ -127,7 +127,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             <p className="text-xs text-[var(--text-secondary)] text-center mb-5">
               Upload photos of your clothing. You can always add more later.
               {uploadedCount > 0 && (
-                <span className="block mt-1 text-green-600 font-medium">
+                <span className="block mt-1 text-[var(--success)] font-medium">
                   {uploadedCount} item{uploadedCount > 1 ? 's' : ''} added
                 </span>
               )}
@@ -148,7 +148,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         {/* ===== FINISH STEP ===== */}
         {step === 'preferences' && (
           <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-full bg-[#e6f2ec] text-[var(--success)] flex items-center justify-center mx-auto mb-4">
               <Check size={32} />
             </div>
             <h2 className="text-lg font-semibold text-[var(--text)] mb-2">You&apos;re All Set!</h2>

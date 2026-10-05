@@ -229,11 +229,11 @@ export default function WardrobeStats() {
               <div className="text-xs text-[var(--text-secondary)]">Outfits Logged</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.cleanItems}</div>
+              <div className="text-2xl font-bold text-[var(--success)]">{stats.cleanItems}</div>
               <div className="text-xs text-[var(--text-secondary)]">Clean Items</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-amber-500">{stats.dirtyItems}</div>
+              <div className="text-2xl font-bold text-[var(--warning)]">{stats.dirtyItems}</div>
               <div className="text-xs text-[var(--text-secondary)]">Dirty Items</div>
             </div>
           </div>
@@ -350,7 +350,7 @@ export default function WardrobeStats() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-[var(--text)] truncate">{item.type}</div>
                     <div
-                      className={`text-xs ${item.wearCount === 0 ? 'text-amber-500' : 'text-[var(--text-secondary)]'}`}
+                      className={`text-xs ${item.wearCount === 0 ? 'text-[var(--warning)]' : 'text-[var(--text-secondary)]'}`}
                     >
                       {item.wearCount === 0 ? 'Never worn' : `${item.wearCount} times`}
                     </div>
@@ -392,7 +392,7 @@ export default function WardrobeStats() {
           <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Outfit Ratings</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-amber-500">
+              <div className="text-2xl font-bold text-[var(--warning)]">
                 {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : '-'}
               </div>
               <div className="text-xs text-[var(--text-secondary)]">Avg Rating (1-10)</div>
@@ -427,7 +427,7 @@ export default function WardrobeStats() {
                         ) : null;
                       })}
                     </div>
-                    <span className="text-sm font-semibold text-amber-500">{outfit.rating}/10</span>
+                    <span className="text-sm font-semibold text-[var(--warning)]">{outfit.rating}/10</span>
                     <span className="text-xs text-[var(--text-secondary)]">{outfit.worn_date}</span>
                   </div>
                 ))}

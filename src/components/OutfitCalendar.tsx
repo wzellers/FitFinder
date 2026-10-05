@@ -260,7 +260,7 @@ export default function OutfitCalendar() {
             <Star
               size={18}
               className={`transition-colors ${
-                n <= value ? 'text-amber-400 fill-amber-400' : 'text-gray-300'
+                n <= value ? 'text-[var(--warning)] fill-[var(--warning)]' : 'text-[var(--line-strong)]'
               }`}
             />
           </button>
@@ -346,8 +346,8 @@ export default function OutfitCalendar() {
                 </div>
                 {day.outfit.rating != null && (
                   <div className="flex items-center gap-0.5">
-                    <Star size={10} className="text-amber-500 fill-amber-500" />
-                    <span className="text-[10px] text-amber-600 font-medium">
+                    <Star size={10} className="text-[var(--warning)] fill-[var(--warning)]" />
+                    <span className="text-[10px] text-[var(--warning)] font-medium">
                       {day.outfit.rating}
                     </span>
                   </div>
@@ -456,7 +456,7 @@ export default function OutfitCalendar() {
                       className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
                         val === ''
                           ? 'border-[var(--accent)] bg-[var(--accent-light)]'
-                          : 'border-gray-300 hover:border-gray-400'
+                          : 'border-[var(--line-strong)] hover:border-[var(--text-secondary)]'
                       }`}
                     >
                       None
@@ -468,7 +468,7 @@ export default function OutfitCalendar() {
                         className={`w-20 h-20 rounded-xl border-2 overflow-hidden bg-white transition-all ${
                           val === item.id
                             ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
-                            : 'border-[var(--border)] hover:border-gray-400'
+                            : 'border-[var(--border)] hover:border-[var(--text-secondary)]'
                         }`}
                       >
                         <ClothingImage

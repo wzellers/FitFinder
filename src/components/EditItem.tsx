@@ -117,7 +117,7 @@ export default function EditItem({
             <button
               onClick={handleToggleDirty}
               disabled={updating}
-              className={`text-xs px-2 py-1 rounded font-medium ${isDirty ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
+              className={`text-xs px-2 py-1 rounded font-medium ${isDirty ? 'bg-[#e6f2ec] text-[var(--success)]' : 'bg-[#fdf4e3] text-[var(--warning)]'}`}
             >
               {isDirty ? 'Mark Clean' : 'Mark Dirty'}
             </button>
@@ -190,7 +190,7 @@ export default function EditItem({
                 className={`w-12 h-12 rounded-lg border-2 transition-all ${
                   selectedColors.includes(color)
                     ? 'border-[var(--accent)] ring-2 ring-[var(--accent)] scale-105'
-                    : 'border-gray-200 hover:border-gray-400'
+                    : 'border-[var(--border)] hover:border-[var(--text-secondary)]'
                 }`}
                 style={{ backgroundColor: getColorStyle(color).backgroundColor }}
                 title={color}

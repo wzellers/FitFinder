@@ -485,11 +485,11 @@ export default function ColorPreferences() {
         {customizedTypes.length > 0 && (
           <>
             <p className="text-xs text-[var(--text-secondary)] mb-3 flex items-center gap-1">
-              <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">
+              <span className="inline-block w-4 h-4 rounded bg-[#e6f2ec] text-[var(--success)] text-center leading-4 text-[10px] font-bold">
                 &#10003;
               </span>
               = allowed in that weather &nbsp;&middot;&nbsp;
-              <span className="inline-block w-4 h-4 rounded bg-red-100 text-red-500 text-center leading-4 text-[10px] font-bold">
+              <span className="inline-block w-4 h-4 rounded bg-[#fbeceb] text-[var(--danger)] text-center leading-4 text-[10px] font-bold">
                 &#10005;
               </span>
               = blocked
@@ -527,8 +527,8 @@ export default function ColorPreferences() {
                                 onClick={() => toggleClothingRule(type, cat)}
                                 className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
                                   allowed
-                                    ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                                    : 'bg-red-100 text-red-500 hover:bg-red-200'
+                                    ? 'bg-[#e6f2ec] text-[var(--success)] hover:bg-[#d3e8dd]'
+                                    : 'bg-[#fbeceb] text-[var(--danger)] hover:bg-[#f5d6d4]'
                                 }`}
                               >
                                 {allowed ? '\u2713' : '\u2715'}
@@ -540,7 +540,7 @@ export default function ColorPreferences() {
                           <button
                             type="button"
                             onClick={() => removeClothingTypeRule(type)}
-                            className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                            className="text-xs text-[var(--danger)] hover:text-[var(--danger)] transition-colors"
                             title="Remove custom rule"
                           >
                             &times;
@@ -621,7 +621,7 @@ export default function ColorPreferences() {
                 className={`w-14 h-14 rounded-lg border-2 transition-all ${
                   selectedTopColor === color || selectedBottomColor === color
                     ? 'border-[var(--accent)] ring-2 ring-[var(--accent)] scale-105'
-                    : 'border-gray-300 hover:border-gray-400 shadow-sm'
+                    : 'border-[var(--line-strong)] hover:border-[var(--text-secondary)] shadow-sm'
                 }`}
                 style={{ backgroundColor: getColorStyle(color).backgroundColor }}
                 title={color}
@@ -631,7 +631,7 @@ export default function ColorPreferences() {
 
           <div className="flex md:flex-col gap-3 items-center">
             <div
-              className="w-20 h-14 rounded-lg border-2 border-gray-300 flex items-center justify-center text-xs font-medium"
+              className="w-20 h-14 rounded-lg border-2 border-[var(--line-strong)] flex items-center justify-center text-xs font-medium"
               style={{
                 backgroundColor: selectedTopColor
                   ? getColorStyle(selectedTopColor).backgroundColor
@@ -644,7 +644,7 @@ export default function ColorPreferences() {
               {selectedTopColor ? getColorName(selectedTopColor) : 'Top'}
             </div>
             <div
-              className="w-20 h-14 rounded-lg border-2 border-gray-300 flex items-center justify-center text-xs font-medium"
+              className="w-20 h-14 rounded-lg border-2 border-[var(--line-strong)] flex items-center justify-center text-xs font-medium"
               style={{
                 backgroundColor: selectedBottomColor
                   ? getColorStyle(selectedBottomColor).backgroundColor
@@ -688,7 +688,7 @@ export default function ColorPreferences() {
                   setSelectedCombination(combo);
                   setShowEditModal(true);
                 }}
-                className="w-14 h-14 rounded-lg border-2 border-gray-300 overflow-hidden hover:border-[var(--accent)] hover:scale-105 transition-all"
+                className="w-14 h-14 rounded-lg border-2 border-[var(--line-strong)] overflow-hidden hover:border-[var(--accent)] hover:scale-105 transition-all"
               >
                 <div className="w-full h-1/2" style={getColorStyle(combo.topColor)} />
                 <div className="w-full h-1/2" style={getColorStyle(combo.bottomColor)} />
@@ -711,11 +711,11 @@ export default function ColorPreferences() {
         Generator, only its allowed types are used.
       </p>
       <p className="text-xs text-[var(--text-secondary)] mb-4 flex items-center gap-1">
-        <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">
+        <span className="inline-block w-4 h-4 rounded bg-[#e6f2ec] text-[var(--success)] text-center leading-4 text-[10px] font-bold">
           &#10003;
         </span>
         = allowed &nbsp;&middot;&nbsp;
-        <span className="inline-block w-4 h-4 rounded bg-gray-100 text-gray-400 text-center leading-4 text-[10px] font-bold">
+        <span className="inline-block w-4 h-4 rounded bg-[var(--muted)] text-[var(--text-secondary)] text-center leading-4 text-[10px] font-bold">
           &#10005;
         </span>
         = not allowed
@@ -751,8 +751,8 @@ export default function ColorPreferences() {
                         onClick={() => toggleOccasionType(o, type)}
                         className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
                           valid
-                            ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            ? 'bg-[#e6f2ec] text-[var(--success)] hover:bg-[#d3e8dd]'
+                            : 'bg-[var(--muted)] text-[var(--text-secondary)] hover:bg-[var(--border)]'
                         }`}
                       >
                         {valid ? '\u2713' : '\u2715'}

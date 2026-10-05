@@ -81,7 +81,7 @@ export default function ColorCombinationModal({
 
         {/* Current preview */}
         <div className="flex justify-center mb-6">
-          <div className="w-20 h-20 rounded-lg border-2 border-gray-200 overflow-hidden">
+          <div className="w-20 h-20 rounded-lg border-2 border-[var(--border)] overflow-hidden">
             <div className="w-full h-1/2" style={getColorStyle(combination.topColor)} />
             <div className="w-full h-1/2" style={getColorStyle(combination.bottomColor)} />
           </div>
@@ -98,7 +98,7 @@ export default function ColorCombinationModal({
                 className={`w-10 h-10 rounded-lg border-2 transition-all ${
                   selectedTopColor === color
                     ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
-                    : 'border-gray-200'
+                    : 'border-[var(--border)]'
                 }`}
                 style={{ backgroundColor: getColorStyle(color).backgroundColor }}
                 title={color}
@@ -106,7 +106,7 @@ export default function ColorCombinationModal({
             ))}
           </div>
           <div
-            className="w-full h-10 rounded-lg border border-gray-200 flex items-center justify-center text-sm font-medium"
+            className="w-full h-10 rounded-lg border border-[var(--border)] flex items-center justify-center text-sm font-medium"
             style={{
               backgroundColor: getColorStyle(selectedTopColor).backgroundColor,
               color: getContrastTextColor(selectedTopColor),
@@ -127,7 +127,7 @@ export default function ColorCombinationModal({
                 className={`w-10 h-10 rounded-lg border-2 transition-all ${
                   selectedBottomColor === color
                     ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
-                    : 'border-gray-200'
+                    : 'border-[var(--border)]'
                 }`}
                 style={{ backgroundColor: getColorStyle(color).backgroundColor }}
                 title={color}
@@ -135,7 +135,7 @@ export default function ColorCombinationModal({
             ))}
           </div>
           <div
-            className="w-full h-10 rounded-lg border border-gray-200 flex items-center justify-center text-sm font-medium"
+            className="w-full h-10 rounded-lg border border-[var(--border)] flex items-center justify-center text-sm font-medium"
             style={{
               backgroundColor: getColorStyle(selectedBottomColor).backgroundColor,
               color: getContrastTextColor(selectedBottomColor),

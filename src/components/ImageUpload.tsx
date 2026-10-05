@@ -365,7 +365,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
 
           {/* Validation summary */}
           {incompleteCount > 0 && (
-            <p className="flex items-center justify-center gap-1.5 text-sm text-red-600 mb-3">
+            <p className="flex items-center justify-center gap-1.5 text-sm text-[var(--danger)] mb-3">
               <AlertCircle size={14} />
               {incompleteCount} {incompleteCount === 1 ? 'item needs' : 'items need'} a type and
               primary color (highlighted in red).
@@ -436,7 +436,7 @@ interface DraftEditorProps {
 function UploadErrorNote({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="max-w-[14rem] text-center text-xs text-red-700">
+    <p role="alert" className="max-w-[14rem] text-center text-xs text-[var(--danger)]">
       {message}
     </p>
   );
@@ -447,10 +447,10 @@ function StatusBadge({ status }: { status: DraftStatus }) {
     return <Loader2 size={14} className="animate-spin text-[var(--accent)]" />;
   }
   if (status === 'done') {
-    return <Check size={14} className="text-green-600" />;
+    return <Check size={14} className="text-[var(--success)]" />;
   }
   if (status === 'error') {
-    return <AlertCircle size={14} className="text-red-600" />;
+    return <AlertCircle size={14} className="text-[var(--danger)]" />;
   }
   return null;
 }
@@ -460,7 +460,7 @@ function DirtyToggle({ isDirty, onToggle }: { isDirty: boolean; onToggle: () => 
     <button
       onClick={onToggle}
       className={`text-xs px-2 py-1 rounded font-medium ${
-        isDirty ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+        isDirty ? 'bg-[#fdf4e3] text-[var(--warning)]' : 'bg-[#e6f2ec] text-[var(--success)]'
       }`}
     >
       {isDirty ? 'Dirty' : 'Clean'}
@@ -535,12 +535,12 @@ function ColorPalette({
   onSelect: (color: string) => void;
 }) {
   const baseBorder = invalid
-    ? 'border-red-400 hover:border-red-500'
-    : 'border-gray-200 hover:border-gray-400';
+    ? 'border-[var(--danger)] hover:border-[var(--danger)]'
+    : 'border-[var(--border)] hover:border-[var(--text-secondary)]';
   return (
     <div
       className={`grid grid-cols-8 gap-2 justify-center mx-auto w-fit ${
-        invalid ? 'p-1.5 rounded-lg ring-1 ring-red-400 bg-red-50' : ''
+        invalid ? 'p-1.5 rounded-lg ring-1 ring-[var(--danger)] bg-[#fbeceb]' : ''
       }`}
     >
       {colorPalette.map((color) => {
@@ -575,7 +575,7 @@ function TypeSelects({
   onCategoryChange: (c: ClothingSection | '') => void;
   onTypeChange: (t: string) => void;
 }) {
-  const errorRing = 'border-red-400 ring-1 ring-red-400 bg-red-50';
+  const errorRing = 'border-[var(--danger)] ring-1 ring-[var(--danger)] bg-[#fbeceb]';
   return (
     <>
       <select
@@ -647,7 +647,7 @@ function DraftDetail({
       {/* Category / type */}
       <div className="flex flex-col items-center gap-3 mb-5">
         <label
-          className={`text-sm font-medium flex items-center gap-2 ${invalidType ? 'text-red-600' : 'text-[var(--text)]'}`}
+          className={`text-sm font-medium flex items-center gap-2 ${invalidType ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}
         >
           Item Type {invalidType && '(required)'}
           {draft.detecting && <Loader2 size={12} className="animate-spin text-[var(--accent)]" />}
@@ -663,7 +663,7 @@ function DraftDetail({
       {/* Primary color */}
       <div className="mb-5">
         <label
-          className={`text-sm font-medium block text-center mb-2 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}
+          className={`text-sm font-medium block text-center mb-2 ${invalidColor ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}
         >
           Primary color {invalidColor && '(required)'}
         </label>
@@ -730,7 +730,7 @@ function DraftCard({
   return (
     <div
       className={`rounded-lg border p-3 relative ${
-        needsInfo ? 'border-red-400 ring-1 ring-red-400 bg-red-50/40' : 'border-[var(--border)]'
+        needsInfo ? 'border-[var(--danger)] ring-1 ring-[var(--danger)] bg-[#fbeceb]/60' : 'border-[var(--border)]'
       }`}
     >
       <button
@@ -748,7 +748,7 @@ function DraftCard({
           <StatusBadge status={draft.status} />
           {draft.detecting && <Loader2 size={12} className="animate-spin text-[var(--accent)]" />}
           {needsInfo && (
-            <span className="flex items-center gap-1 text-[10px] font-medium text-red-600">
+            <span className="flex items-center gap-1 text-[10px] font-medium text-[var(--danger)]">
               <AlertCircle size={11} /> Needs info
             </span>
           )}
@@ -777,7 +777,7 @@ function DraftCard({
       {/* Primary color */}
       <div className="mb-3">
         <label
-          className={`text-xs font-medium block text-center mb-1 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}
+          className={`text-xs font-medium block text-center mb-1 ${invalidColor ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}
         >
           Primary {invalidColor && '(required)'}
         </label>
