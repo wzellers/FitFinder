@@ -49,6 +49,10 @@
     --purple-hover: #1b4d74;
     --purple-light: var(--sky-wash);
     --focus: var(--carbon);
+
+    /* Nav highlight (themable) */
+    --pill-active: var(--burgundy);
+    --pill-active-ink: #ffffff;
   }
 
   html {

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart3, CalendarDays, LogOut, Shirt, SlidersHorizontal, Sparkles } from 'lucide-react';
 import Wordmark from '@/components/ui/Wordmark';
 import LiveClock from '@/components/ui/LiveClock';
+import PillNav from '@/components/ui/PillNav';
 import AuthForm from '@/components/AuthForm';
 import Closet from '@/components/Closet';
 import ColorPreferences from '@/components/ColorPreferences';
@@ -250,29 +251,7 @@ export default function Page() {
       </header>
 
       {/* Floating pill navigation, bottom-centre on every screen size */}
-      <nav
-        aria-label="Main"
-        className="fixed z-40 bottom-[calc(1rem+env(safe-area-inset-bottom))] inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 rounded-full bg-[var(--burgundy)] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.18)] grid grid-cols-5 sm:flex sm:gap-1"
-      >
-        {tabs.map(({ key, label, icon: Icon }) => {
-          const active = activeTab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              aria-current={active ? 'page' : undefined}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 min-h-[52px] sm:min-h-[44px] sm:px-5 rounded-full text-[11px] sm:text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-[var(--sky)] text-[var(--burgundy)]'
-                  : 'text-[#e3cfd3] hover:text-white'
-              }`}
-            >
-              <Icon size={18} aria-hidden="true" className="sm:hidden" />
-              {label}
-            </button>
-          );
-        })}
-      </nav>
+      <PillNav items={tabs} active={activeTab} onChange={setActiveTab} />
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-32">
