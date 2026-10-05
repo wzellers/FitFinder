@@ -147,4 +147,20 @@ describe('useAuth', () => {
 
     expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps the same user object across auth events for the same user', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+      data: { session: { user: mockUser } },
+      error: null,
+    } as unknown as Awaited<ReturnType<typeof supabase.auth.getSession>>);
+
+    const { result } = renderHook(() => useAuth());
+    await act(async () => {});
+    const first = result.current.user;
+
+    act(() => {
+      authStateCallback?.('TOKEN_REFRESHED', { user: { ...mockUser } });
+    });
+    expect(result.current.user).toBe(first);
+  });
 });

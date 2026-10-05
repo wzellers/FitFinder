@@ -6,12 +6,18 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    // Supabase emits several auth events on load (INITIAL_SESSION, SIGNED_IN,
+    // TOKEN_REFRESHED), each with a new user object. Keep the existing object
+    // while the user is the same, so effects keyed on `user` don't refetch.
+    const applyUser = (next: User | null) =>
+      setUser((prev) => (prev && next && prev.id === next.id ? prev : next));
+
     supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
+      applyUser(data.session?.user ?? null);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      applyUser(session?.user ?? null);
     });
 
     return () => {
