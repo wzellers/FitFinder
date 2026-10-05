@@ -19,7 +19,7 @@ interface PosterHeaderProps {
 export default function PosterHeader({ title, script, readout, actions }: PosterHeaderProps) {
   return (
     <header className="poster relative overflow-hidden rounded-[28px] bg-[var(--burgundy)] px-6 sm:px-10 pt-8 sm:pt-10 pb-6 mb-8">
-      <Cutout className="absolute -right-14 -top-24 w-40 sm:-top-28 sm:w-72 text-[var(--sky)]" />
+      <Cutout className="absolute -right-12 -top-20 w-28 sm:-right-14 sm:-top-28 sm:w-72 text-[var(--sky)]" />
       <div className="relative">
         <h2 className="font-poster uppercase leading-[0.82] text-[var(--sky)] text-[clamp(3.25rem,11vw,8.5rem)] tracking-[-0.01em]">
           {title}
@@ -27,14 +27,14 @@ export default function PosterHeader({ title, script, readout, actions }: Poster
         {script && (
           <span
             aria-hidden="true"
-            className="font-script block -mt-4 sm:-mt-7 ml-[18%] -rotate-6 text-[var(--sky-wash)] text-[clamp(2rem,5vw,3.75rem)] leading-none"
+            className="font-script block w-fit -mt-4 sm:-mt-7 mb-3 ml-[18%] -rotate-6 text-[var(--sky-wash)] text-[clamp(2rem,5vw,3.75rem)] leading-none"
           >
             {script}
           </span>
         )}
       </div>
       {(readout || actions) && (
-        <div className="relative mt-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative mt-4 flex flex-wrap items-center justify-between gap-3">
           {readout ? (
             <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sky-wash)]">
               {readout}
