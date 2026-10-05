@@ -2,12 +2,13 @@
 
 import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
+import { describeItem } from '@/lib/itemLabels';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -74,7 +75,7 @@ export default function OutfitCalendar() {
       setItems(itemsData || []);
       setSavedOutfits(savedData || []);
     } catch {
-      showToast('Failed to load calendar', 'error');
+      showToast("Couldn't load your wear log. Refresh to try again.", 'error');
     } finally {
       setLoading(false);
     }
@@ -128,6 +129,8 @@ export default function OutfitCalendar() {
     setCalendarDays(days);
   }, [currentDate, outfitWears]);
 
+  const loggedThisMonth = calendarDays.filter((d) => d.isCurrentMonth && d.outfit).length;
+
   const getItemImage = (id: string | undefined) =>
     id ? (items.find((i) => i.id === id)?.image_url ?? null) : null;
   const getItemsBySection = (section: string) =>
@@ -172,7 +175,7 @@ export default function OutfitCalendar() {
   const handleSave = async () => {
     if (!user || !selectedDate) return;
     if (!selectedTop && !selectedBottom && !selectedShoes) {
-      showToast('Select at least one item', 'warning');
+      showToast('Pick at least one item to log.', 'warning');
       return;
     }
     const dateStr = toLocalDateString(selectedDate);
@@ -199,7 +202,7 @@ export default function OutfitCalendar() {
       setShowLogModal(false);
       loadData();
     } catch {
-      showToast('Failed to save', 'error');
+      showToast("Couldn't save this day. Try again.", 'error');
     }
   };
 
@@ -236,40 +239,34 @@ export default function OutfitCalendar() {
   ];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // Star rating component
-  const StarRating = ({
-    value,
-    onChange,
-    label,
-  }: {
-    value: number;
-    onChange: (v: number) => void;
-    label: string;
-  }) => (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-[var(--text)]">{label}</label>
-      <div className="flex gap-1">
+  // 1–10 rating picker. Tapping the current value clears it.
+  const RatingPicker = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
+    <fieldset>
+      <legend className="text-sm font-semibold mb-2">
+        How did it feel?{' '}
+        <span className="font-normal text-[var(--text-secondary)]">(optional)</span>
+      </legend>
+      <div className="flex flex-wrap gap-1.5">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
           <button
             key={n}
             type="button"
             onClick={() => onChange(value === n ? 0 : n)}
-            className="p-0.5"
-            title={`${n}/10`}
+            aria-pressed={value === n}
+            aria-label={`${n} out of 10`}
+            className={`tabular w-10 h-10 rounded-md border text-sm font-semibold transition-colors ${
+              value === n
+                ? 'bg-[var(--text)] text-white border-[var(--text)]'
+                : n <= value
+                  ? 'bg-[var(--accent-light)] border-[var(--line-strong)]'
+                  : 'bg-white border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
+            }`}
           >
-            <Star
-              size={18}
-              className={`transition-colors ${
-                n <= value ? 'text-[var(--warning)] fill-[var(--warning)]' : 'text-[var(--line-strong)]'
-              }`}
-            />
+            {n}
           </button>
         ))}
-        {value > 0 && (
-          <span className="text-xs text-[var(--text-secondary)] ml-1 self-center">{value}/10</span>
-        )}
       </div>
-    </div>
+    </fieldset>
   );
 
   if (loading) return <SkeletonCalendar />;
@@ -277,39 +274,53 @@ export default function OutfitCalendar() {
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() =>
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
-          }
-          className="btn-ghost p-2"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-[var(--text)]">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
+        <div>
+          <h2 className="text-3xl">Wear log</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            {loggedThisMonth === 0
+              ? `No outfits logged in ${monthNames[currentDate.getMonth()]}. Pick a day to log what you wore.`
+              : `${loggedThisMonth} ${loggedThisMonth === 1 ? 'outfit' : 'outfits'} logged in ${monthNames[currentDate.getMonth()]}.`}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() =>
+              setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+            }
+            className="btn-ghost px-3"
+            aria-label="Previous month"
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
+          <span
+            className="font-display text-lg font-bold [font-stretch:85%] min-w-[9.5rem] text-center"
+            aria-live="polite"
+          >
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
-          <button onClick={() => setCurrentDate(new Date())} className="btn-secondary text-xs">
+          </span>
+          <button
+            onClick={() =>
+              setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+            }
+            className="btn-ghost px-3"
+            aria-label="Next month"
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+          <button onClick={() => setCurrentDate(new Date())} className="btn-secondary ml-1">
             Today
           </button>
         </div>
-        <button
-          onClick={() =>
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
-          }
-          className="btn-ghost p-2"
-        >
-          <ChevronRight size={18} />
-        </button>
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-7 gap-[2px] bg-[var(--border)] rounded-xl overflow-hidden border border-[var(--border)]">
+      <div className="grid grid-cols-7 gap-px bg-[var(--border)] rounded-md overflow-hidden border border-[var(--border)]">
         {dayNames.map((d) => (
           <div
             key={d}
-            className="bg-[var(--muted)] text-center text-xs font-medium text-[var(--text-secondary)] py-2"
+            aria-hidden="true"
+            className="bg-[var(--muted)] text-center text-xs font-semibold text-[var(--text-secondary)] py-2"
           >
             {d}
           </div>
@@ -318,12 +329,23 @@ export default function OutfitCalendar() {
           <button
             key={idx}
             onClick={() => handleDayClick(day)}
-            className={`group bg-white min-h-[120px] p-1.5 text-left flex flex-col transition-colors hover:bg-[var(--accent-light)] ${
-              !day.isCurrentMonth ? 'opacity-40' : ''
-            } ${day.isToday ? 'ring-2 ring-inset ring-[var(--accent)]' : ''}`}
+            aria-label={`${day.date.toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}${day.isToday ? ', today' : ''}: ${
+              day.outfit
+                ? `outfit logged${day.outfit.rating != null ? `, rated ${day.outfit.rating} out of 10` : ''}`
+                : 'nothing logged'
+            }`}
+            className={`group min-h-[72px] sm:min-h-[116px] p-1 sm:p-1.5 text-left flex flex-col transition-colors hover:bg-[var(--accent-light)] ${
+              day.outfit ? 'bg-[#fbf6e9]' : 'bg-white'
+            } ${!day.isCurrentMonth ? 'opacity-45' : ''}`}
           >
             <span
-              className={`text-xs font-medium ${day.isToday ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}
+              className={`tabular text-xs sm:text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
+                day.isToday ? 'border-2 border-[var(--carbon)] text-[var(--carbon)]' : ''
+              }`}
             >
               {day.dayOfMonth}
             </span>
@@ -339,23 +361,23 @@ export default function OutfitCalendar() {
                           key={i}
                           src={url}
                           alt=""
-                          className="w-10 h-10 rounded object-cover"
+                          className="w-5 h-5 sm:w-9 sm:h-9 rounded-sm object-contain bg-white"
                         />
                       ) : null;
                     })}
                 </div>
                 {day.outfit.rating != null && (
-                  <div className="flex items-center gap-0.5">
-                    <Star size={10} className="text-[var(--warning)] fill-[var(--warning)]" />
-                    <span className="text-[10px] text-[var(--warning)] font-medium">
-                      {day.outfit.rating}
-                    </span>
-                  </div>
+                  <span className="tabular text-[11px] font-semibold text-[var(--text-secondary)]">
+                    {day.outfit.rating}/10
+                  </span>
                 )}
               </div>
             ) : (
               day.isCurrentMonth && (
-                <div className="mt-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div
+                  aria-hidden="true"
+                  className="mt-auto opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center justify-center"
+                >
                   <Plus size={16} className="text-[var(--text-secondary)]" />
                 </div>
               )
@@ -375,16 +397,20 @@ export default function OutfitCalendar() {
           className="max-w-3xl"
         >
           <div className="flex justify-between items-center mb-5">
-            <h3 className="text-lg font-semibold text-[var(--text)]">
-              {selectedOutfitWear ? 'Edit' : 'Log'} Outfit —{' '}
+            <h3 className="text-xl">
+              {selectedOutfitWear ? 'Edit outfit' : 'Log outfit'} for{' '}
               {selectedDate.toLocaleDateString('en-US', {
                 weekday: 'short',
                 month: 'short',
                 day: 'numeric',
               })}
             </h3>
-            <button onClick={() => setShowLogModal(false)} className="btn-ghost p-1 text-lg">
-              &times;
+            <button
+              onClick={() => setShowLogModal(false)}
+              className="btn-ghost px-2"
+              aria-label="Close"
+            >
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
 
@@ -395,29 +421,32 @@ export default function OutfitCalendar() {
                 setLogMode('custom');
                 resetForm();
               }}
+              aria-pressed={logMode === 'custom'}
               className={
                 logMode === 'custom' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'
               }
             >
-              Pick Items
+              Pick items
             </button>
             <button
               onClick={() => setLogMode('saved')}
+              aria-pressed={logMode === 'saved'}
               className={
                 logMode === 'saved' ? 'btn-primary text-sm flex-1' : 'btn-secondary text-sm flex-1'
               }
             >
-              From Saved
+              From a saved outfit
             </button>
           </div>
 
           {logMode === 'saved' && (
             <select
+              aria-label="Saved outfit"
               value={selectedSavedOutfit}
               onChange={(e) => handleSavedOutfitSelect(e.target.value)}
-              className="w-full mb-5"
+              className="w-full mb-5 min-h-[44px]"
             >
-              <option value="">Select saved outfit...</option>
+              <option value="">Choose a saved outfit…</option>
               {savedOutfits.map((o, idx) => (
                 <option key={o.id} value={o.id}>
                   {o.name ||
@@ -446,14 +475,17 @@ export default function OutfitCalendar() {
               const sectionItems = getItemsBySection(section);
               return (
                 <div key={section}>
-                  <label className="text-sm font-medium text-[var(--text)] mb-2 block">
-                    {section}
-                  </label>
-                  <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-4 max-h-48 overflow-y-auto p-1">
+                  <h4 className="text-base mb-2">{section}</h4>
+                  <div
+                    role="group"
+                    aria-label={section}
+                    className="grid grid-cols-4 sm:grid-cols-7 md:grid-cols-8 gap-3 max-h-48 overflow-y-auto p-1"
+                  >
                     {/* None option */}
                     <button
                       onClick={() => setter('')}
-                      className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
+                      aria-pressed={val === ''}
+                      className={`aspect-square w-full rounded-xl border-2 border-dashed flex items-center justify-center text-xs text-[var(--text-secondary)] transition-all ${
                         val === ''
                           ? 'border-[var(--accent)] bg-[var(--accent-light)]'
                           : 'border-[var(--line-strong)] hover:border-[var(--text-secondary)]'
@@ -465,7 +497,9 @@ export default function OutfitCalendar() {
                       <button
                         key={item.id}
                         onClick={() => setter(item.id)}
-                        className={`w-20 h-20 rounded-xl border-2 overflow-hidden bg-white transition-all ${
+                        aria-pressed={val === item.id}
+                        aria-label={describeItem(item)}
+                        className={`aspect-square w-full rounded-xl border-2 overflow-hidden bg-white transition-all ${
                           val === item.id
                             ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
                             : 'border-[var(--border)] hover:border-[var(--text-secondary)]'
@@ -473,8 +507,8 @@ export default function OutfitCalendar() {
                       >
                         <ClothingImage
                           src={item.image_url}
-                          alt={item.type}
-                          className="w-full h-full object-cover"
+                          alt=""
+                          className="w-full h-full object-contain p-1"
                         />
                       </button>
                     ))}
@@ -501,20 +535,24 @@ export default function OutfitCalendar() {
 
           {/* Rating */}
           <div className="mb-5">
-            <StarRating value={rating} onChange={setRating} label="Outfit Rating" />
+            <RatingPicker value={rating} onChange={setRating} />
           </div>
 
+          <label htmlFor="wear-notes" className="text-sm font-semibold mb-1.5 block">
+            Notes <span className="font-normal text-[var(--text-secondary)]">(optional)</span>
+          </label>
           <textarea
+            id="wear-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Notes (optional)"
+            placeholder="e.g. Too warm by the afternoon"
             className="w-full mb-5 min-h-[60px]"
           />
 
           <div className="flex gap-2 justify-end">
             {selectedOutfitWear && (
               <button onClick={requestDelete} className="btn-danger text-sm mr-auto">
-                Delete
+                Delete entry
               </button>
             )}
             <button onClick={() => setShowLogModal(false)} className="btn-secondary text-sm">
@@ -530,8 +568,8 @@ export default function OutfitCalendar() {
       {/* Confirm delete dialog */}
       <ConfirmDialog
         isOpen={confirmOpen}
-        message="Delete this calendar entry?"
-        confirmLabel="Delete"
+        message="Delete this day's outfit from your wear log? This can't be undone."
+        confirmLabel="Delete entry"
         cancelLabel="Cancel"
         variant="danger"
         onConfirm={confirmDelete}
