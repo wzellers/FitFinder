@@ -808,19 +808,21 @@ export default function ColorPreferences() {
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Mobile tabs */}
-      <div className="flex md:hidden gap-1 mb-4">
+      <h2 className="text-3xl mb-5">Preferences</h2>
+      <div className="flex md:hidden gap-1 mb-4" role="group" aria-label="Preference section">
         {sidebarItems.map((item) => (
           <button
             key={item.key}
             onClick={() => setActiveSection(item.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            aria-pressed={activeSection === item.key}
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 min-h-[44px] rounded-md text-sm font-semibold transition-colors ${
               activeSection === item.key
                 ? 'bg-[var(--accent)] text-white'
                 : 'bg-[var(--card)] text-[var(--text-secondary)] border border-[var(--border)]'
             }`}
           >
-            <item.icon size={16} />
-            {item.label}
+            <item.icon size={16} aria-hidden="true" className="shrink-0" />
+            <span className="truncate">{item.label}</span>
           </button>
         ))}
       </div>
@@ -828,18 +830,22 @@ export default function ColorPreferences() {
       {/* Desktop sidebar + content */}
       <div className="flex gap-0">
         {/* Sidebar — desktop only */}
-        <nav className="hidden md:flex flex-col w-44 shrink-0 border-r border-[var(--border)] pr-4 mr-6 gap-1">
+        <nav
+          aria-label="Preference sections"
+          className="hidden md:flex flex-col w-44 shrink-0 border-r border-[var(--border)] pr-4 mr-6 gap-1"
+        >
           {sidebarItems.map((item) => (
             <button
               key={item.key}
               onClick={() => setActiveSection(item.key)}
+              aria-current={activeSection === item.key ? 'page' : undefined}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
                 activeSection === item.key
                   ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--card)] hover:text-[var(--text)]'
               }`}
             >
-              <item.icon size={16} />
+              <item.icon size={16} aria-hidden="true" />
               {item.label}
             </button>
           ))}
