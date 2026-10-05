@@ -187,23 +187,29 @@ export interface UploadItemInput {
 /** An upload failure with a message that can be shown to the user as-is. */
 export class UploadError extends Error {}
 
-/** Re-encode a canvas-drawable image as PNG. */
-async function encodePng(blob: Blob): Promise<Blob> {
+// Storage rejects files over 10 MB. Closet images never need more than this
+// many pixels on the long edge, so larger photos are scaled down first.
+const UPLOAD_MAX_EDGE = 2000;
+const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Re-encode a canvas-drawable image as PNG, scaled to fit `maxEdge`. */
+async function encodePng(blob: Blob, maxEdge: number): Promise<Blob> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(blob);
   } catch {
     throw new UploadError("This photo's format can't be read here. Try a JPEG or PNG.");
   }
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     bitmap.close();
     throw new UploadError('Your browser could not process this photo.');
   }
-  ctx.drawImage(bitmap, 0, 0);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   return new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
@@ -216,11 +222,21 @@ async function encodePng(blob: Blob): Promise<Blob> {
 /**
  * The bucket stores PNGs only, and Storage checks the file's real type, so an
  * unedited JPEG/HEIC/WebP straight from the file picker would be rejected.
- * Convert anything that isn't already a PNG.
+ * Convert anything that isn't already a PNG, and shrink anything too large.
  */
 export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
-  if (blob.type === 'image/png') return blob;
-  return encodePng(blob);
+  if (blob.type === 'image/png' && blob.size <= UPLOAD_MAX_BYTES) return blob;
+
+  let edge = UPLOAD_MAX_EDGE;
+  let out = await encodePng(blob, edge);
+  while (out.size > UPLOAD_MAX_BYTES && edge > 500) {
+    edge = Math.round(edge * 0.75);
+    out = await encodePng(blob, edge);
+  }
+  if (out.size > UPLOAD_MAX_BYTES) {
+    throw new UploadError('This photo is too large to upload. Try cropping it first.');
+  }
+  return out;
 }
 
 /** Upload a blob to the bucket and return its public URL. */

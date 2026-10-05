@@ -11,6 +11,7 @@ import {
   removeImageBackground,
   uploadItem,
   runWithConcurrency,
+  UploadError,
 } from '@/lib/uploadPipeline';
 import ImageCropper from '@/components/ui/ImageCropper';
 import type { ClothingSection } from '@/lib/types';
@@ -43,6 +44,8 @@ interface ItemDraft {
   removingBg: boolean;
   detecting: boolean;
   status: DraftStatus;
+  /** Why the last upload attempt failed, shown on the card. */
+  errorMessage: string | null;
 }
 
 const DETECT_CONCURRENCY = 4;
@@ -67,6 +70,7 @@ function makeDraft(blob: Blob): ItemDraft {
     removingBg: false,
     detecting: false,
     status: 'pending',
+    errorMessage: null,
   };
 }
 
@@ -205,7 +209,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
     let failed = 0;
 
     await runWithConcurrency(toUpload, UPLOAD_CONCURRENCY, async (draft) => {
-      updateDraft(draft.id, { status: 'uploading' });
+      updateDraft(draft.id, { status: 'uploading', errorMessage: null });
       try {
         const colors = draft.secondaryColor
           ? [draft.primaryColor!, draft.secondaryColor]
@@ -220,8 +224,12 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
         updateDraft(draft.id, { status: 'done' });
         succeeded += 1;
         onItemUploaded?.();
-      } catch {
-        updateDraft(draft.id, { status: 'error' });
+      } catch (err) {
+        updateDraft(draft.id, {
+          status: 'error',
+          errorMessage:
+            err instanceof UploadError ? err.message : "Couldn't upload this item. Try again.",
+        });
         failed += 1;
       }
     });
@@ -425,6 +433,15 @@ interface DraftEditorProps {
   onToggleDirty: () => void;
 }
 
+function UploadErrorNote({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="max-w-[14rem] text-center text-xs text-red-700">
+      {message}
+    </p>
+  );
+}
+
 function StatusBadge({ status }: { status: DraftStatus }) {
   if (status === 'uploading') {
     return <Loader2 size={14} className="animate-spin text-[var(--accent)]" />;
@@ -611,6 +628,7 @@ function DraftDetail({
           <DirtyToggle isDirty={draft.isDirty} onToggle={onToggleDirty} />
           <StatusBadge status={draft.status} />
         </div>
+        <UploadErrorNote message={draft.errorMessage} />
         <div className="w-40 h-40 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
           <img src={draft.previewUrl} alt="Preview" className="w-full h-full object-contain" />
         </div>
@@ -735,6 +753,7 @@ function DraftCard({
             </span>
           )}
         </div>
+        <UploadErrorNote message={draft.errorMessage} />
         <div className="w-28 h-28 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
           <img src={draft.previewUrl} alt="Preview" className="w-full h-full object-contain" />
         </div>
