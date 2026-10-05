@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes, colorPalette } from '@/lib/constants';
 import { getColorStyle } from '@/lib/colorUtils';
@@ -73,6 +74,7 @@ export default function EditItem({
     try {
       const { error } = await supabase.from('clothing_items').delete().eq('id', item.id);
       if (error) throw error;
+      await removeClothingImages([imagePathFromUrl(item.image_url)]);
       showToast('Item deleted', 'success');
       onItemDeleted?.();
       setTimeout(onClose, 800);

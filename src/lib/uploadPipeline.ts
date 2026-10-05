@@ -10,6 +10,11 @@
 // fills the corresponding field in manually.
 
 import { supabase } from '@/lib/supabaseClient';
+import {
+  CLOTHING_BUCKET as BUCKET,
+  imagePathFromUrl,
+  removeClothingImages,
+} from '@/lib/clothingImages';
 import { typeToSection } from '@/lib/constants';
 import { detectColors } from '@/lib/imageColor';
 import type { ClothingSection } from '@/lib/types';
@@ -169,8 +174,6 @@ export async function runWithConcurrency<T, R>(
   return results;
 }
 
-const BUCKET = 'clothing-images';
-
 /** Build a unique storage path for a user's image. */
 function newImagePath(userId: string): string {
   return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
@@ -268,5 +271,9 @@ export async function uploadItem({
     .from('clothing_items')
     .insert([{ user_id: userId, type, colors, image_url: url, is_dirty: isDirty }])
     .select();
-  if (error) throw error;
+  if (error) {
+    // Don't leave the uploaded image behind; a retry uploads a fresh copy.
+    await removeClothingImages([imagePathFromUrl(url)]);
+    throw error;
+  }
 }

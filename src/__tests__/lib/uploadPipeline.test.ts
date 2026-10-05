@@ -126,3 +126,27 @@ describe('prepareImageForUpload', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('uploadItem cleanup', () => {
+  it('removes the uploaded image when the row insert fails', async () => {
+    mockUpload.mockReset().mockResolvedValue({ error: null });
+    mockGetPublicUrl.mockReset().mockReturnValue({
+      data: {
+        publicUrl: 'https://proj.supabase.co/storage/v1/object/public/clothing-images/u1/a.png',
+      },
+    });
+    mockRemove.mockReset().mockResolvedValue({ error: null });
+    mockRowInsertSelect.mockReset().mockResolvedValue({ error: { message: 'insert failed' } });
+
+    await expect(
+      uploadItem({
+        userId: 'u1',
+        blob: new Blob(['img'], { type: 'image/png' }),
+        type: 'T-Shirt',
+        colors: ['blue'],
+        isDirty: false,
+      }),
+    ).rejects.toBeTruthy();
+    expect(mockRemove).toHaveBeenCalledWith(['u1/a.png']);
+  });
+});
