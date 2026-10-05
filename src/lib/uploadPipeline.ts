@@ -182,8 +182,15 @@ export async function runWithConcurrency<T, R>(
 }
 
 /** Build a unique storage path for a user's image. */
-function newImagePath(userId: string): string {
-  return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+const EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+
+function newImagePath(userId: string, mimeType: string): string {
+  const ext = EXTENSIONS[mimeType] ?? 'png';
+  return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 }
 
 export interface UploadItemInput {
@@ -201,9 +208,13 @@ export class UploadError extends Error {}
 // many pixels on the long edge, so larger photos are scaled down first.
 const UPLOAD_MAX_EDGE = 2000;
 const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const WEBP_QUALITY = 0.9;
 
-/** Re-encode a canvas-drawable image as PNG, scaled to fit `maxEdge`. */
-async function encodePng(blob: Blob, maxEdge: number): Promise<Blob> {
+/**
+ * Re-encode an image as WebP (keeps transparency, far smaller than PNG for
+ * photos), scaled to fit `maxEdge`. Browsers without WebP encoding return PNG.
+ */
+async function encodeImage(blob: Blob, maxEdge: number): Promise<Blob> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(blob);
@@ -224,24 +235,26 @@ async function encodePng(blob: Blob, maxEdge: number): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
       (out) => (out ? resolve(out) : reject(new UploadError('Could not convert this photo.'))),
-      'image/png',
+      'image/webp',
+      WEBP_QUALITY,
     ),
   );
 }
 
 /**
- * The bucket stores PNGs only, and Storage checks the file's real type, so an
- * unedited JPEG/HEIC/WebP straight from the file picker would be rejected.
- * Convert anything that isn't already a PNG, and shrink anything too large.
+ * Prepare an image for the clothing-images bucket, which accepts PNG, JPEG
+ * and WebP up to 10 MB. Small PNGs (cropped or background-removed images) are
+ * kept as-is; everything else is scaled down and re-encoded, which also
+ * converts formats Storage would reject (HEIC, GIF, ...).
  */
 export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
   if (blob.type === 'image/png' && blob.size <= UPLOAD_MAX_BYTES) return blob;
 
   let edge = UPLOAD_MAX_EDGE;
-  let out = await encodePng(blob, edge);
+  let out = await encodeImage(blob, edge);
   while (out.size > UPLOAD_MAX_BYTES && edge > 500) {
     edge = Math.round(edge * 0.75);
-    out = await encodePng(blob, edge);
+    out = await encodeImage(blob, edge);
   }
   if (out.size > UPLOAD_MAX_BYTES) {
     throw new UploadError('This photo is too large to upload. Try cropping it first.');
@@ -251,11 +264,12 @@ export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
 
 /** Upload a blob to the bucket and return its public URL. */
 async function uploadBlob(userId: string, blob: Blob): Promise<string> {
-  const fileName = newImagePath(userId);
-  const png = await prepareImageForUpload(blob);
+  const prepared = await prepareImageForUpload(blob);
+  const contentType = EXTENSIONS[prepared.type] ? prepared.type : 'image/png';
+  const fileName = newImagePath(userId, contentType);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(fileName, png, { contentType: 'image/png' });
+    .upload(fileName, prepared, { contentType });
   if (uploadError) throw uploadError;
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
   return urlData.publicUrl;
