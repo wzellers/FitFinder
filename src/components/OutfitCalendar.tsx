@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Star, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import ClothingImage from '@/components/ui/ClothingImage';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -333,7 +334,12 @@ export default function OutfitCalendar() {
                     .map((id, i) => {
                       const url = getItemImage(id);
                       return url ? (
-                        <img key={i} src={url} alt="" className="w-10 h-10 rounded object-cover" />
+                        <ClothingImage
+                          key={i}
+                          src={url}
+                          alt=""
+                          className="w-10 h-10 rounded object-cover"
+                        />
                       ) : null;
                     })}
                 </div>
@@ -465,7 +471,7 @@ export default function OutfitCalendar() {
                               : 'border-[var(--border)] hover:border-gray-400'
                           }`}
                         >
-                          <img
+                          <ClothingImage
                             src={item.image_url}
                             alt={item.type}
                             className="w-full h-full object-cover"
@@ -483,7 +489,7 @@ export default function OutfitCalendar() {
               {[selectedTop, selectedBottom, selectedShoes].filter(Boolean).map((id, i) => {
                 const url = getItemImage(id);
                 return url ? (
-                  <img
+                  <ClothingImage
                     key={i}
                     src={url}
                     alt=""

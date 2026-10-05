@@ -94,7 +94,9 @@ describe('uploadItem', () => {
     await uploadItem(baseInput);
     expect(mockUpload).toHaveBeenCalledTimes(1);
     const row = mockRowInsert.mock.calls[0][0][0];
-    expect(row.image_url).toBe(`${base}u1/file-0.png`);
+    // The bucket is private, so the row stores the storage path, not a URL.
+    expect(row.image_url).toBe(mockUpload.mock.calls[0][0]);
+    expect(row.image_url).toMatch(/^u1\/.+\.png$/);
     expect(row.type).toBe('T-Shirt');
     expect(row.colors).toEqual(['blue']);
     expect(row.user_id).toBe('u1');
@@ -147,6 +149,6 @@ describe('uploadItem cleanup', () => {
         isDirty: false,
       }),
     ).rejects.toBeTruthy();
-    expect(mockRemove).toHaveBeenCalledWith(['u1/a.png']);
+    expect(mockRemove).toHaveBeenCalledWith([mockUpload.mock.calls[0][0]]);
   });
 });

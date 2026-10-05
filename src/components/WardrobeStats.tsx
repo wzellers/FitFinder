@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import ClothingImage from '@/components/ui/ClothingImage';
 import { useToast } from '@/components/ToastProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { throwIfAnyError } from '@/lib/supabaseResult';
@@ -273,7 +274,7 @@ export default function WardrobeStats() {
               {stats.mostWornItems.map((wc, idx) => (
                 <div key={wc.itemId} className="flex items-center gap-3">
                   <span className="text-xs font-bold text-[var(--accent)] w-5">#{idx + 1}</span>
-                  <img
+                  <ClothingImage
                     src={wc.item.image_url}
                     alt={wc.item.type}
                     className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]"
@@ -341,7 +342,7 @@ export default function WardrobeStats() {
             <div className="flex flex-col gap-2">
               {stats.leastWornItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-3">
-                  <img
+                  <ClothingImage
                     src={item.image_url}
                     alt={item.type}
                     className="w-9 h-9 rounded-lg object-cover border border-[var(--border)]"
@@ -417,7 +418,7 @@ export default function WardrobeStats() {
                       {[outfit.top_id, outfit.bottom_id].map((id, idx) => {
                         const imgUrl = getItemImage(id);
                         return imgUrl ? (
-                          <img
+                          <ClothingImage
                             key={idx}
                             src={imgUrl}
                             alt=""

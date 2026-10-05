@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, X, ChevronDown, ChevronRight, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import ClothingImage from '@/components/ui/ClothingImage';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { sectionNames, typeToSection, colorPalette, clothingTypes } from '@/lib/constants';
@@ -370,7 +371,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                                     }`}
                                   >
                                     <div className="aspect-square w-full overflow-hidden">
-                                      <img
+                                      <ClothingImage
                                         src={item.image_url}
                                         alt={item.type}
                                         className="w-full h-full object-contain p-1.5"

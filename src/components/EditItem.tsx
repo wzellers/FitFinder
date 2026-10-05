@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import ClothingImage from '@/components/ui/ClothingImage';
 import { imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes, colorPalette } from '@/lib/constants';
@@ -135,7 +136,11 @@ export default function EditItem({
         {/* Image */}
         <div className="flex flex-col items-center gap-3 mb-5">
           <div className="w-32 h-32 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
-            <img src={item.image_url} alt={item.type} className="w-full h-full object-contain" />
+            <ClothingImage
+              src={item.image_url}
+              alt={item.type}
+              className="w-full h-full object-contain"
+            />
           </div>
         </div>
 

@@ -13,6 +13,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import ClothingImage from '@/components/ui/ClothingImage';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -462,7 +463,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         title={`Click to choose ${label.toLowerCase()}`}
       >
         {item ? (
-          <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-2" />
+          <ClothingImage
+            src={item.image_url}
+            alt={item.type}
+            className="w-full h-full object-contain p-2"
+          />
         ) : (
           <span className="text-sm text-[var(--text-secondary)]">{label}</span>
         )}
@@ -664,7 +669,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     title={`Click to choose ${label.toLowerCase()}`}
                   >
                     {item ? (
-                      <img
+                      <ClothingImage
                         src={item.image_url}
                         alt={item.type}
                         className="w-full h-full object-contain p-2"
@@ -781,7 +786,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                           key={i}
                           className="relative w-20 h-20 rounded-lg border border-[var(--border)] bg-white overflow-hidden"
                         >
-                          <img
+                          <ClothingImage
                             src={item.image_url}
                             alt={item.type}
                             className="w-full h-full object-contain p-1"
@@ -880,7 +885,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     className="flex flex-col items-center gap-1 p-2 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
                   >
                     <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
-                      <img
+                      <ClothingImage
                         src={item.image_url}
                         alt={item.type}
                         className="w-full h-full object-contain p-1"

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Minus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import ClothingImage from '@/components/ui/ClothingImage';
 import { supabase } from '@/lib/supabaseClient';
 import type { PendingRating, ClothingItem } from '@/lib/types';
 
@@ -94,7 +95,7 @@ export default function RatingPrompt({
             ].map((id, idx) => {
               const item = getItem(id);
               return item ? (
-                <img
+                <ClothingImage
                   key={idx}
                   src={item.image_url}
                   alt={item.type}

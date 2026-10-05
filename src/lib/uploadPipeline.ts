@@ -12,7 +12,6 @@
 import { supabase } from '@/lib/supabaseClient';
 import {
   CLOTHING_BUCKET as BUCKET,
-  imagePathFromUrl,
   removeClothingImages,
 } from '@/lib/clothingImages';
 import { typeToSection } from '@/lib/constants';
@@ -262,7 +261,7 @@ export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
   return out;
 }
 
-/** Upload a blob to the bucket and return its public URL. */
+/** Upload a blob to the bucket and return its storage path. */
 async function uploadBlob(userId: string, blob: Blob): Promise<string> {
   const prepared = await prepareImageForUpload(blob);
   const contentType = EXTENSIONS[prepared.type] ? prepared.type : 'image/png';
@@ -271,8 +270,8 @@ async function uploadBlob(userId: string, blob: Blob): Promise<string> {
     .from(BUCKET)
     .upload(fileName, prepared, { contentType });
   if (uploadError) throw uploadError;
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
-  return urlData.publicUrl;
+  // The bucket is private: store the path and sign URLs when displaying.
+  return fileName;
 }
 
 /**
@@ -286,15 +285,15 @@ export async function uploadItem({
   colors,
   isDirty,
 }: UploadItemInput): Promise<void> {
-  const url = await uploadBlob(userId, blob);
+  const path = await uploadBlob(userId, blob);
 
   const { error } = await supabase
     .from('clothing_items')
-    .insert([{ user_id: userId, type, colors, image_url: url, is_dirty: isDirty }])
+    .insert([{ user_id: userId, type, colors, image_url: path, is_dirty: isDirty }])
     .select();
   if (error) {
     // Don't leave the uploaded image behind; a retry uploads a fresh copy.
-    await removeClothingImages([imagePathFromUrl(url)]);
+    await removeClothingImages([path]);
     throw error;
   }
 }
