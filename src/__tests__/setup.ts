@@ -23,7 +23,13 @@ const localStorageMock = (() => {
   };
 })();
 
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+// Browser-only mocks; skipped in files that opt into `@vitest-environment node`
+// (e.g. server code whose SDKs refuse to run in a browser-like environment).
+const isBrowserEnv = typeof window !== 'undefined';
+
+if (isBrowserEnv) {
+  Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+}
 
 // Mock URL.createObjectURL
 Object.defineProperty(URL, 'createObjectURL', {
@@ -37,14 +43,14 @@ Object.defineProperty(URL, 'revokeObjectURL', {
 });
 
 // jsdom doesn't implement canvas.toBlob; stub it for crop-related code.
-if (!HTMLCanvasElement.prototype.toBlob) {
+if (isBrowserEnv && !HTMLCanvasElement.prototype.toBlob) {
   HTMLCanvasElement.prototype.toBlob = function (cb: BlobCallback) {
     cb(new Blob(['x'], { type: 'image/png' }));
   };
 }
 
 afterEach(() => {
-  cleanup();
+  if (isBrowserEnv) cleanup();
   vi.clearAllMocks();
   vi.useRealTimers();
   localStorageMock.clear();
