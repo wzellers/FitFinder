@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Minus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import { describeItem } from '@/lib/itemLabels';
 import { supabase } from '@/lib/supabaseClient';
 import type { PendingRating, ClothingItem } from '@/lib/types';
 
@@ -71,9 +72,7 @@ export default function RatingPrompt({
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h3 className="text-base font-semibold text-[var(--text)]">
-            Rate Yesterday&apos;s Outfit
-          </h3>
+          <h3 className="text-xl">How was yesterday&apos;s outfit?</h3>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
             {formatDate(pendingRating.worn_date)}
           </p>
@@ -98,8 +97,8 @@ export default function RatingPrompt({
               <ClothingImage
                 key={idx}
                 src={item.image_url}
-                alt={item.type}
-                className="w-16 h-16 object-cover rounded-xl border-2 border-[var(--border)]"
+                alt={describeItem(item)}
+                className="w-16 h-16 object-contain bg-white rounded-md border border-[var(--border)]"
               />
             ) : null;
           })
@@ -108,9 +107,13 @@ export default function RatingPrompt({
 
       {/* Overall Rating */}
       <div className="mb-5">
-        <label className="text-sm font-medium text-[var(--text)] block mb-2">Overall Rating</label>
+        <label htmlFor="rating-slider" className="text-sm font-semibold block mb-2">
+          How did it feel?
+        </label>
         <div className="flex items-center gap-3">
           <input
+            id="rating-slider"
+            aria-valuetext={`${rating} out of 10`}
             type="range"
             min="1"
             max="10"
@@ -118,11 +121,14 @@ export default function RatingPrompt({
             onChange={(e) => setRating(Number(e.target.value))}
             className="flex-1 h-2 accent-[var(--accent)] cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
           />
-          <span className="text-2xl font-bold text-[var(--accent)] min-w-[40px] text-center">
+          <span
+            className="tabular font-display text-2xl font-bold min-w-[40px] text-center"
+            aria-hidden="true"
+          >
             {rating}
           </span>
         </div>
-        <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
+        <div className="flex justify-between text-xs text-[var(--text-secondary)] mt-1">
           <span>Not great</span>
           <span>Amazing</span>
         </div>
@@ -134,7 +140,7 @@ export default function RatingPrompt({
           Skip
         </button>
         <button onClick={handleSubmit} className="btn-primary flex-[2]">
-          Submit Rating
+          Save rating
         </button>
       </div>
     </Modal>
