@@ -84,7 +84,15 @@ export const colorNameMap: Record<string, string> = {
 };
 
 /** Colors that should use dark text for readability */
-export const lightColors = ['#fafaf7', '#ddd0b5', '#9fc9e6', '#a9d3a0', '#f2cf4a', '#f1b5c4', '#8e8e8c'];
+export const lightColors = [
+  '#fafaf7',
+  '#ddd0b5',
+  '#9fc9e6',
+  '#a9d3a0',
+  '#f2cf4a',
+  '#f1b5c4',
+  '#8e8e8c',
+];
 
 // ============================================================================
 // CLOTHING CATEGORIES
