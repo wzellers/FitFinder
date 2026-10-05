@@ -15,7 +15,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { describeItem, ticketNumber } from '@/lib/itemLabels';
-import { getColorName } from '@/lib/colorUtils';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import { supabase } from '@/lib/supabaseClient';
