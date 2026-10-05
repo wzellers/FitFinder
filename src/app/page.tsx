@@ -5,6 +5,7 @@ import { BarChart3, CalendarDays, LogOut, Shirt, SlidersHorizontal, Sparkles } f
 import Wordmark from '@/components/ui/Wordmark';
 import LiveClock from '@/components/ui/LiveClock';
 import PillNav from '@/components/ui/PillNav';
+import { OutfitThemeProvider } from '@/components/OutfitTheme';
 import AuthForm from '@/components/AuthForm';
 import Closet from '@/components/Closet';
 import ColorPreferences from '@/components/ColorPreferences';
@@ -233,83 +234,85 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      {/* ===== TOP BAR ===== */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-[var(--border)] px-4 lg:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
-          <h1>
-            <Wordmark />
-          </h1>
-          <div className="flex items-center gap-4">
-            <LiveClock className="hidden sm:inline" />
-            <button onClick={signOut} className="btn-ghost px-3" aria-label="Sign out">
-              <LogOut size={16} aria-hidden="true" />
-              <span className="hidden sm:inline">Sign out</span>
-            </button>
+    <OutfitThemeProvider>
+      <div className="min-h-screen bg-[var(--bg)]">
+        {/* ===== TOP BAR ===== */}
+        <header className="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-[var(--border)] px-4 lg:px-8">
+          <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
+            <h1>
+              <Wordmark />
+            </h1>
+            <div className="flex items-center gap-4">
+              <LiveClock className="hidden sm:inline" />
+              <button onClick={signOut} className="btn-ghost px-3" aria-label="Sign out">
+                <LogOut size={16} aria-hidden="true" />
+                <span className="hidden sm:inline">Sign out</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Floating pill navigation, bottom-centre on every screen size */}
-      <PillNav items={tabs} active={activeTab} onChange={setActiveTab} />
+        {/* Floating pill navigation, bottom-centre on every screen size */}
+        <PillNav items={tabs} active={activeTab} onChange={setActiveTab} />
 
-      {/* ===== MAIN CONTENT ===== */}
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-32">
-        {activeTab === 'closet' && (
-          <Closet
-            key={closetRefreshKey}
-            onAddItem={() => setShowImageUpload(true)}
-            onEditItem={(item) => {
-              setSelectedItem(item);
-              setShowEditItem(true);
-            }}
+        {/* ===== MAIN CONTENT ===== */}
+        <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-32">
+          {activeTab === 'closet' && (
+            <Closet
+              key={closetRefreshKey}
+              onAddItem={() => setShowImageUpload(true)}
+              onEditItem={(item) => {
+                setSelectedItem(item);
+                setShowEditItem(true);
+              }}
+            />
+          )}
+          {activeTab === 'preferences' && <ColorPreferences />}
+          {/* Kept mounted once opened, so the generated outfit survives tab switches. */}
+          {generatorOpened && (
+            <div hidden={activeTab !== 'generator'}>
+              <OutfitGenerator
+                onNavigateToCalendar={() => setActiveTab('calendar')}
+                refreshKey={closetRefreshKey}
+              />
+            </div>
+          )}
+          {activeTab === 'calendar' && <OutfitCalendar />}
+          {activeTab === 'stats' && <WardrobeStats />}
+        </main>
+
+        {/* ===== MODALS ===== */}
+        <ImageUpload
+          isOpen={showImageUpload}
+          onClose={() => setShowImageUpload(false)}
+          onItemUploaded={() => setClosetRefreshKey((k) => k + 1)}
+        />
+        <EditItem
+          isOpen={showEditItem}
+          onClose={() => setShowEditItem(false)}
+          item={selectedItem}
+          onItemUpdated={() => setClosetRefreshKey((k) => k + 1)}
+          onItemDeleted={() => setClosetRefreshKey((k) => k + 1)}
+        />
+
+        {/* Rating prompt */}
+        {pendingRating && !ratingMinimized && (
+          <RatingPrompt
+            pendingRating={pendingRating}
+            onSubmit={handleRatingSubmit}
+            onSkip={() => setPendingRating(null)}
+            onMinimize={() => setRatingMinimized(true)}
           />
         )}
-        {activeTab === 'preferences' && <ColorPreferences />}
-        {/* Kept mounted once opened, so the generated outfit survives tab switches. */}
-        {generatorOpened && (
-          <div hidden={activeTab !== 'generator'}>
-            <OutfitGenerator
-              onNavigateToCalendar={() => setActiveTab('calendar')}
-              refreshKey={closetRefreshKey}
-            />
-          </div>
+        {pendingRating && ratingMinimized && (
+          <button
+            onClick={() => setRatingMinimized(false)}
+            className="fixed bottom-28 right-4 z-50 btn-primary shadow-lg"
+          >
+            Rate yesterday&apos;s outfit
+          </button>
         )}
-        {activeTab === 'calendar' && <OutfitCalendar />}
-        {activeTab === 'stats' && <WardrobeStats />}
-      </main>
-
-      {/* ===== MODALS ===== */}
-      <ImageUpload
-        isOpen={showImageUpload}
-        onClose={() => setShowImageUpload(false)}
-        onItemUploaded={() => setClosetRefreshKey((k) => k + 1)}
-      />
-      <EditItem
-        isOpen={showEditItem}
-        onClose={() => setShowEditItem(false)}
-        item={selectedItem}
-        onItemUpdated={() => setClosetRefreshKey((k) => k + 1)}
-        onItemDeleted={() => setClosetRefreshKey((k) => k + 1)}
-      />
-
-      {/* Rating prompt */}
-      {pendingRating && !ratingMinimized && (
-        <RatingPrompt
-          pendingRating={pendingRating}
-          onSubmit={handleRatingSubmit}
-          onSkip={() => setPendingRating(null)}
-          onMinimize={() => setRatingMinimized(true)}
-        />
-      )}
-      {pendingRating && ratingMinimized && (
-        <button
-          onClick={() => setRatingMinimized(false)}
-          className="fixed bottom-28 right-4 z-50 btn-primary shadow-lg"
-        >
-          Rate yesterday&apos;s outfit
-        </button>
-      )}
-    </div>
+      </div>
+    </OutfitThemeProvider>
   );
 }

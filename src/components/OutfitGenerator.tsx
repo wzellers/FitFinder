@@ -19,7 +19,8 @@ import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import PosterHeader from '@/components/ui/PosterHeader';
 import ScrambleText from '@/components/ui/ScrambleText';
-import ColorPairing, { pairingWash } from '@/components/ui/ColorPairing';
+import { useOutfitTheme } from '@/components/OutfitTheme';
+import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import SlotReel from '@/components/ui/SlotReel';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
@@ -491,14 +492,17 @@ export default function OutfitGenerator({
     top?.colors[0] && bottom?.colors[0] ? [top.colors[0], bottom.colors[0]] : null;
   const pairingKey = currentPairing ? currentPairing.join('|') : '';
   const [pairing, setPairing] = useState<[string, string] | null>(null);
+  const { setPairing: setThemePairing } = useOutfitTheme();
   useEffect(() => {
     const justSpun = Date.now() - lastSpinAt.current < 300;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const delay = justSpun && !reduce ? reelDuration.shoes : 0;
-    const t = setTimeout(
-      () => setPairing(pairingKey ? (pairingKey.split('|') as [string, string]) : null),
-      delay,
-    );
+    const t = setTimeout(() => {
+      const next = pairingKey ? (pairingKey.split('|') as [string, string]) : null;
+      setPairing(next);
+      // Today's outfit restyles the app (headers, nav highlight).
+      if (next) setThemePairing(next);
+    }, delay);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pairingKey, spins]);
@@ -566,26 +570,25 @@ export default function OutfitGenerator({
       {activeTab === 'generator' && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,36rem)_320px] lg:justify-center gap-8 lg:gap-14 items-start">
           {/* ====== The outfit ====== */}
-          <div
-            className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-6 pb-7 transition-[background-image] duration-500"
-            style={pairing ? pairingWash(pairing[0], pairing[1]) : undefined}
-          >
-            {pairing ? (
-              <div className="mb-5">
-                <ColorPairing a={pairing[0]} b={pairing[1]} />
-              </div>
-            ) : (
-              currentPairing && (
-                <div
-                  aria-hidden="true"
-                  className="mb-5 h-24 sm:h-28 rounded-2xl bg-[var(--muted)] flex items-center justify-center readout animate-pulse"
-                >
-                  {'{ matching… }'}
-                </div>
-              )
-            )}
+          <div className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-7 pb-7">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-lg">Your outfit</h3>
+              {pairing && (
+                <span className="readout flex items-center gap-1.5">
+                  <span className="flex -space-x-1" aria-hidden="true">
+                    {pairing.map((c, i) => (
+                      <span
+                        key={i}
+                        className="w-3.5 h-3.5 rounded-full border border-white"
+                        style={getColorStyle(c)}
+                      />
+                    ))}
+                  </span>
+                  {pairing[0] === pairing[1]
+                    ? `${getColorName(pairing[0])} · tonal`
+                    : `${getColorName(pairing[0])} × ${getColorName(pairing[1])}`}
+                </span>
+              )}
             </div>
             <p className="readout mt-1.5">
               {new Date().toLocaleDateString('en-US', {

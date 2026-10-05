@@ -1,4 +1,9 @@
+'use client';
+
 import React from 'react';
+import { X } from 'lucide-react';
+import { useOutfitTheme } from '@/components/OutfitTheme';
+import { getColorName, getColorStyle } from '@/lib/colorUtils';
 
 interface PosterHeaderProps {
   /** Page title, set huge and condensed. */
@@ -12,22 +17,50 @@ interface PosterHeaderProps {
 }
 
 /**
- * A poster-style page header: a burgundy block with huge condensed sky-blue
- * type, a retro script word over it, and a sky cutout shape bleeding off the
- * edge (after the burgundy / sky blue moodboard).
+ * A poster-style page header: a colour block with huge condensed type, a
+ * retro script word over it, and a cutout shape bleeding off the corner.
+ * Burgundy / sky blue by default; after an outfit is generated it takes on
+ * that outfit's colours (see OutfitThemeProvider).
  */
 export default function PosterHeader({ title, script, readout, actions }: PosterHeaderProps) {
+  const { pairing, setPairing } = useOutfitTheme();
   return (
-    <header className="poster relative overflow-hidden rounded-[28px] bg-[var(--burgundy)] px-6 sm:px-10 pt-8 sm:pt-10 pb-6 mb-8">
-      <Cutout className="absolute -right-12 -top-20 w-28 sm:-right-14 sm:-top-28 sm:w-72 text-[var(--sky)]" />
+    <header className="poster relative overflow-hidden rounded-[28px] bg-[var(--poster-bg)] px-6 sm:px-10 pt-8 sm:pt-10 pb-6 mb-8 transition-colors duration-700">
+      <Cutout className="absolute -right-12 -top-20 w-28 sm:-right-14 sm:-top-28 sm:w-72 text-[var(--poster-cutout)] transition-colors duration-700" />
+      {pairing && (
+        <div className="relative sm:absolute sm:right-6 sm:bottom-auto sm:top-5 mb-4 sm:mb-0 flex justify-start sm:justify-end">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/90 pl-2 pr-1 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#2a0c12] shadow-sm">
+            <span className="flex -space-x-1" aria-hidden="true">
+              {pairing.map((c, i) => (
+                <span
+                  key={i}
+                  className="w-3.5 h-3.5 rounded-full border border-white"
+                  style={getColorStyle(c)}
+                />
+              ))}
+            </span>
+            Styled by today&apos;s fit
+            <span className="sr-only">
+              : {getColorName(pairing[0])} and {getColorName(pairing[1])}
+            </span>
+            <button
+              onClick={() => setPairing(null)}
+              aria-label="Reset colors"
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5"
+            >
+              <X size={12} aria-hidden="true" />
+            </button>
+          </span>
+        </div>
+      )}
       <div className="relative">
-        <h2 className="font-poster uppercase leading-[0.82] text-[var(--sky)] text-[clamp(3.25rem,11vw,8.5rem)] tracking-[-0.01em]">
+        <h2 className="font-poster uppercase leading-[0.82] text-[var(--poster-title)] text-[clamp(3.25rem,11vw,8.5rem)] tracking-[-0.01em] transition-colors duration-700">
           {title}
         </h2>
         {script && (
           <span
             aria-hidden="true"
-            className="font-script block w-fit -mt-4 sm:-mt-7 mb-3 ml-[18%] -rotate-6 text-[var(--sky-wash)] text-[clamp(2rem,5vw,3.75rem)] leading-none"
+            className="font-script block w-fit -mt-4 sm:-mt-7 mb-3 ml-[18%] -rotate-6 text-[var(--poster-fg)] text-[clamp(2rem,5vw,3.75rem)] leading-none transition-colors duration-700"
           >
             {script}
           </span>
@@ -36,7 +69,7 @@ export default function PosterHeader({ title, script, readout, actions }: Poster
       {(readout || actions) && (
         <div className="relative mt-4 flex flex-wrap items-center justify-between gap-3">
           {readout ? (
-            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sky-wash)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--poster-fg)] transition-colors duration-700">
               {readout}
             </p>
           ) : (

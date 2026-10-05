@@ -50,6 +50,14 @@
     --purple-light: var(--sky-wash);
     --focus: var(--carbon);
 
+    /* Poster headers (themable by today's outfit) */
+    --poster-bg: var(--burgundy);
+    --poster-title: var(--sky);
+    --poster-fg: #f6eef0;
+    --poster-cutout: var(--sky);
+    --poster-accent: var(--sky);
+    --poster-accent-ink: var(--burgundy);
+
     /* Nav highlight (themable) */
     --pill-active: var(--burgundy);
     --pill-active-ink: #ffffff;
@@ -196,19 +204,24 @@
 
   /* Controls placed on a burgundy poster header. */
   .btn-poster {
-    @apply btn bg-transparent text-[#f6eef0] border border-[#e3cfd3]/60 hover:bg-white/10;
+    @apply btn bg-transparent text-[var(--poster-fg)];
+    border: 1px solid color-mix(in srgb, var(--poster-fg) 50%, transparent);
+  }
+  .btn-poster:hover {
+    background: color-mix(in srgb, var(--poster-fg) 12%, transparent);
   }
   .btn-poster-primary {
-    @apply btn bg-[var(--sky)] text-[var(--burgundy)] hover:bg-[var(--sky-wash)];
+    @apply btn bg-[var(--poster-accent)] text-[var(--poster-accent-ink)] hover:opacity-90;
   }
   .segmented-poster {
-    @apply inline-flex rounded-full border border-[#e3cfd3]/50 p-1;
+    @apply inline-flex rounded-full p-1;
+    border: 1px solid color-mix(in srgb, var(--poster-fg) 40%, transparent);
   }
   .segmented-poster > button {
-    @apply min-h-[36px] px-4 rounded-full text-sm font-medium text-[#f6eef0] hover:bg-white/10;
+    @apply min-h-[36px] px-4 rounded-full text-sm font-medium text-[var(--poster-fg)];
   }
   .segmented-poster > button[aria-pressed='true'] {
-    @apply bg-[var(--sky)] text-[var(--burgundy)] hover:bg-[var(--sky)];
+    @apply bg-[var(--poster-accent)] text-[var(--poster-accent-ink)];
   }
 
   .nav-tab {
