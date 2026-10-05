@@ -33,49 +33,49 @@ beforeEach(() => {
 describe('AuthForm', () => {
   it('renders sign-in form by default', () => {
     renderWithProviders(<AuthForm />);
-    expect(screen.getByText('Welcome Back')).toBeTruthy();
-    expect(screen.getByText('Log In')).toBeTruthy();
+    expect(screen.getByText('Welcome back')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Log in' })).toBeTruthy();
   });
 
   it('toggles to sign-up form', () => {
     renderWithProviders(<AuthForm />);
-    fireEvent.click(screen.getByText("Don't have an account? Sign up"));
-    expect(screen.getByText('Create Account')).toBeTruthy();
-    expect(screen.getByText('Sign Up')).toBeTruthy();
+    fireEvent.click(screen.getByText('New here? Create an account'));
+    expect(screen.getByText('Create your account')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeTruthy();
   });
 
   it('toggles back to sign-in', () => {
     renderWithProviders(<AuthForm />);
-    fireEvent.click(screen.getByText("Don't have an account? Sign up"));
-    fireEvent.click(screen.getByText('Already have an account? Log in'));
-    expect(screen.getByText('Welcome Back')).toBeTruthy();
+    fireEvent.click(screen.getByText('New here? Create an account'));
+    fireEvent.click(screen.getByText('Have an account? Log in'));
+    expect(screen.getByText('Welcome back')).toBeTruthy();
   });
 
   it('calls signIn on submit in sign-in mode', async () => {
     mockSignIn.mockResolvedValueOnce({ data: { user: null, session: null }, error: null });
     renderWithProviders(<AuthForm />);
-    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'user@test.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'pass1234' } });
-    fireEvent.click(screen.getByText('Log In'));
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@test.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pass1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
     await waitFor(() => expect(mockSignIn).toHaveBeenCalledWith('user@test.com', 'pass1234'));
   });
 
   it('calls signUp on submit in sign-up mode', async () => {
     mockSignUp.mockResolvedValueOnce({ data: { user: null, session: null }, error: null });
     renderWithProviders(<AuthForm />);
-    fireEvent.click(screen.getByText("Don't have an account? Sign up"));
-    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'new@test.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'newpass' } });
-    fireEvent.click(screen.getByText('Sign Up'));
+    fireEvent.click(screen.getByText('New here? Create an account'));
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@test.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'newpass' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
     await waitFor(() => expect(mockSignUp).toHaveBeenCalledWith('new@test.com', 'newpass'));
   });
 
-  it('shows error toast on sign-in failure', async () => {
+  it('shows the sign-in error inline', async () => {
     mockSignIn.mockResolvedValueOnce({ data: {}, error: { message: 'Invalid credentials' } });
     renderWithProviders(<AuthForm />);
-    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'x@x.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'wrong' } });
-    fireEvent.click(screen.getByText('Log In'));
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'x@x.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
     await waitFor(() => expect(screen.getByText('Invalid credentials')).toBeTruthy());
   });
 
@@ -87,12 +87,25 @@ describe('AuthForm', () => {
       }),
     );
     renderWithProviders(<AuthForm />);
-    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'x@x.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'pass' } });
-    fireEvent.click(screen.getByText('Log In'));
-    expect(screen.getByText('Please wait...')).toBeTruthy();
-    const btn = screen.getByText('Please wait...').closest('button');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'x@x.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pass' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    expect(screen.getByText('Logging in…')).toBeTruthy();
+    const btn = screen.getByText('Logging in…').closest('button');
     expect(btn?.disabled).toBe(true);
     resolveSignIn!({ data: { user: null, session: null }, error: null });
+  });
+
+  it('explains wrong credentials in plain language', async () => {
+    mockSignIn.mockResolvedValueOnce({
+      data: {},
+      error: { message: 'Invalid login credentials' },
+    });
+    renderWithProviders(<AuthForm />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'x@x.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/don't match/);
   });
 });
