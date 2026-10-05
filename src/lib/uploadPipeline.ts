@@ -100,9 +100,16 @@ interface DetectResult {
 async function tryDetectType(blob: Blob): Promise<DetectResult> {
   try {
     const dataUrl = await imageDataUrlForDetection(blob);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { type: null, color: null, secondaryColor: null };
     const res = await fetch('/api/detect-clothing', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: JSON.stringify({ image: dataUrl }),
     });
     if (!res.ok) return { type: null, color: null, secondaryColor: null };

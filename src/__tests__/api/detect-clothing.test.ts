@@ -10,6 +10,9 @@ vi.mock('@anthropic-ai/sdk', () => ({
   })),
 }));
 
+const mockGetRequestUserId = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/serverAuth', () => ({ getRequestUserId: mockGetRequestUserId }));
+
 // Import after mocking
 import { POST } from '@/app/api/detect-clothing/route';
 import Anthropic from '@anthropic-ai/sdk';
@@ -35,6 +38,19 @@ function mockAnthropicInstance(): { messages: { create: ReturnType<typeof vi.fn>
 describe('POST /api/detect-clothing', () => {
   beforeEach(() => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+    mockGetRequestUserId.mockReset().mockResolvedValue('user-1');
+  });
+
+  it('returns 401 when the caller is not signed in', async () => {
+    mockGetRequestUserId.mockResolvedValue(null);
+    const res = await POST(makeRequest({ image: VALID_IMAGE }));
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 413 for an oversized image', async () => {
+    const huge = 'data:image/png;base64,' + 'A'.repeat(3 * 1024 * 1024 + 1);
+    const res = await POST(makeRequest({ image: huge }));
+    expect(res.status).toBe(413);
   });
 
   afterEach(() => {
