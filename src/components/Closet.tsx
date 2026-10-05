@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, X, ChevronDown, ChevronRight, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useId } from 'react';
+import { Plus, X, ChevronDown, ChevronRight, WashingMachine } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
-import { sectionNames, typeToSection, colorPalette, clothingTypes } from '@/lib/constants';
+import { sectionNames, colorPalette, clothingTypes } from '@/lib/constants';
+import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import { SkeletonGrid } from '@/components/ui/Skeleton';
 import type { ClothingItem, ClothingSection } from '@/lib/types';
 
-// localStorage keys
+// localStorage keys (per-viewer conveniences only)
 const STORAGE_KEYS = {
   collapsedSections: 'fitfinder_closet_collapsed_sections',
   collapsedSubsections: 'fitfinder_closet_collapsed_subsections',
-  hideEmpty: 'fitfinder_closet_hide_empty',
+  // v2: empty types are now hidden by default
+  hideEmpty: 'fitfinder_closet_hide_empty_v2',
 } as const;
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -36,16 +39,33 @@ function saveJson(key: string, value: unknown): void {
   }
 }
 
+/** A stable four-digit "ticket number" for an item, derived from its id. */
+export function ticketNumber(id: string): string {
+  const n = parseInt(id.replace(/-/g, '').slice(0, 8), 16);
+  return String(Number.isNaN(n) ? 0 : n % 10000).padStart(4, '0');
+}
+
+/** "Red T-Shirt" / "Navy blue and white Polo" — used as the tag's accessible name. */
+export function describeItem(item: ClothingItem): string {
+  const colors = item.colors.map((c) => getColorName(c).toLowerCase());
+  const colorText = colors.length ? colors.join(' and ') + ' ' : '';
+  const sentence = `${colorText}${item.type}`;
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
+
 interface ClosetProps {
   onAddItem: () => void;
   onEditItem?: (item: ClothingItem) => void;
 }
+
+type LaundryAction = 'clean' | 'dirty' | null;
 
 export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
   const { user } = useAuth();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
+  const filterId = useId();
 
   // Filters
   const [filterSection, setFilterSection] = useState<string>('');
@@ -59,11 +79,12 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
   const [collapsedSubsections, setCollapsedSubsections] = useState<Record<string, boolean>>(() =>
     loadJson(STORAGE_KEYS.collapsedSubsections, {}),
   );
-  const [hideEmpty, setHideEmpty] = useState<boolean>(() =>
-    loadJson(STORAGE_KEYS.hideEmpty, false),
-  );
+  const [hideEmpty, setHideEmpty] = useState<boolean>(() => loadJson(STORAGE_KEYS.hideEmpty, true));
 
-  // Persist collapse state
+  const [laundryAction, setLaundryAction] = useState<LaundryAction>(null);
+  // Item ids whose stamp was just pressed, to play the stamp animation once.
+  const [justStamped, setJustStamped] = useState<string | null>(null);
+
   useEffect(() => {
     saveJson(STORAGE_KEYS.collapsedSections, collapsedSections);
   }, [collapsedSections]);
@@ -76,27 +97,27 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
 
   const hasActiveFilters = filterSection !== '' || filterColor !== '' || filterDirty !== 'all';
 
-  useEffect(() => {
-    if (user) fetchItems();
-  }, [user]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('clothing_items')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       setItems(data || []);
     } catch {
-      showToast('Failed to load closet items', 'error');
+      showToast("Couldn't load your closet. Refresh to try again.", 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, showToast]);
 
-  // Filter items by type (subsection level)
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
   const getItemsForType = useCallback(
     (type: string) => {
       let filtered = items.filter((item) => item.type === type);
@@ -113,26 +134,41 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
     [items, filterColor, filterDirty],
   );
 
-  // Get total filtered count for a section
   const getSectionCount = useCallback(
-    (section: ClothingSection) => {
-      return clothingTypes[section].reduce((sum, type) => sum + getItemsForType(type).length, 0);
-    },
+    (section: ClothingSection) =>
+      clothingTypes[section].reduce((sum, type) => sum + getItemsForType(type).length, 0),
     [getItemsForType],
   );
 
-  const bulkMarkAllDirty = async (makeDirty: boolean) => {
+  const bulkSetDirty = async (makeDirty: boolean) => {
     if (!user) return;
-    try {
-      const { error } = await supabase
-        .from('clothing_items')
-        .update({ is_dirty: makeDirty })
-        .eq('user_id', user.id);
-      if (error) throw error;
-      showToast(makeDirty ? 'All items marked dirty' : 'All items marked clean', 'success');
-      fetchItems();
-    } catch {
-      showToast('Failed to update laundry status', 'error');
+    setLaundryAction(null);
+    const { error } = await supabase
+      .from('clothing_items')
+      .update({ is_dirty: makeDirty })
+      .eq('user_id', user.id);
+    if (error) {
+      showToast("Couldn't update your laundry. Try again.", 'error');
+      return;
+    }
+    showToast(makeDirty ? 'Everything is in the wash.' : 'Everything is clean.', 'success');
+    fetchItems();
+  };
+
+  // Stamp a single tag clean/dirty without opening the editor.
+  const toggleItemDirty = async (item: ClothingItem) => {
+    const next = !item.is_dirty;
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_dirty: next } : i)));
+    setJustStamped(item.id);
+    const { error } = await supabase
+      .from('clothing_items')
+      .update({ is_dirty: next })
+      .eq('id', item.id);
+    if (error) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, is_dirty: item.is_dirty } : i)),
+      );
+      showToast("Couldn't update that item. Try again.", 'error');
     }
   };
 
@@ -151,6 +187,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
   };
 
   const sectionsToShow = filterSection ? [filterSection as ClothingSection] : sectionNames;
+  const dirtyCount = items.filter((i) => i.is_dirty).length;
 
   if (loading) {
     return (
@@ -165,237 +202,308 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
     );
   }
 
+  const chip = (active: boolean) =>
+    `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
+      active
+        ? 'bg-[var(--text)] text-white border-[var(--text)]'
+        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
+    }`;
+
   return (
-    <div className="w-full flex gap-12">
-      {/* Left sidebar — action buttons */}
-      <div className="hidden sm:flex flex-col gap-3 shrink-0 w-[180px]">
-        <button onClick={onAddItem} className="btn-primary text-base py-3 px-5">
-          <Plus size={20} /> Add Item
-        </button>
-        <button
-          onClick={() => bulkMarkAllDirty(true)}
-          className="btn-secondary text-amber-600 text-base py-3 px-5"
-        >
-          Mark All Dirty
-        </button>
-        <button
-          onClick={() => bulkMarkAllDirty(false)}
-          className="btn-secondary text-green-600 text-base py-3 px-5"
-        >
-          Mark All Clean
-        </button>
+    <div className="w-full">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
+        <div>
+          <h2 className="text-3xl">Your closet</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            {items.length === 0
+              ? 'Nothing on the rack yet.'
+              : `${items.length} ${items.length === 1 ? 'item' : 'items'}, ${dirtyCount} in the wash`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setLaundryAction('clean')} className="btn-secondary">
+            <WashingMachine size={16} aria-hidden="true" /> Mark all clean
+          </button>
+          <button onClick={() => setLaundryAction('dirty')} className="btn-secondary">
+            Mark all dirty
+          </button>
+          <button onClick={onAddItem} className="btn-primary order-first sm:order-last">
+            <Plus size={18} aria-hidden="true" /> Add item
+          </button>
+        </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        {/* Mobile-only action buttons */}
-        <div className="flex sm:hidden items-center gap-2 flex-wrap mb-4">
-          <button onClick={onAddItem} className="btn-primary">
-            <Plus size={16} /> Add Item
-          </button>
-          <button onClick={() => bulkMarkAllDirty(true)} className="btn-secondary text-amber-600">
-            Mark All Dirty
-          </button>
-          <button onClick={() => bulkMarkAllDirty(false)} className="btn-secondary text-green-600">
-            Mark All Clean
-          </button>
+      {/* Filters */}
+      <div
+        role="group"
+        aria-label="Filter closet"
+        className="card px-3 py-3 mb-8 flex flex-wrap items-center gap-2"
+      >
+        <label htmlFor={`${filterId}-section`} className="sr-only">
+          Category
+        </label>
+        <select
+          id={`${filterId}-section`}
+          value={filterSection}
+          onChange={(e) => setFilterSection(e.target.value)}
+          className="min-h-[36px] py-1"
+        >
+          <option value="">All categories</option>
+          {sectionNames.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor={`${filterId}-color`} className="sr-only">
+          Color
+        </label>
+        <select
+          id={`${filterId}-color`}
+          value={filterColor}
+          onChange={(e) => setFilterColor(e.target.value)}
+          className="min-h-[36px] py-1"
+        >
+          <option value="">All colors</option>
+          {colorPalette.map((c) => (
+            <option key={c} value={c}>
+              {getColorName(c)}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex gap-1" role="group" aria-label="Laundry status">
+          {(['all', 'clean', 'dirty'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterDirty(status)}
+              aria-pressed={filterDirty === status}
+              className={chip(filterDirty === status)}
+            >
+              {status === 'all' ? 'All' : status === 'clean' ? 'Clean' : 'Dirty'}
+            </button>
+          ))}
         </div>
 
-        {/* Filter bar */}
-        <div className="bg-[var(--muted)] rounded-xl p-3 mb-6 flex flex-wrap items-center gap-3">
-          <select
-            value={filterSection}
-            onChange={(e) => setFilterSection(e.target.value)}
-            className="text-xs"
-          >
-            <option value="">All Categories</option>
-            {sectionNames.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+        <button
+          onClick={() => setHideEmpty(!hideEmpty)}
+          aria-pressed={hideEmpty}
+          className={chip(hideEmpty)}
+        >
+          Hide empty types
+        </button>
 
-          <select
-            value={filterColor}
-            onChange={(e) => setFilterColor(e.target.value)}
-            className="text-xs"
-          >
-            <option value="">All Colors</option>
-            {colorPalette.map((c) => (
-              <option key={c} value={c} style={{ textTransform: 'capitalize' }}>
-                {c}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex gap-1">
-            {(['all', 'clean', 'dirty'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilterDirty(status)}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                  filterDirty === status
-                    ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                    : 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
-                }`}
-              >
-                {status === 'all' ? 'All' : status === 'clean' ? 'Clean' : 'Dirty'}
-              </button>
-            ))}
-          </div>
-
+        {hasActiveFilters && (
           <button
-            onClick={() => setHideEmpty(!hideEmpty)}
-            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors flex items-center gap-1 ${
-              hideEmpty
-                ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                : 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
+            onClick={clearFilters}
+            className="min-h-[36px] px-2 text-sm font-semibold text-[var(--carbon)] hover:underline flex items-center gap-1"
+          >
+            <X size={14} aria-hidden="true" /> Clear filters
+          </button>
+        )}
+      </div>
+
+      {items.length === 0 && (
+        <div className="card p-8 text-center mb-8">
+          <p className="text-lg font-semibold mb-1">Your rack is empty</p>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
+            Add a few photos of clothes you wear and FitFinder will tag the type and colors for you.
+          </p>
+          <button onClick={onAddItem} className="btn-primary">
+            <Plus size={18} aria-hidden="true" /> Add your first item
+          </button>
+        </div>
+      )}
+
+      {/* Sections */}
+      {sectionsToShow.map((section) => {
+        const sectionCount = getSectionCount(section);
+        const types = clothingTypes[section];
+        const isSectionCollapsed = collapsedSections[section] ?? false;
+        const emptyTypes = types.filter((t) => getItemsForType(t).length === 0);
+
+        if (filterSection && sectionCount === 0) return null;
+
+        return (
+          <section key={section} className="mb-10">
+            <button
+              onClick={() => toggleSection(section)}
+              aria-expanded={!isSectionCollapsed}
+              className="w-full flex items-center gap-3 pb-2 mb-5 border-b-2 border-[var(--text)] select-none group text-left"
+            >
+              {isSectionCollapsed ? (
+                <ChevronRight size={22} aria-hidden="true" />
+              ) : (
+                <ChevronDown size={22} aria-hidden="true" />
+              )}
+              <h2 className="text-2xl">{section}</h2>
+              <span className="tabular text-sm font-semibold text-[var(--text-secondary)]">
+                {sectionCount}
+              </span>
+            </button>
+
+            {!isSectionCollapsed && (
+              <div className="space-y-6">
+                {types.map((type) => {
+                  const typeItems = getItemsForType(type);
+                  const subsectionKey = `${section}:${type}`;
+                  const isSubCollapsed = collapsedSubsections[subsectionKey] ?? false;
+                  const singleType = types.length === 1;
+
+                  if (hideEmpty && typeItems.length === 0) return null;
+
+                  return (
+                    <div key={type}>
+                      {!singleType && (
+                        <button
+                          onClick={() => toggleSubsection(subsectionKey)}
+                          aria-expanded={!isSubCollapsed}
+                          className="flex items-center gap-2 mb-3 min-h-[36px] select-none group"
+                        >
+                          {isSubCollapsed ? (
+                            <ChevronRight size={16} aria-hidden="true" />
+                          ) : (
+                            <ChevronDown size={16} aria-hidden="true" />
+                          )}
+                          <span className="font-display text-lg font-bold [font-stretch:85%]">
+                            {type}
+                          </span>
+                          <span className="tabular text-sm text-[var(--text-secondary)]">
+                            {typeItems.length}
+                          </span>
+                        </button>
+                      )}
+
+                      {(singleType || !isSubCollapsed) && (
+                        <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                          {typeItems.map((item) => (
+                            <li key={item.id}>
+                              <HangTag
+                                item={item}
+                                animateStamp={justStamped === item.id}
+                                onOpen={() => onEditItem?.(item)}
+                                onToggleDirty={() => toggleItemDirty(item)}
+                              />
+                            </li>
+                          ))}
+                          <li>
+                            <button
+                              onClick={onAddItem}
+                              className="w-full h-full min-h-[120px] rounded-md border-2 border-dashed border-[var(--manila-deep)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white/60 flex flex-col items-center justify-center gap-1 transition-colors"
+                            >
+                              <Plus size={20} aria-hidden="true" />
+                              <span className="text-sm font-semibold">
+                                Add {type.toLowerCase()}
+                              </span>
+                            </button>
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {hideEmpty && emptyTypes.length > 0 && !singleTypeSection(types) && (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-[var(--text-secondary)]">Nothing yet:</span>
+                    {emptyTypes.map((t) => (
+                      <button
+                        key={t}
+                        onClick={onAddItem}
+                        className="min-h-[36px] px-3 rounded-full border border-dashed border-[var(--manila-deep)] font-semibold text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white/60"
+                      >
+                        + {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        );
+      })}
+
+      <ConfirmDialog
+        isOpen={laundryAction !== null}
+        message={
+          laundryAction === 'dirty'
+            ? `Mark all ${items.length} items as dirty? They won't be picked for outfits until they're clean.`
+            : `Mark all ${items.length} items as clean?`
+        }
+        confirmLabel={laundryAction === 'dirty' ? 'Mark all dirty' : 'Mark all clean'}
+        cancelLabel="Cancel"
+        variant="primary"
+        onConfirm={() => bulkSetDirty(laundryAction === 'dirty')}
+        onCancel={() => setLaundryAction(null)}
+      />
+    </div>
+  );
+}
+
+function singleTypeSection(types: string[]) {
+  return types.length === 1;
+}
+
+interface HangTagProps {
+  item: ClothingItem;
+  animateStamp: boolean;
+  onOpen: () => void;
+  onToggleDirty: () => void;
+}
+
+/** A closet item drawn as a manila hang-tag with a rubber-stamped laundry status. */
+function HangTag({ item, animateStamp, onOpen, onToggleDirty }: HangTagProps) {
+  const name = describeItem(item);
+  return (
+    <div className="hang-tag h-full flex flex-col">
+      <button onClick={onOpen} className="text-left rounded-sm" aria-label={`Edit ${name}`}>
+        <div className="hang-tag-photo aspect-square w-full">
+          <ClothingImage
+            src={item.image_url}
+            alt=""
+            className={`w-full h-full object-contain p-2 transition-[filter,opacity] ${
+              item.is_dirty ? 'grayscale opacity-60' : ''
+            }`}
+          />
+        </div>
+        <div className="flex items-baseline justify-between gap-2 mt-2 px-0.5">
+          <span className="font-display font-bold leading-tight [font-stretch:85%] truncate">
+            {item.type}
+          </span>
+          <span className="tabular text-[11px] text-[var(--text-secondary)] shrink-0">
+            No. {ticketNumber(item.id)}
+          </span>
+        </div>
+      </button>
+      <div className="flex items-center justify-between gap-2 mt-1.5 px-0.5">
+        <span className="flex items-center gap-1" aria-hidden="true">
+          {item.colors.map((c) => (
+            <span
+              key={c}
+              title={getColorName(c)}
+              className="w-3.5 h-3.5 rounded-full border border-black/20"
+              style={getColorStyle(c)}
+            />
+          ))}
+        </span>
+        <button
+          onClick={onToggleDirty}
+          aria-label={`${name} is ${item.is_dirty ? 'dirty' : 'clean'}. Mark as ${
+            item.is_dirty ? 'clean' : 'dirty'
+          }`}
+          className="min-h-[32px] min-w-[44px] flex items-center justify-end"
+        >
+          <span
+            key={String(item.is_dirty)}
+            className={`${item.is_dirty ? 'stamp-dirty' : 'stamp-clean'} ${
+              animateStamp ? 'stamp-animate' : ''
             }`}
           >
-            <EyeOff size={12} /> Hide Empty
-          </button>
-
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"
-            >
-              <X size={12} /> Clear filters
-            </button>
-          )}
-        </div>
-
-        {/* Sections */}
-        {sectionsToShow.map((section) => {
-          const sectionCount = getSectionCount(section);
-          const types = clothingTypes[section];
-          const isSectionCollapsed = collapsedSections[section] ?? false;
-
-          // When filtering to a specific section, don't hide it even if empty
-          if (filterSection && sectionCount === 0) return null;
-
-          return (
-            <section key={section} className="mb-8">
-              {/* Section header */}
-              <button
-                onClick={() => toggleSection(section)}
-                className="w-full flex items-center gap-3 pb-3 mb-4 border-b-2 border-[var(--border)] select-none cursor-pointer group"
-              >
-                {isSectionCollapsed ? (
-                  <ChevronRight
-                    size={22}
-                    className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors"
-                  />
-                ) : (
-                  <ChevronDown
-                    size={22}
-                    className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors"
-                  />
-                )}
-                <h2 className="text-2xl font-bold text-[var(--text)] tracking-tight">{section}</h2>
-                <span className="bg-[var(--purple-light)] text-[var(--purple-hover)] text-sm font-semibold px-2.5 py-0.5 rounded-full">
-                  {sectionCount}
-                </span>
-              </button>
-
-              {!isSectionCollapsed && (
-                <div className="space-y-4 pl-2">
-                  {types.map((type) => {
-                    const typeItems = getItemsForType(type);
-                    const subsectionKey = `${section}:${type}`;
-                    const isSubCollapsed = collapsedSubsections[subsectionKey] ?? false;
-                    const singleType = types.length === 1;
-
-                    // Hide empty subsections if toggle is on
-                    if (hideEmpty && typeItems.length === 0) return null;
-
-                    return (
-                      <div key={type}>
-                        {/* Subsection header — skip when section has only one type */}
-                        {!singleType && (
-                          <button
-                            onClick={() => toggleSubsection(subsectionKey)}
-                            className="flex items-center gap-2 mb-3 select-none cursor-pointer group"
-                          >
-                            {isSubCollapsed ? (
-                              <ChevronRight
-                                size={16}
-                                className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors"
-                              />
-                            ) : (
-                              <ChevronDown
-                                size={16}
-                                className="text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors"
-                              />
-                            )}
-                            <span className="text-base font-semibold text-[var(--text-secondary)] group-hover:text-[var(--text)] transition-colors">
-                              {type}
-                            </span>
-                            <span className="text-xs text-[var(--text-secondary)] bg-[var(--muted)] px-2 py-0.5 rounded-full font-medium">
-                              {typeItems.length}
-                            </span>
-                          </button>
-                        )}
-
-                        {/* Subsection content */}
-                        {(singleType || !isSubCollapsed) && (
-                          <>
-                            {typeItems.length === 0 ? (
-                              <div className="flex items-center gap-3 ml-5 mb-2">
-                                <button
-                                  onClick={onAddItem}
-                                  className="w-28 h-28 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
-                                >
-                                  <Plus size={20} />
-                                  <span className="text-[10px] mt-0.5">Add</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 ml-5 mb-2">
-                                {/* Add button */}
-                                <button
-                                  onClick={onAddItem}
-                                  className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors aspect-square"
-                                >
-                                  <Plus size={20} />
-                                  <span className="text-[10px] mt-0.5">Add</span>
-                                </button>
-
-                                {typeItems.map((item) => (
-                                  <button
-                                    key={item.id}
-                                    onClick={() => onEditItem?.(item)}
-                                    className={`retro-cell flex flex-col group ${
-                                      item.is_dirty ? 'opacity-40 grayscale' : ''
-                                    }`}
-                                  >
-                                    <div className="aspect-square w-full overflow-hidden">
-                                      <ClothingImage
-                                        src={item.image_url}
-                                        alt={item.type}
-                                        className="w-full h-full object-contain p-1.5"
-                                      />
-                                    </div>
-                                    {item.is_dirty && (
-                                      <span className="absolute top-1 left-1 bg-amber-400 text-[10px] font-bold text-black px-1.5 py-0.5 rounded">
-                                        Dirty
-                                      </span>
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          );
-        })}
+            {item.is_dirty ? 'Dirty' : 'Clean'}
+          </span>
+        </button>
       </div>
     </div>
   );

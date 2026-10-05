@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 import { makeTop, makeBottom, makeShoes, makeOuterwear } from '../factories/clothingItem';
 
@@ -21,7 +21,11 @@ vi.mock('@/lib/supabaseClient', () => ({
   },
 }));
 
-import Closet from '@/components/Closet';
+vi.mock('@/components/ui/ClothingImage', () => ({
+  default: ({ alt }: { alt?: string }) => <img alt={alt} />,
+}));
+
+import Closet, { describeItem, ticketNumber } from '@/components/Closet';
 
 const items = [
   makeTop({ id: 't1', type: 'T-Shirt', colors: ['blue'], is_dirty: false }),
@@ -54,234 +58,133 @@ describe('Closet', () => {
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
-  it('renders items after loading', async () => {
+  it('renders every section after loading', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => {
-      expect(screen.getByText('Tops')).toBeTruthy();
-    });
+    await screen.findByRole('heading', { name: 'Tops' });
+    expect(screen.getByRole('heading', { name: 'Bottoms' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Shoes' })).toBeTruthy();
   });
 
-  it('calls onAddItem when Add Item button is clicked', async () => {
+  it('summarises the closet', async () => {
+    renderWithProviders(<Closet onAddItem={vi.fn()} />);
+    expect(await screen.findByText('7 items, 2 in the wash')).toBeTruthy();
+  });
+
+  it('calls onAddItem from the Add item button', async () => {
     const onAddItem = vi.fn();
     renderWithProviders(<Closet onAddItem={onAddItem} />);
-    await waitFor(() => screen.getByText('Tops'));
-    const addBtn = document.querySelector('.btn-primary');
-    if (addBtn) fireEvent.click(addBtn);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add item' }));
     expect(onAddItem).toHaveBeenCalled();
   });
 
-  it('calls onEditItem when item is clicked', async () => {
+  it('opens the editor when a tag is clicked', async () => {
     const onEditItem = vi.fn();
     renderWithProviders(<Closet onAddItem={vi.fn()} onEditItem={onEditItem} />);
-    await waitFor(() => screen.getByText('Tops'));
-    const itemImages = screen.getAllByRole('img');
-    if (itemImages.length > 0) fireEvent.click(itemImages[0]);
-    expect(onEditItem).toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Blue T-Shirt' }));
+    expect(onEditItem).toHaveBeenCalledWith(expect.objectContaining({ id: 't1' }));
   });
 
-  it('renders all section headers after loading', async () => {
+  it('shows Clear filters once a filter is active', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getAllByText('Tops'));
-    expect(screen.queryAllByText('Bottoms').length).toBeGreaterThan(0);
-    // Outerwear types are now part of Tops
-    expect(screen.queryAllByText('Shoes').length).toBeGreaterThan(0);
+    fireEvent.click(await screen.findByRole('button', { name: 'Dirty' }));
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
   });
 
-  it('clear filters button appears when filters are active', async () => {
+  it('labels the filter dropdowns', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-    const dirtyBtns = screen.getAllByText('Dirty');
-    if (dirtyBtns.length > 0) fireEvent.click(dirtyBtns[0]);
-    expect(screen.getByText(/Clear/)).toBeTruthy();
+    expect(await screen.findByLabelText('Category')).toBeTruthy();
+    expect(screen.getByLabelText('Color')).toBeTruthy();
   });
 });
 
-describe('Closet section collapse/expand', () => {
-  function findSectionButton(sectionName: string) {
-    // The section header is: <button><ChevronIcon/><h2>Tops</h2><span>count</span></button>
-    // Find the h2, then go up to the button parent
-    const h2 = screen.getByRole('heading', { name: sectionName });
-    return h2.closest('button')!;
-  }
-
-  it('clicking section header toggles section collapse', async () => {
+describe('Closet sections', () => {
+  it('collapses and expands a section, exposing aria-expanded', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('T-Shirt'));
-
-    // Subsection headers should be visible initially (T-Shirt, Polo)
-    expect(screen.getByText('T-Shirt')).toBeTruthy();
-
-    // Find the Tops section header button and click to collapse
-    const sectionButton = findSectionButton('Tops');
-    fireEvent.click(sectionButton);
-
-    // After collapsing, T-Shirt subsection header should disappear
-    await waitFor(() => {
-      expect(screen.queryByText('T-Shirt')).toBeNull();
-    });
+    await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });
+    const header = screen.getByRole('heading', { name: 'Tops' }).closest('button')!;
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(header);
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Edit Blue T-Shirt' })).toBeNull();
+    fireEvent.click(header);
+    expect(screen.getByRole('button', { name: 'Edit Blue T-Shirt' })).toBeTruthy();
   });
 
-  it('clicking collapsed section header expands it', async () => {
+  it('collapses a type within a section', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('T-Shirt'));
+    await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });
+    const typeHeader = screen
+      .getAllByRole('button', { expanded: true })
+      .find((b) => b.textContent?.startsWith('T-Shirt'))!;
+    fireEvent.click(typeHeader);
+    expect(screen.queryByRole('button', { name: 'Edit Blue T-Shirt' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Green Polo' })).toBeTruthy();
+  });
 
-    const sectionButton = findSectionButton('Tops');
+  it('hides empty types by default and lists them as quick-add chips', async () => {
+    renderWithProviders(<Closet onAddItem={vi.fn()} />);
+    await screen.findByRole('heading', { name: 'Tops' });
+    const toggle = screen.getByRole('button', { name: 'Hide empty types' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: '+ Tank Top' })).toBeTruthy();
 
-    // Collapse
-    fireEvent.click(sectionButton);
-    await waitFor(() => expect(screen.queryByText('T-Shirt')).toBeNull());
-
-    // Expand
-    fireEvent.click(sectionButton);
-
-    // T-Shirt should be visible again
-    await waitFor(() => {
-      expect(screen.getByText('T-Shirt')).toBeTruthy();
-    });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByRole('button', { name: '+ Tank Top' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add tank top' })).toBeTruthy();
   });
 });
 
-describe('Closet subsection collapse/expand', () => {
-  it('clicking subsection header toggles subsection content', async () => {
+describe('Closet laundry', () => {
+  it('confirms before marking everything dirty', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('T-Shirt'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark all dirty' }));
+    expect(mockUpdateFn).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mark all dirty' }));
+    await waitFor(() => expect(mockUpdateFn).toHaveBeenCalledWith('user_id', 'u1'));
+  });
 
-    // Find T-Shirt subsection header (it's a button)
-    const tshirtText = screen.getByText('T-Shirt');
-    const subsectionButton = tshirtText.closest('button');
-    expect(subsectionButton).toBeTruthy();
+  it('confirms before marking everything clean', async () => {
+    renderWithProviders(<Closet onAddItem={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Mark all clean/ }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mark all clean' }));
+    await waitFor(() => expect(mockUpdateFn).toHaveBeenCalledWith('user_id', 'u1'));
+  });
 
-    // Items should be visible (images rendered)
-    const imagesBefore = screen.getAllByRole('img').length;
-    expect(imagesBefore).toBeGreaterThan(0);
+  it('stamps a single item dirty from its tag', async () => {
+    renderWithProviders(<Closet onAddItem={vi.fn()} />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Blue T-Shirt is clean. Mark as dirty' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Blue T-Shirt is dirty. Mark as clean' }),
+    ).toBeTruthy();
+    await waitFor(() => expect(mockUpdateFn).toHaveBeenCalledWith('id', 't1'));
+  });
 
-    // Click to collapse T-Shirt subsection
-    fireEvent.click(subsectionButton!);
-
-    // Images should be fewer after collapsing a subsection
-    await waitFor(() => {
-      const imagesAfter = screen.getAllByRole('img').length;
-      expect(imagesAfter).toBeLessThan(imagesBefore);
-    });
+  it('puts the stamp back if saving fails', async () => {
+    mockUpdateFn.mockResolvedValue({ error: { message: 'nope' } });
+    renderWithProviders(<Closet onAddItem={vi.fn()} />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Blue T-Shirt is clean. Mark as dirty' }),
+    );
+    expect(
+      await screen.findByRole('button', { name: 'Blue T-Shirt is clean. Mark as dirty' }),
+    ).toBeTruthy();
   });
 });
 
-describe('Closet filters', () => {
-  it('dirty filter shows only dirty items', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-
-    // Click Dirty filter
-    const dirtyBtns = screen.getAllByText('Dirty');
-    fireEvent.click(dirtyBtns[0]);
-
-    // Only dirty items should show — check that the dirty badge is on all visible items
-    await waitFor(() => {
-      const dirtyBadges = screen.queryAllByText('Dirty');
-      // At least one "Dirty" badge should be on an item (plus the filter button itself)
-      expect(dirtyBadges.length).toBeGreaterThanOrEqual(1);
-    });
+describe('Closet helpers', () => {
+  it('describes an item by colors and type', () => {
+    expect(describeItem(makeTop({ type: 'Polo', colors: ['navy blue', 'white'] }))).toBe(
+      'Navy blue and white Polo',
+    );
   });
 
-  it('clean filter shows only clean items', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-
-    // Click Clean filter
-    const cleanBtns = screen.getAllByText('Clean');
-    fireEvent.click(cleanBtns[0]);
-
-    // Clear filter should appear
-    expect(screen.getByText(/Clear/)).toBeTruthy();
-  });
-
-  it('clearing filters resets all filter state', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-
-    // Apply dirty filter
-    const dirtyBtns = screen.getAllByText('Dirty');
-    fireEvent.click(dirtyBtns[0]);
-    expect(screen.getByText(/Clear/)).toBeTruthy();
-
-    // Clear filters
-    fireEvent.click(screen.getByText(/Clear/));
-
-    // Clear button should be gone
-    expect(screen.queryByText(/Clear filter/)).toBeNull();
-  });
-});
-
-describe('Closet Hide Empty toggle', () => {
-  it('Hide Empty button is present in filter bar', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-    expect(screen.getByText('Hide Empty')).toBeTruthy();
-  });
-
-  it('toggling Hide Empty hides subsections with 0 items', async () => {
-    // Some clothing types will have 0 items (e.g., Long Sleeve Shirt, Tank Top, etc.)
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-
-    // Count subsection headers before
-    const subsectionsBefore = screen.queryAllByText(/Long Sleeve Shirt|Tank Top|Button-Up Shirt/);
-
-    // Click Hide Empty
-    fireEvent.click(screen.getByText('Hide Empty'));
-
-    // Empty subsections should disappear
-    await waitFor(() => {
-      const subsectionsAfter = screen.queryAllByText(/Long Sleeve Shirt|Tank Top|Button-Up Shirt/);
-      expect(subsectionsAfter.length).toBeLessThan(subsectionsBefore.length);
-    });
-  });
-});
-
-describe('Closet Mark All Dirty/Clean', () => {
-  it('Mark All Dirty button triggers supabase update', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-
-    fireEvent.click(screen.getAllByText('Mark All Dirty')[0]);
-
-    await waitFor(() => {
-      expect(mockUpdateFn).toHaveBeenCalled();
-    });
-  });
-
-  it('Mark All Clean button triggers supabase update', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('Tops'));
-
-    fireEvent.click(screen.getAllByText('Mark All Clean')[0]);
-
-    await waitFor(() => {
-      expect(mockUpdateFn).toHaveBeenCalled();
-    });
-  });
-});
-
-describe('Closet section count badges', () => {
-  it('section headers show correct item counts', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('T-Shirt'));
-
-    // Tops section should show count of 4 (2 T-Shirts + 1 Polo + 1 Jacket)
-    const topsH2 = screen.getByRole('heading', { name: 'Tops' });
-    const topsButton = topsH2.closest('button')!;
-    const badge = topsButton.querySelector('.rounded-full');
-    expect(badge?.textContent).toBe('4');
-  });
-
-  it('subsection headers show correct item counts', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await waitFor(() => screen.getByText('T-Shirt'));
-
-    // T-Shirt subsection should show count of 2
-    const tshirtHeader = screen.getByText('T-Shirt').closest('button');
-    expect(tshirtHeader).toBeTruthy();
-    const badge = tshirtHeader!.querySelector('.rounded-full');
-    expect(badge?.textContent).toBe('2');
+  it('gives each item a stable four-digit ticket number', () => {
+    expect(ticketNumber('cd8525fd-2138-427a-8604-fd9d12a7cffa')).toMatch(/^\d{4}$/);
+    expect(ticketNumber('abc')).toBe(ticketNumber('abc'));
   });
 });
