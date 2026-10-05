@@ -10,7 +10,8 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
-        wide: ['var(--font-wide)', 'var(--font-sans)', 'sans-serif'],
+        poster: ['var(--font-poster)', 'Impact', 'sans-serif'],
+        script: ['var(--font-script)', 'cursive'],
       },
       colors: {
         accent: {

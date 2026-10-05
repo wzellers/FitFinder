@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Plus, X, ChevronDown, ChevronRight, WashingMachine } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import PosterHeader from '@/components/ui/PosterHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
@@ -195,28 +196,28 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
 
   return (
     <div className="w-full">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
-        <div>
-          <h2 className="text-3xl tracking-tight">Your closet</h2>
-          <p className="readout mt-2">
-            {items.length === 0
-              ? '{ empty }'
-              : `{ ${items.length} ${items.length === 1 ? 'item' : 'items'} · ${dirtyCount} in the wash }`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setLaundryAction('clean')} className="btn-secondary">
-            <WashingMachine size={16} aria-hidden="true" /> Mark all clean
-          </button>
-          <button onClick={() => setLaundryAction('dirty')} className="btn-secondary">
-            Mark all dirty
-          </button>
-          <button onClick={onAddItem} className="btn-primary order-first sm:order-last">
-            <Plus size={18} aria-hidden="true" /> Add item
-          </button>
-        </div>
-      </div>
+      <PosterHeader
+        title="Closet"
+        script="all yours"
+        readout={
+          items.length === 0
+            ? '{ empty }'
+            : `{ ${items.length} ${items.length === 1 ? 'item' : 'items'} · ${dirtyCount} in the wash }`
+        }
+        actions={
+          <>
+            <button onClick={() => setLaundryAction('clean')} className="btn-poster">
+              <WashingMachine size={16} aria-hidden="true" /> Mark all clean
+            </button>
+            <button onClick={() => setLaundryAction('dirty')} className="btn-poster">
+              Mark all dirty
+            </button>
+            <button onClick={onAddItem} className="btn-poster-primary order-first sm:order-last">
+              <Plus size={18} aria-hidden="true" /> Add item
+            </button>
+          </>
+        }
+      />
 
       {/* Filters */}
       <div

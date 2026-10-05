@@ -190,6 +190,23 @@
     @apply btn bg-transparent text-[var(--text-secondary)] hover:bg-[var(--muted)] hover:text-[var(--text)];
   }
 
+  /* Controls placed on a burgundy poster header. */
+  .btn-poster {
+    @apply btn bg-transparent text-[#f6eef0] border border-[#e3cfd3]/60 hover:bg-white/10;
+  }
+  .btn-poster-primary {
+    @apply btn bg-[var(--sky)] text-[var(--burgundy)] hover:bg-[var(--sky-wash)];
+  }
+  .segmented-poster {
+    @apply inline-flex rounded-full border border-[#e3cfd3]/50 p-1;
+  }
+  .segmented-poster > button {
+    @apply min-h-[36px] px-4 rounded-full text-sm font-medium text-[#f6eef0] hover:bg-white/10;
+  }
+  .segmented-poster > button[aria-pressed='true'] {
+    @apply bg-[var(--sky)] text-[var(--burgundy)] hover:bg-[var(--sky)];
+  }
+
   .nav-tab {
     @apply flex items-center gap-2 px-3 min-h-[44px] rounded-md text-sm font-semibold
            text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors;
@@ -212,7 +229,7 @@
   }
 
   .logo {
-    @apply font-wide tracking-tight text-[var(--text)];
+    @apply font-poster uppercase tracking-[0.02em] text-[var(--burgundy)];
   }
 
   .retro-cell {

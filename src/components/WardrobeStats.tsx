@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import PosterHeader from '@/components/ui/PosterHeader';
 import { useToast } from '@/components/ToastProvider';
 import { describeItem } from '@/lib/itemLabels';
 import { supabase } from '@/lib/supabaseClient';
@@ -186,9 +187,7 @@ export default function WardrobeStats() {
   if (loading) {
     return (
       <div className="w-full max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl">Stats</h2>
-        </div>
+        <PosterHeader title="Stats" script="by the numbers" />
         <SkeletonStatCards />
       </div>
     );
@@ -199,29 +198,24 @@ export default function WardrobeStats() {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-        <h2 className="text-3xl">Stats</h2>
-        <div
-          className="inline-flex rounded-full border border-[var(--line-strong)] bg-white p-1"
-          role="group"
-          aria-label="Time period"
-        >
-          {(['week', 'month', 'all'] as TimePeriod[]).map((period) => (
-            <button
-              key={period}
-              onClick={() => setTimePeriod(period)}
-              aria-pressed={timePeriod === period}
-              className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
-                timePeriod === period
-                  ? 'bg-[var(--sky)] text-[var(--burgundy)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
-              }`}
-            >
-              {period === 'week' ? 'Week' : period === 'month' ? 'Month' : 'All time'}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PosterHeader
+        title="Stats"
+        script="by the numbers"
+        readout={`{ ${stats.totalItems} items · ${stats.totalWears} worn ${periodLabel} }`}
+        actions={
+          <div className="segmented-poster" role="group" aria-label="Time period">
+            {(['week', 'month', 'all'] as TimePeriod[]).map((period) => (
+              <button
+                key={period}
+                onClick={() => setTimePeriod(period)}
+                aria-pressed={timePeriod === period}
+              >
+                {period === 'week' ? 'Week' : period === 'month' ? 'Month' : 'All time'}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-[22rem_minmax(0,1fr)] gap-8 items-start">
         {/* ====== Summary ====== */}

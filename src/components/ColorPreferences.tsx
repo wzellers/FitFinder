@@ -1,5 +1,6 @@
 'use client';
 
+import PosterHeader from '@/components/ui/PosterHeader';
 import React, { useEffect, useMemo, useState } from 'react';
 import { MapPin, Thermometer, RotateCcw, Sun, Palette, Briefcase } from 'lucide-react';
 import ColorCombinationModal from '@/components/ColorCombinationModal';
@@ -808,7 +809,11 @@ export default function ColorPreferences() {
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Mobile tabs */}
-      <h2 className="text-3xl mb-5">Settings</h2>
+      <PosterHeader
+        title="Settings"
+        script="your rules"
+        readout="{ weather · occasions · colors }"
+      />
       <div className="flex md:hidden gap-1 mb-4" role="group" aria-label="Preference section">
         {sidebarItems.map((item) => (
           <button

@@ -258,7 +258,9 @@ export default function Page() {
               onClick={() => setActiveTab(key)}
               aria-current={active ? 'page' : undefined}
               className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 min-h-[52px] sm:min-h-[44px] sm:px-5 rounded-full text-[11px] sm:text-sm font-medium transition-colors ${
-                active ? 'bg-[var(--sky)] text-[var(--burgundy)]' : 'text-[#e3cfd3] hover:text-white'
+                active
+                  ? 'bg-[var(--sky)] text-[var(--burgundy)]'
+                  : 'text-[#e3cfd3] hover:text-white'
               }`}
             >
               <Icon size={18} aria-hidden="true" className="sm:hidden" />

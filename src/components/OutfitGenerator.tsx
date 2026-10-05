@@ -17,6 +17,7 @@ import {
 import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import PosterHeader from '@/components/ui/PosterHeader';
 import ScrambleText from '@/components/ui/ScrambleText';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
@@ -506,31 +507,24 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
   return (
     <div className="w-full">
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-        <h2 className="text-3xl">Outfits</h2>
-        <div className="inline-flex rounded-full border border-[var(--line-strong)] bg-white p-1">
-          <button
-            onClick={() => setActiveTab('generator')}
-            aria-pressed={activeTab === 'generator'}
-            className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
-              activeTab === 'generator'
-                ? 'bg-[var(--sky)] text-[var(--burgundy)]'
-                : 'text-[var(--text-secondary)]'
-            }`}
-          >
-            New outfit
-          </button>
-          <button
-            onClick={() => setActiveTab('saved')}
-            aria-pressed={activeTab === 'saved'}
-            className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
-              activeTab === 'saved' ? 'bg-[var(--sky)] text-[var(--burgundy)]' : 'text-[var(--text-secondary)]'
-            }`}
-          >
-            Saved <span className="tabular">({savedOutfits.length})</span>
-          </button>
-        </div>
-      </div>
+      <PosterHeader
+        title="Today's fit"
+        script="get dressed"
+        readout={`{ ${items.length} clean ${items.length === 1 ? 'item' : 'items'} to pick from }`}
+        actions={
+          <div className="segmented-poster">
+            <button
+              onClick={() => setActiveTab('generator')}
+              aria-pressed={activeTab === 'generator'}
+            >
+              New outfit
+            </button>
+            <button onClick={() => setActiveTab('saved')} aria-pressed={activeTab === 'saved'}>
+              Saved <span className="tabular">({savedOutfits.length})</span>
+            </button>
+          </div>
+        }
+      />
 
       {activeTab === 'generator' && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,36rem)_320px] lg:justify-center gap-8 lg:gap-14 items-start">

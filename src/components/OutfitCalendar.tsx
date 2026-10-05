@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import PosterHeader from '@/components/ui/PosterHeader';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -274,15 +275,16 @@ export default function OutfitCalendar() {
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
-        <div>
-          <h2 className="text-3xl">Calendar</h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            {loggedThisMonth === 0
-              ? `No outfits logged in ${monthNames[currentDate.getMonth()]}. Pick a day to log what you wore.`
-              : `${loggedThisMonth} ${loggedThisMonth === 1 ? 'outfit' : 'outfits'} logged in ${monthNames[currentDate.getMonth()]}.`}
-          </p>
-        </div>
+      <PosterHeader
+        title="Calendar"
+        script="what you wore"
+        readout={
+          loggedThisMonth === 0
+            ? `{ nothing logged in ${monthNames[currentDate.getMonth()]} · pick a day to log }`
+            : `{ ${loggedThisMonth} ${loggedThisMonth === 1 ? 'outfit' : 'outfits'} logged in ${monthNames[currentDate.getMonth()]} }`
+        }
+      />
+      <div className="flex flex-wrap items-end justify-end gap-4 mb-5">
         <div className="flex items-center gap-1">
           <button
             onClick={() =>
