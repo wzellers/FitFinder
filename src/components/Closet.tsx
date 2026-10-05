@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 import { sectionNames, colorPalette, clothingTypes } from '@/lib/constants';
 import { getColorName, getColorStyle } from '@/lib/colorUtils';
+import { describeItem, ticketNumber } from '@/lib/itemLabels';
 import { SkeletonGrid } from '@/components/ui/Skeleton';
 import type { ClothingItem, ClothingSection } from '@/lib/types';
 
@@ -37,20 +38,6 @@ function saveJson(key: string, value: unknown): void {
   } catch {
     // localStorage might be full or unavailable
   }
-}
-
-/** A stable four-digit "ticket number" for an item, derived from its id. */
-export function ticketNumber(id: string): string {
-  const n = parseInt(id.replace(/-/g, '').slice(0, 8), 16);
-  return String(Number.isNaN(n) ? 0 : n % 10000).padStart(4, '0');
-}
-
-/** "Red T-Shirt" / "Navy blue and white Polo" — used as the tag's accessible name. */
-export function describeItem(item: ClothingItem): string {
-  const colors = item.colors.map((c) => getColorName(c).toLowerCase());
-  const colorText = colors.length ? colors.join(' and ') + ' ' : '';
-  const sentence = `${colorText}${item.type}`;
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 }
 
 interface ClosetProps {

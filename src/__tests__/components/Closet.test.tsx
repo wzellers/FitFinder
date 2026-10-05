@@ -25,7 +25,8 @@ vi.mock('@/components/ui/ClothingImage', () => ({
   default: ({ alt }: { alt?: string }) => <img alt={alt} />,
 }));
 
-import Closet, { describeItem, ticketNumber } from '@/components/Closet';
+import Closet from '@/components/Closet';
+import { describeItem, ticketNumber } from '@/lib/itemLabels';
 
 const items = [
   makeTop({ id: 't1', type: 'T-Shirt', colors: ['blue'], is_dirty: false }),
@@ -186,5 +187,7 @@ describe('Closet helpers', () => {
   it('gives each item a stable four-digit ticket number', () => {
     expect(ticketNumber('cd8525fd-2138-427a-8604-fd9d12a7cffa')).toMatch(/^\d{4}$/);
     expect(ticketNumber('abc')).toBe(ticketNumber('abc'));
+    // An outfit's number (joined ids) must not just echo its first item's number.
+    expect(ticketNumber('aaaaaaaa-1' + 'bbbb')).not.toBe(ticketNumber('aaaaaaaa-1'));
   });
 });
