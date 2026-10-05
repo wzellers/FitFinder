@@ -46,7 +46,9 @@ describe('EditItem', () => {
 
   it('initializes with item type and color', () => {
     renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
-    expect(screen.getAllByRole('button', { name: 'Blue' })[0].getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('button', { name: 'Blue' })[0].getAttribute('aria-pressed')).toBe(
+      'true',
+    );
     expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('T-Shirt');
   });
 
@@ -82,9 +84,13 @@ describe('EditItem', () => {
     renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
     // Change color
     fireEvent.click(screen.getAllByRole('button', { name: 'Black' })[0]);
-    expect(screen.getAllByRole('button', { name: 'Black' })[0].getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('button', { name: 'Black' })[0].getAttribute('aria-pressed')).toBe(
+      'true',
+    );
     fireEvent.click(screen.getByText('Undo changes'));
-    expect(screen.getAllByRole('button', { name: 'Blue' })[0].getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('button', { name: 'Blue' })[0].getAttribute('aria-pressed')).toBe(
+      'true',
+    );
   });
 
   it('calls onClose when overlay is clicked', () => {

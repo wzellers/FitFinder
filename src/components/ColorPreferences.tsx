@@ -236,7 +236,7 @@ export default function ColorPreferences() {
       const msg =
         err instanceof Error && err.message?.includes('relation')
           ? 'Weather preferences table not found — run migration 004'
-          : 'Failed to save weather preferences';
+          : "Couldn't save your weather rules. Try again.";
       showToast(msg, 'error');
     } finally {
       setSavingWeather(false);
@@ -358,7 +358,7 @@ export default function ColorPreferences() {
       const msg =
         err instanceof Error && err.message?.includes('relation')
           ? 'Occasion preferences table not found — run migration 005'
-          : 'Failed to save occasion preferences';
+          : "Couldn't save your occasion rules. Try again.";
       showToast(msg, 'error');
     } finally {
       setSavingOccasion(false);
@@ -581,7 +581,7 @@ export default function ColorPreferences() {
             disabled={savingWeather}
             className="btn-primary text-xs"
           >
-            {savingWeather ? 'Saving...' : 'Save Weather Rules'}
+            {savingWeather ? 'Saving…' : 'Save weather rules'}
           </button>
           <button
             onClick={resetWeatherDefaults}
@@ -785,7 +785,7 @@ export default function ColorPreferences() {
           disabled={savingOccasion}
           className="btn-primary text-xs"
         >
-          {savingOccasion ? 'Saving...' : 'Save Occasion Rules'}
+          {savingOccasion ? 'Saving…' : 'Save occasion rules'}
         </button>
         <button
           onClick={resetOccasionDefaults}

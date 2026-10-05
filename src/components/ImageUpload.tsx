@@ -141,7 +141,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
       // Colors are more accurate without the background; re-run detection.
       runDetection(id, result);
     } catch {
-      showToast('Background removal failed. Please try again.', 'error');
+      showToast("Couldn't remove the background. Try again, or keep the original photo.", 'error');
     } finally {
       updateDraft(id, { removingBg: false });
     }

@@ -68,13 +68,13 @@ export default function ColorCombinationModal({
       <Modal label="Edit color combination" onClose={onClose}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[var(--text)]">Edit Combination</h2>
+          <h2 className="text-xl">Edit color combination</h2>
           <div className="flex items-center gap-2">
             <button onClick={handleDelete} className="btn-danger text-xs py-1 px-2">
               <Trash2 size={14} /> Delete
             </button>
-            <button onClick={onClose} className="btn-ghost p-1">
-              <X size={18} />
+            <button onClick={onClose} className="btn-ghost px-2" aria-label="Close">
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -152,7 +152,7 @@ export default function ColorCombinationModal({
             disabled={updating || !selectedTopColor || !selectedBottomColor}
             className="btn-primary flex-1 disabled:opacity-50"
           >
-            {updating ? 'Updating...' : 'Update'}
+            {updating ? 'Saving…' : 'Save combination'}
           </button>
           <button
             onClick={() => {
