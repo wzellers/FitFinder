@@ -30,7 +30,9 @@ Browser (React 19)                         Supabase
             │                              └─────────────────────┘
             │ POST /api/detect-clothing
             ▼
-   app/api/detect-clothing (server) ──▶ Anthropic Claude Vision
+   app/api/detect-clothing (server) ──▶ Claude Haiku 4.5 vision
+                                        (Anthropic API, or Amazon Bedrock
+                                         when CLAUDE_PROVIDER=bedrock)
 ```
 
 ### Layout at a glance
@@ -171,8 +173,12 @@ All per-user tables use the same Row-Level-Security pattern established in
   prerendering (e.g. on Vercel) from trying to initialize Supabase before env vars
   are available, while callers still `import { supabase }` normally.
 - **Single API surface for detection.** `/api/detect-clothing` is the only
-  server-side code and the only place the Anthropic key is used, keeping the secret
-  off the client.
+  place a model is called, keeping credentials off the client. It requires a
+  signed-in user, and `src/lib/claudeClient.ts` chooses the provider: the
+  Anthropic API by default, or Amazon Bedrock (`AnthropicBedrockMantle`,
+  SigV4-signed with IAM credentials limited to `bedrock-mantle:CreateInference`)
+  when `CLAUDE_PROVIDER=bedrock`. Both expose the same Messages API, so the
+  route code is identical either way.
 - **Constants as one source of truth.** Clothing types, sections, color palette,
   and occasion rules all live in `src/lib/constants.ts`; the detection route
   validates Claude's output against these same lists.

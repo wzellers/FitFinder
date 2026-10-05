@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import { clothingTypes, colorPalette } from '@/lib/constants';
 import { getRequestUserId } from '@/lib/serverAuth';
+import { getVisionClient } from '@/lib/claudeClient';
 
 const VALID_TYPES = Object.values(clothingTypes).flat();
 const VALID_COLORS = [...colorPalette];
@@ -11,12 +11,19 @@ const VALID_COLORS = [...colorPalette];
 const MAX_IMAGE_CHARS = 3 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
+  // Direct Anthropic API by default; Amazon Bedrock when CLAUDE_PROVIDER=bedrock.
+  const vision = getVisionClient();
+  if (!vision) {
+    return NextResponse.json(
+      {
+        error:
+          'Clothing detection is not configured: set ANTHROPIC_API_KEY, or CLAUDE_PROVIDER=bedrock with BEDROCK_AWS_REGION',
+      },
+      { status: 500 },
+    );
   }
 
-  // Only signed-in users may spend the Anthropic key.
+  // Only signed-in users may spend the model budget.
   const userId = await getRequestUserId(req);
   if (!userId) {
     return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
@@ -41,10 +48,8 @@ export async function POST(req: NextRequest) {
       'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
     const base64Data = base64Match[2];
 
-    const client = new Anthropic({ apiKey });
-
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+    const response = await vision.client.messages.create({
+      model: vision.model,
       max_tokens: 150,
       messages: [
         {
@@ -86,7 +91,7 @@ Pick the single best match for type and the dominant color. For secondaryColor, 
       secondaryColor: detectedSecondary,
     });
   } catch (err) {
-    console.error('Clothing detection error:', err);
+    console.error(`Clothing detection error (${vision.provider}):`, err);
     return NextResponse.json({ error: 'Detection failed' }, { status: 500 });
   }
 }

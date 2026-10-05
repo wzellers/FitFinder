@@ -72,9 +72,10 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 - **Framework**: Next.js 15 (App Router)
 - **UI**: React 19, TypeScript (strict mode), Tailwind CSS 3
 - **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Clothing detection**: Anthropic Claude Vision (`@anthropic-ai/sdk`) via a
-  server route; background removal with `@imgly/background-removal`; cropping
-  with `react-easy-crop`
+- **Clothing detection**: Claude Haiku 4.5 vision via a server route, served
+  either by the Anthropic API (`@anthropic-ai/sdk`) or Amazon Bedrock
+  (`@anthropic-ai/bedrock-sdk`, SigV4-signed, IAM-scoped); background removal
+  with `@imgly/background-removal`; cropping with `react-easy-crop`
 - **Icons**: Lucide React
 - **Weather**: OpenWeatherMap API
 - **Testing**: Vitest + Testing Library (unit/component), Playwright (e2e)
@@ -112,6 +113,9 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
 
+   To run detection on Amazon Bedrock instead, see
+   [Clothing detection on Amazon Bedrock](#clothing-detection-on-amazon-bedrock).
+
 4. Set up the Supabase database. Run the migrations in `supabase/migrations/` in
    order (001, 002, …) using the Supabase SQL Editor. They create and evolve the
    full schema:
@@ -123,7 +127,9 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    - `profiles` — zip code and onboarding state
    - `outfit_model_weights` — persisted per-user contextual-bandit weights
 
-   Then create a `clothing-images` storage bucket in Supabase with public access.
+   Then create a private `clothing-images` storage bucket in Supabase; the
+   migrations add its per-user access policies, and the app loads photos
+   through short-lived signed URLs.
 
 5. Run the dev server
 
@@ -132,6 +138,37 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    ```
 
 6. Open [http://localhost:3000](http://localhost:3000)
+
+### Clothing detection on Amazon Bedrock
+
+The `/api/detect-clothing` route calls Claude Haiku 4.5 through
+`src/lib/claudeClient.ts`, which picks the provider from the environment. The
+default is the Anthropic API (`ANTHROPIC_API_KEY`). To serve it from Amazon
+Bedrock instead:
+
+1. In the AWS console, open **Amazon Bedrock → Model access** and make sure
+   Claude Haiku 4.5 is available in your account.
+2. Create an IAM user (or a role, if you federate Vercel into AWS) whose policy
+   allows only `bedrock-mantle:CreateInference`, scoped to the Haiku model, and
+   create an access key for it.
+3. Set these environment variables (in `.env.local`, and in Vercel's project
+   settings for production). Vercel reserves the standard `AWS_*` names, so the
+   app reads `BEDROCK_AWS_*` instead:
+
+   ```env
+   CLAUDE_PROVIDER=bedrock
+   BEDROCK_AWS_REGION=us-east-1
+   BEDROCK_AWS_ACCESS_KEY_ID=...
+   BEDROCK_AWS_SECRET_ACCESS_KEY=...
+   # optional: BEDROCK_AWS_SESSION_TOKEN for temporary credentials,
+   # BEDROCK_MODEL_ID to use a different model (default anthropic.claude-haiku-4-5)
+   ```
+
+   Locally you can leave the key variables unset; the SDK then uses your
+   standard AWS credentials (`~/.aws`, SSO, `AWS_PROFILE`).
+
+Requests are SigV4-signed to `bedrock-mantle.{region}.api.aws` and show up in
+CloudWatch and CloudTrail. Remove `CLAUDE_PROVIDER` to switch back.
 
 ## Project Structure
 
