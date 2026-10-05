@@ -22,11 +22,12 @@ export function useToast() {
   return ctx;
 }
 
-const bgMap: Record<ToastType, string> = {
-  success: 'bg-green-600',
-  error: 'bg-red-600',
-  warning: 'bg-amber-500',
-  info: 'bg-accent',
+// A coloured edge on a paper slip, so the message itself stays high-contrast.
+const edgeMap: Record<ToastType, string> = {
+  success: 'border-l-[var(--success)]',
+  error: 'border-l-[var(--danger)]',
+  warning: 'border-l-[var(--warning)]',
+  info: 'border-l-[var(--carbon)]',
 };
 
 export default function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -37,10 +38,12 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: ToastType = 'info', durationMs = 2500) => {
+    (message: string, type: ToastType = 'info', durationMs?: number) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       setToasts((prev) => [...prev, { id, message, type }]);
-      if (durationMs > 0) setTimeout(() => removeToast(id), durationMs);
+      // Longer messages and errors stay up long enough to read.
+      const ms = durationMs ?? (type === 'error' || message.length > 60 ? 6000 : 3000);
+      if (ms > 0) setTimeout(() => removeToast(id), ms);
     },
     [removeToast],
   );
@@ -50,12 +53,18 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed top-4 right-4 flex flex-col gap-2 z-[2000]">
+      {/* Polite live region for routine messages; errors use role="alert". */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed inset-x-4 bottom-24 sm:bottom-6 sm:left-auto sm:right-6 flex flex-col items-stretch sm:items-end gap-2 z-[2000] pointer-events-none"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}
+            role={t.type === 'error' ? 'alert' : undefined}
             onClick={() => removeToast(t.id)}
-            className={`${bgMap[t.type]} text-white rounded-lg px-4 py-3 shadow-lg cursor-pointer text-sm max-w-[360px] animate-[fadeIn_0.15s_ease]`}
+            className={`pointer-events-auto bg-white text-[var(--text)] border border-[var(--border)] border-l-4 ${edgeMap[t.type]} rounded-md px-4 py-3 shadow-lg cursor-pointer text-sm sm:max-w-[380px] animate-[fadeIn_0.15s_ease]`}
           >
             {t.message}
           </div>

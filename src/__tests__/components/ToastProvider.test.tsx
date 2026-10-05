@@ -61,7 +61,7 @@ describe('ToastProvider', () => {
       show('Success!', 'success');
     });
     const toast = screen.getByText('Success!');
-    expect(toast.className).toContain('bg-green-600');
+    expect(toast.className).toContain('border-l-[var(--success)]');
   });
 
   it('applies error color class', () => {
@@ -79,7 +79,9 @@ describe('ToastProvider', () => {
       show('Error!', 'error');
     });
     const toast = screen.getByText('Error!');
-    expect(toast.className).toContain('bg-red-600');
+    expect(toast.className).toContain('border-l-[var(--danger)]');
+    // Errors interrupt screen readers; other toasts are announced politely.
+    expect(toast.getAttribute('role')).toBe('alert');
   });
 
   it('applies warning color class', () => {
@@ -97,7 +99,8 @@ describe('ToastProvider', () => {
       show('Warning!', 'warning');
     });
     const toast = screen.getByText('Warning!');
-    expect(toast.className).toContain('bg-amber-500');
+    expect(toast.className).toContain('border-l-[var(--warning)]');
+    expect(toast.parentElement?.getAttribute('aria-live')).toBe('polite');
   });
 
   it('dismisses toast on click', () => {
