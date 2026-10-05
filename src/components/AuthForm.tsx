@@ -56,7 +56,7 @@ export default function AuthForm() {
           );
         if (profileError) {
           showToast(
-            "Account created, but we couldn't finish setting up your profile. Your ZIP code can be added in Preferences.",
+            "Account created, but we couldn't finish setting up your profile. Your ZIP code can be added in Settings.",
             'warning',
           );
         } else {

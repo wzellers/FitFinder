@@ -808,7 +808,7 @@ export default function ColorPreferences() {
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Mobile tabs */}
-      <h2 className="text-3xl mb-5">Preferences</h2>
+      <h2 className="text-3xl mb-5">Settings</h2>
       <div className="flex md:hidden gap-1 mb-4" role="group" aria-label="Preference section">
         {sidebarItems.map((item) => (
           <button

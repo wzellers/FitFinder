@@ -12,7 +12,7 @@ async function login(page: Page) {
 }
 
 async function navigateToPreferences(page: Page) {
-  await page.locator('button:has-text("Preferences")').first().click();
+  await page.locator('button:has-text("Settings")').first().click();
   await page.waitForLoadState('networkidle');
 }
 

@@ -68,7 +68,7 @@ describe('Closet', () => {
 
   it('summarises the closet', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    expect(await screen.findByText('7 items, 2 in the wash')).toBeTruthy();
+    expect(await screen.findByText('{ 7 items · 2 in the wash }')).toBeTruthy();
   });
 
   it('calls onAddItem from the Add item button', async () => {

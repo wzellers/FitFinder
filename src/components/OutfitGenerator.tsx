@@ -17,6 +17,7 @@ import {
 import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import ScrambleText from '@/components/ui/ScrambleText';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -225,7 +226,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (candidates.length === 0) {
       setError(
         occasion
-          ? `Nothing clean in your closet suits ${occasion.toLowerCase()} right now. Try another occasion, or change what fits in Preferences.`
+          ? `Nothing clean in your closet suits ${occasion.toLowerCase()} right now. Try another occasion, or change what fits in Settings.`
           : 'No outfit fits right now. You need at least one clean top, bottom and pair of shoes that suit the weather.',
       );
       return;
@@ -507,11 +508,11 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     <div className="w-full">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
         <h2 className="text-3xl">Outfits</h2>
-        <div className="inline-flex rounded-md border border-[var(--line-strong)] bg-white p-1">
+        <div className="inline-flex rounded-full border border-[var(--line-strong)] bg-white p-1">
           <button
             onClick={() => setActiveTab('generator')}
             aria-pressed={activeTab === 'generator'}
-            className={`min-h-[36px] px-4 rounded text-sm font-semibold ${
+            className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
               activeTab === 'generator'
                 ? 'bg-[var(--text)] text-white'
                 : 'text-[var(--text-secondary)]'
@@ -522,7 +523,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           <button
             onClick={() => setActiveTab('saved')}
             aria-pressed={activeTab === 'saved'}
-            className={`min-h-[36px] px-4 rounded text-sm font-semibold ${
+            className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
               activeTab === 'saved' ? 'bg-[var(--text)] text-white' : 'text-[var(--text-secondary)]'
             }`}
           >
@@ -538,13 +539,13 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-lg">Your outfit</h3>
             </div>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">
+            <p className="readout mt-1.5">
               {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
+                weekday: 'short',
+                month: 'short',
                 day: 'numeric',
               })}
-              {instructions && <>. {instructions}.</>}
+              {instructions && <> · {instructions}</>}
             </p>
 
             <ul className="mt-5">
@@ -576,12 +577,15 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="panel-label">{label}</div>
-                    <div className="font-semibold text-lg font-bold truncate">
-                      {item ? item.type : 'Not picked yet'}
+                    <div className="text-lg font-semibold tracking-tight truncate">
+                      {item ? <ScrambleText text={item.type} /> : 'Not picked yet'}
                     </div>
                     {item && (
-                      <div className="text-sm text-[var(--text-secondary)] truncate">
-                        {describeItem(item).slice(0, -item.type.length).trim()}
+                      <div className="readout truncate mt-0.5">
+                        <ScrambleText
+                          text={describeItem(item).slice(0, -item.type.length).trim()}
+                          frames={10}
+                        />
                       </div>
                     )}
                   </div>
@@ -665,7 +669,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                 ))}
               </div>
               <p className="text-sm text-[var(--text-secondary)] mt-2">
-                Only items that suit the occasion are used. Change what fits in Preferences.
+                Only items that suit the occasion are used. Change what fits in Settings.
               </p>
             </section>
 
@@ -716,9 +720,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
               {!weather && !weatherLoading && (
                 <div className="card p-4 text-sm text-[var(--text-secondary)] flex items-start gap-2">
                   <CloudSun size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>
-                    Add your ZIP code in Preferences to get outfits picked for the weather.
-                  </span>
+                  <span>Add your ZIP code in Settings to get outfits picked for the weather.</span>
                 </div>
               )}
             </section>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart3, CalendarDays, LogOut, Shirt, SlidersHorizontal, Sparkles } from 'lucide-react';
 import Wordmark from '@/components/ui/Wordmark';
+import LiveClock from '@/components/ui/LiveClock';
 import AuthForm from '@/components/AuthForm';
 import Closet from '@/components/Closet';
 import ColorPreferences from '@/components/ColorPreferences';
@@ -31,7 +32,7 @@ const tabs: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
   { key: 'generator', label: 'Outfits', icon: Sparkles },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays },
   { key: 'stats', label: 'Stats', icon: BarChart3 },
-  { key: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
+  { key: 'preferences', label: 'Settings', icon: SlidersHorizontal },
 ];
 
 export default function Page() {
@@ -229,54 +230,46 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* ===== TOP BAR ===== */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[var(--border)] px-4 lg:px-8">
+      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-[var(--border)] px-4 lg:px-8">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
           <h1>
             <Wordmark />
           </h1>
-
-          <nav aria-label="Main" className="hidden sm:flex items-center gap-1 self-stretch">
-            {tabs.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                aria-current={activeTab === key ? 'page' : undefined}
-                className={`${activeTab === key ? 'nav-tab-active' : 'nav-tab'} h-full rounded-none`}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <button onClick={signOut} className="btn-ghost px-3" aria-label="Sign out">
-            <LogOut size={16} aria-hidden="true" />
-            <span className="hidden sm:inline">Sign out</span>
-          </button>
+          <div className="flex items-center gap-4">
+            <LiveClock className="hidden sm:inline" />
+            <button onClick={signOut} className="btn-ghost px-3" aria-label="Sign out">
+              <LogOut size={16} aria-hidden="true" />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Mobile tab bar: fixed to the bottom, within thumb reach */}
+      {/* Floating pill navigation, bottom-centre on every screen size */}
       <nav
         aria-label="Main"
-        className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[var(--border)] grid grid-cols-5 pb-[env(safe-area-inset-bottom)]"
+        className="fixed z-40 bottom-[calc(1rem+env(safe-area-inset-bottom))] inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 rounded-full bg-[#161616] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.18)] grid grid-cols-5 sm:flex sm:gap-1"
       >
-        {tabs.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            aria-current={activeTab === key ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 min-h-[60px] text-[11px] font-semibold ${
-              activeTab === key ? 'text-[var(--carbon)]' : 'text-[var(--text-secondary)]'
-            }`}
-          >
-            <Icon size={20} aria-hidden="true" strokeWidth={activeTab === key ? 2.5 : 2} />
-            {label}
-          </button>
-        ))}
+        {tabs.map(({ key, label, icon: Icon }) => {
+          const active = activeTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              aria-current={active ? 'page' : undefined}
+              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 min-h-[52px] sm:min-h-[44px] sm:px-5 rounded-full text-[11px] sm:text-sm font-medium transition-colors ${
+                active ? 'bg-[var(--periwinkle)] text-black' : 'text-[#a3a3a3] hover:text-white'
+              }`}
+            >
+              <Icon size={18} aria-hidden="true" className="sm:hidden" />
+              {label}
+            </button>
+          );
+        })}
       </nav>
 
       {/* ===== MAIN CONTENT ===== */}
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-28 sm:pb-10">
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-32">
         {activeTab === 'closet' && (
           <Closet
             key={closetRefreshKey}
@@ -321,7 +314,7 @@ export default function Page() {
       {pendingRating && ratingMinimized && (
         <button
           onClick={() => setRatingMinimized(false)}
-          className="fixed bottom-24 sm:bottom-6 right-4 z-50 btn-primary shadow-lg"
+          className="fixed bottom-28 right-4 z-50 btn-primary shadow-lg"
         >
           Rate yesterday&apos;s outfit
         </button>

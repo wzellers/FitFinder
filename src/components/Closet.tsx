@@ -198,11 +198,11 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
       {/* Toolbar */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
         <div>
-          <h2 className="text-3xl">Your closet</h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
+          <h2 className="text-3xl tracking-tight">Your closet</h2>
+          <p className="readout mt-2">
             {items.length === 0
-              ? 'No items yet.'
-              : `${items.length} ${items.length === 1 ? 'item' : 'items'}, ${dirtyCount} in the wash`}
+              ? '{ empty }'
+              : `{ ${items.length} ${items.length === 1 ? 'item' : 'items'} · ${dirtyCount} in the wash }`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -315,7 +315,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
             <button
               onClick={() => toggleSection(section)}
               aria-expanded={!isSectionCollapsed}
-              className="w-full flex items-center gap-3 pb-2 mb-5 border-b-2 border-[var(--text)] select-none group text-left"
+              className="w-full flex items-center gap-3 pb-2 mb-5 border-b border-[var(--border)] select-none group text-left"
             >
               {isSectionCollapsed ? (
                 <ChevronRight size={22} aria-hidden="true" />
@@ -323,9 +323,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                 <ChevronDown size={22} aria-hidden="true" />
               )}
               <h2 className="text-2xl">{section}</h2>
-              <span className="tabular text-sm font-semibold text-[var(--text-secondary)]">
-                {sectionCount}
-              </span>
+              <span className="readout">{sectionCount}</span>
             </button>
 
             {!isSectionCollapsed && (
@@ -352,9 +350,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                             <ChevronDown size={16} aria-hidden="true" />
                           )}
                           <span className="font-semibold text-lg font-bold">{type}</span>
-                          <span className="tabular text-sm text-[var(--text-secondary)]">
-                            {typeItems.length}
-                          </span>
+                          <span className="readout">{typeItems.length}</span>
                         </button>
                       )}
 
@@ -443,14 +439,12 @@ function ItemCard({ item, onOpen, onToggleDirty }: ItemCardProps) {
           <ClothingImage
             src={item.image_url}
             alt=""
-            className={`w-full h-full object-contain p-2 transition-[filter,opacity] ${
+            className={`w-full h-full object-contain p-4 transition-[filter,opacity] ${
               item.is_dirty ? 'grayscale opacity-60' : ''
             }`}
           />
         </div>
-        <div className="flex items-baseline justify-between gap-2 mt-2 px-0.5">
-          <span className="font-semibold leading-tight truncate">{item.type}</span>
-        </div>
+        <div className="mt-2.5 px-0.5 text-sm font-medium leading-tight truncate">{item.type}</div>
       </button>
       <div className="flex items-center justify-between gap-2 mt-1.5 px-0.5">
         <span className="flex items-center gap-1" aria-hidden="true">

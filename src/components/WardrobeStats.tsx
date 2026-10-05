@@ -202,7 +202,7 @@ export default function WardrobeStats() {
       <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
         <h2 className="text-3xl">Stats</h2>
         <div
-          className="inline-flex rounded-md border border-[var(--line-strong)] bg-white p-1"
+          className="inline-flex rounded-full border border-[var(--line-strong)] bg-white p-1"
           role="group"
           aria-label="Time period"
         >
@@ -211,7 +211,7 @@ export default function WardrobeStats() {
               key={period}
               onClick={() => setTimePeriod(period)}
               aria-pressed={timePeriod === period}
-              className={`min-h-[36px] px-4 rounded text-sm font-semibold ${
+              className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
                 timePeriod === period
                   ? 'bg-[var(--text)] text-white'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text)]'

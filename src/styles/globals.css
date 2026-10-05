@@ -3,29 +3,30 @@
 @tailwind utilities;
 
 /*
- * Neutral base theme.
+ * Light "closet terminal" theme.
  *
- * Deliberately plain so visual directions can be tried on top of it. A theme
- * should only need to change the tokens below and the component classes in
- * the components layer (card, panel, item-card, badge, btn-*, nav-tab, ...).
+ * A white page so the clothes supply the colour, near-black ink, and one
+ * periwinkle accent for active states. Character comes from type: Geist for
+ * UI, Geist Mono for readout labels, Michroma for the wordmark.
  */
 @layer base {
   :root {
     /* Surfaces */
-    --bg: #f5f5f5;
+    --bg: #ffffff;
     --card: #ffffff;
-    --muted: #f0f0f0;
+    --muted: #f2f2f2; /* photo wells, quiet fills */
 
     /* Text */
-    --text: #171717;
-    --text-secondary: #525252;
+    --text: #0a0a0a;
+    --text-secondary: #5c5c5c;
 
-    /* Accent (links, focus, selected states) */
-    --carbon: #2563eb;
+    /* Accent */
+    --carbon: #3a5bd9; /* links, focus, selected outlines */
+    --periwinkle: #9db4f0; /* active pill, highlights (with black text) */
 
     /* Lines */
-    --border: #e5e5e5;
-    --line-strong: #8a8a8a; /* form control borders, 3:1 on white */
+    --border: #ebebeb;
+    --line-strong: #8c8c8c; /* form control borders, 3:1 on white */
 
     /* Status */
     --success: #15803d;
@@ -34,11 +35,11 @@
 
     /* Names used across components */
     --accent: var(--text);
-    --accent-hover: #000000;
-    --accent-light: #e5e7eb;
+    --accent-hover: #262626;
+    --accent-light: #eef2fd;
     --purple: var(--carbon);
-    --purple-hover: #1d4ed8;
-    --purple-light: #dbeafe;
+    --purple-hover: #2f4bc0;
+    --purple-light: #eef2fd;
     --focus: var(--carbon);
   }
 
@@ -120,44 +121,50 @@
 
 @layer components {
   .card {
-    @apply bg-white rounded-lg border border-[var(--border)];
+    @apply bg-white rounded-xl border border-[var(--border)];
+  }
+
+  /* Monospace readout label: counts, dates, conditions, section tags. */
+  .readout {
+    @apply font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--text-secondary)];
   }
 
   /* A larger content surface (outfit, stats summary, auth form). */
   .panel {
-    @apply bg-white rounded-lg border border-[var(--border)];
+    @apply bg-white rounded-2xl border border-[var(--border)];
   }
   .panel-label {
-    @apply text-xs font-semibold text-[var(--text-secondary)];
+    @apply readout;
   }
   .divider {
     border-top: 1px solid var(--border);
   }
 
   /* A clothing item tile. */
+  /* A clothing item: the photo does the talking, chrome stays minimal. */
   .item-card {
-    @apply relative bg-white rounded-lg border border-[var(--border)] p-2;
-  }
-  .item-card:hover {
-    border-color: var(--line-strong);
+    @apply relative;
   }
   .item-card-photo {
-    @apply bg-[var(--muted)] rounded-md overflow-hidden;
+    @apply bg-[var(--muted)] rounded-xl overflow-hidden transition-transform duration-200;
+  }
+  .item-card:hover .item-card-photo {
+    @apply -translate-y-0.5;
   }
 
   /* Small status label (clean / dirty). */
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[10px] uppercase tracking-[0.08em] border;
   }
   .badge-clean {
-    @apply badge bg-[#dcfce7] text-[var(--success)];
+    @apply badge border-[var(--border)] text-[var(--text-secondary)];
   }
   .badge-dirty {
-    @apply badge bg-[#fee2e2] text-[var(--danger)];
+    @apply badge border-[var(--danger)] text-[var(--danger)];
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 text-sm font-medium
            transition-colors min-h-[44px];
   }
   .btn-primary {
@@ -185,11 +192,11 @@
   }
 
   .modal-overlay {
-    @apply fixed inset-0 flex items-end sm:items-center justify-center z-50 bg-black/40;
+    @apply fixed inset-0 flex items-end sm:items-center justify-center z-50 bg-black/30 backdrop-blur-[2px];
   }
   .modal-content {
     @apply card p-6 w-full sm:w-[90vw] max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-auto relative
-           rounded-b-none sm:rounded-lg;
+           rounded-b-none sm:rounded-2xl;
   }
 
   .section-header {
@@ -197,7 +204,7 @@
   }
 
   .logo {
-    @apply font-bold tracking-tight text-[var(--text)];
+    @apply font-wide tracking-tight text-[var(--text)];
   }
 
   .retro-cell {

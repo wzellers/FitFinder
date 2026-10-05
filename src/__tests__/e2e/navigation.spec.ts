@@ -18,7 +18,7 @@ test.describe('Tab Navigation', () => {
 
   test('all five tabs are visible in navigation', async ({ page }) => {
     // Desktop nav should show all tabs
-    for (const tab of ['Closet', 'Generator', 'Calendar', 'Stats', 'Preferences']) {
+    for (const tab of ['Closet', 'Outfits', 'Calendar', 'Stats', 'Settings']) {
       await expect(page.locator(`button:has-text("${tab}")`).first()).toBeVisible({
         timeout: 10_000,
       });
@@ -32,7 +32,7 @@ test.describe('Tab Navigation', () => {
 
   test('can navigate to each tab and see correct content', async ({ page }) => {
     // Generator tab
-    await page.locator('button:has-text("Generator")').first().click();
+    await page.locator('button:has-text("Outfits")').first().click();
     await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({
       timeout: 10_000,
     });
@@ -48,7 +48,7 @@ test.describe('Tab Navigation', () => {
     await expect(page.locator('text=Wardrobe Statistics')).toBeVisible({ timeout: 10_000 });
 
     // Preferences tab
-    await page.locator('button:has-text("Preferences")').first().click();
+    await page.locator('button:has-text("Settings")').first().click();
     await expect(page.locator('text=/Weather|Colors/').first()).toBeVisible({ timeout: 10_000 });
 
     // Back to Closet
@@ -81,7 +81,7 @@ test.describe('Cross-tab Integration', () => {
     await expect(page.locator('button:has-text("Add Item")')).toBeVisible({ timeout: 10_000 });
 
     // Go to Generator
-    await page.locator('button:has-text("Generator")').first().click();
+    await page.locator('button:has-text("Outfits")').first().click();
     await expect(page.locator('button:has-text("Generate")').first()).toBeVisible({
       timeout: 10_000,
     });
@@ -92,7 +92,7 @@ test.describe('Cross-tab Integration', () => {
   });
 
   test('Generator shows weather panel and can trigger generation', async ({ page }) => {
-    await page.locator('button:has-text("Generator")').first().click();
+    await page.locator('button:has-text("Outfits")').first().click();
     await page.waitForLoadState('networkidle');
 
     // Weather section should be present
@@ -108,7 +108,7 @@ test.describe('Cross-tab Integration', () => {
   });
 
   test('Preferences shows Weather and Colors sections', async ({ page }) => {
-    await page.locator('button:has-text("Preferences")').first().click();
+    await page.locator('button:has-text("Settings")').first().click();
     await page.waitForLoadState('networkidle');
 
     // Weather section

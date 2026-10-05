@@ -142,7 +142,7 @@ describe('Page — Logged In Navigation', () => {
     expect(screen.queryAllByText('Outfits').length).toBeGreaterThan(0);
     expect(screen.queryAllByText('Calendar').length).toBeGreaterThan(0);
     expect(screen.queryAllByText('Stats').length).toBeGreaterThan(0);
-    expect(screen.queryAllByText('Preferences').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Settings').length).toBeGreaterThan(0);
   });
 
   it('shows Closet tab content by default', async () => {
@@ -178,8 +178,8 @@ describe('Page — Logged In Navigation', () => {
 
   it('navigates to Preferences tab on click', async () => {
     renderWithProviders(<Page />);
-    await waitFor(() => screen.queryAllByText('Preferences').length > 0, { timeout: 3000 });
-    fireEvent.click(screen.queryAllByText('Preferences')[0]);
+    await waitFor(() => screen.queryAllByText('Settings').length > 0, { timeout: 3000 });
+    fireEvent.click(screen.queryAllByText('Settings')[0]);
     await waitFor(() => screen.getByTestId('preferences'), { timeout: 3000 });
     expect(screen.getByTestId('preferences')).toBeTruthy();
   });

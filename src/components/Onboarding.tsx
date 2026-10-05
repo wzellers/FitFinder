@@ -32,7 +32,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       .from('profiles')
       .upsert({ id: user.id, zip_code: zipCode.trim() }, { onConflict: 'id' });
     if (error)
-      showToast("Couldn't save your ZIP code. You can add it later in Preferences.", 'warning');
+      showToast("Couldn't save your ZIP code. You can add it later in Settings.", 'warning');
   };
 
   const handleFinish = async () => {
@@ -167,7 +167,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 : 'You can add items from the Closet any time.'}
             </p>
             <p className="text-xs text-[var(--text-secondary)] mb-6">
-              Open Outfits to generate your first look, or tune colors and weather in Preferences.
+              Open Outfits to generate your first look, or tune colors and weather in Settings.
             </p>
 
             <button onClick={handleFinish} className="btn-primary w-full">

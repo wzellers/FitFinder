@@ -12,7 +12,7 @@ async function login(page: Page) {
 }
 
 async function navigateToGenerator(page: Page) {
-  await page.locator('button:has-text("Generator")').first().click();
+  await page.locator('button:has-text("Outfits")').first().click();
   await page.waitForLoadState('networkidle');
 }
 
