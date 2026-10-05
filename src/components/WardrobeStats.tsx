@@ -213,7 +213,7 @@ export default function WardrobeStats() {
               aria-pressed={timePeriod === period}
               className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
                 timePeriod === period
-                  ? 'bg-[var(--text)] text-white'
+                  ? 'bg-[var(--sky)] text-[var(--burgundy)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
               }`}
             >

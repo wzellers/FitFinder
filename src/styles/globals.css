@@ -3,43 +3,51 @@
 @tailwind utilities;
 
 /*
- * Light "closet terminal" theme.
+ * Burgundy & sky blue.
  *
- * A white page so the clothes supply the colour, near-black ink, and one
- * periwinkle accent for active states. Character comes from type: Geist for
- * UI, Geist Mono for readout labels, Michroma for the wordmark.
+ * A white page so the clothes carry the colour. Burgundy replaces black as
+ * the ink (text, buttons, nav), sky blue is the accent fill (always with
+ * burgundy text on it; never as text on white), and a pale sky wash backs
+ * panels. Raspberry is the rare pop (dirty / destructive).
  */
 @layer base {
   :root {
+    /* Palette */
+    --burgundy: #5c1a26;
+    --burgundy-deep: #48121d;
+    --sky: #9fd0f0;
+    --sky-wash: #edf6fb;
+    --raspberry: #b0244f;
+
     /* Surfaces */
     --bg: #ffffff;
     --card: #ffffff;
-    --muted: #f2f2f2; /* photo wells, quiet fills */
+    --muted: #f4f2f1; /* photo wells: neutral so item colours read true */
 
     /* Text */
-    --text: #0a0a0a;
-    --text-secondary: #5c5c5c;
+    --text: #3a1018;
+    --text-secondary: #6e5459;
 
-    /* Accent */
-    --carbon: #3a5bd9; /* links, focus, selected outlines */
-    --periwinkle: #9db4f0; /* active pill, highlights (with black text) */
+    /* Links and focus */
+    --carbon: #23608f;
+    --periwinkle: var(--sky);
 
     /* Lines */
-    --border: #ebebeb;
-    --line-strong: #8c8c8c; /* form control borders, 3:1 on white */
+    --border: #ece6e7;
+    --line-strong: #958389; /* form control borders, 3:1 on white */
 
     /* Status */
     --success: #15803d;
     --warning: #92400e;
-    --danger: #b91c1c;
+    --danger: var(--raspberry);
 
     /* Names used across components */
-    --accent: var(--text);
-    --accent-hover: #262626;
-    --accent-light: #eef2fd;
+    --accent: var(--burgundy);
+    --accent-hover: var(--burgundy-deep);
+    --accent-light: var(--sky-wash);
     --purple: var(--carbon);
-    --purple-hover: #2f4bc0;
-    --purple-light: #eef2fd;
+    --purple-hover: #1b4d74;
+    --purple-light: var(--sky-wash);
     --focus: var(--carbon);
   }
 

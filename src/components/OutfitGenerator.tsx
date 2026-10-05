@@ -492,7 +492,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   const chip = (active: boolean) =>
     `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
       active
-        ? 'bg-[var(--text)] text-white border-[var(--text)]'
+        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
         : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
     }`;
 
@@ -514,7 +514,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
             aria-pressed={activeTab === 'generator'}
             className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
               activeTab === 'generator'
-                ? 'bg-[var(--text)] text-white'
+                ? 'bg-[var(--sky)] text-[var(--burgundy)]'
                 : 'text-[var(--text-secondary)]'
             }`}
           >
@@ -524,7 +524,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
             onClick={() => setActiveTab('saved')}
             aria-pressed={activeTab === 'saved'}
             className={`min-h-[36px] px-4 rounded-full text-sm font-medium ${
-              activeTab === 'saved' ? 'bg-[var(--text)] text-white' : 'text-[var(--text-secondary)]'
+              activeTab === 'saved' ? 'bg-[var(--sky)] text-[var(--burgundy)]' : 'text-[var(--text-secondary)]'
             }`}
           >
             Saved <span className="tabular">({savedOutfits.length})</span>
@@ -596,7 +596,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                     aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
                     className={`min-h-[44px] px-3 rounded-md border text-sm font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-40 ${
                       locked
-                        ? 'bg-[var(--text)] text-white border-[var(--text)]'
+                        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
                         : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
                     }`}
                   >

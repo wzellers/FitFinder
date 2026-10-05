@@ -256,7 +256,7 @@ export default function OutfitCalendar() {
             aria-label={`${n} out of 10`}
             className={`tabular w-10 h-10 rounded-md border text-sm font-semibold transition-colors ${
               value === n
-                ? 'bg-[var(--text)] text-white border-[var(--text)]'
+                ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
                 : n <= value
                   ? 'bg-[var(--accent-light)] border-[var(--line-strong)]'
                   : 'bg-white border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'

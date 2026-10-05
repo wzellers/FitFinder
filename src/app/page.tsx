@@ -248,7 +248,7 @@ export default function Page() {
       {/* Floating pill navigation, bottom-centre on every screen size */}
       <nav
         aria-label="Main"
-        className="fixed z-40 bottom-[calc(1rem+env(safe-area-inset-bottom))] inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 rounded-full bg-[#161616] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.18)] grid grid-cols-5 sm:flex sm:gap-1"
+        className="fixed z-40 bottom-[calc(1rem+env(safe-area-inset-bottom))] inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 rounded-full bg-[var(--burgundy)] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.18)] grid grid-cols-5 sm:flex sm:gap-1"
       >
         {tabs.map(({ key, label, icon: Icon }) => {
           const active = activeTab === key;
@@ -258,7 +258,7 @@ export default function Page() {
               onClick={() => setActiveTab(key)}
               aria-current={active ? 'page' : undefined}
               className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 min-h-[52px] sm:min-h-[44px] sm:px-5 rounded-full text-[11px] sm:text-sm font-medium transition-colors ${
-                active ? 'bg-[var(--periwinkle)] text-black' : 'text-[#a3a3a3] hover:text-white'
+                active ? 'bg-[var(--sky)] text-[var(--burgundy)]' : 'text-[#e3cfd3] hover:text-white'
               }`}
             >
               <Icon size={18} aria-hidden="true" className="sm:hidden" />

@@ -14,9 +14,9 @@ module.exports = {
       },
       colors: {
         accent: {
-          DEFAULT: '#0A0A0A',
-          light: '#EEF2FD',
-          hover: '#262626',
+          DEFAULT: '#5C1A26',
+          light: '#EDF6FB',
+          hover: '#48121D',
         },
       },
     },
