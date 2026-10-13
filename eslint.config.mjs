@@ -24,7 +24,7 @@ const config = [
     },
   }),
   {
-    ignores: ['.next/**', 'out/**', 'coverage/**', 'node_modules/**', 'next-env.d.ts'],
+    ignores: ['.next/**', 'out/**', 'coverage/**', 'node_modules/**', 'next-env.d.ts', 'infra/**'],
   },
 ];
 

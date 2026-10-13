@@ -34,3 +34,5 @@ notes.txt
 # Planning / design scratch docs (not part of the app)
 PLAN.md
 CLAUDE_DESIGN_BRIEF.md
+infra/node_modules/
+infra/cdk.out/

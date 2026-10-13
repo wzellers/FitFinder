@@ -7,3 +7,4 @@ package-lock.json
 next-env.d.ts
 tsconfig.tsbuildinfo
 .playwright-mcp/
+infra/cdk.out/

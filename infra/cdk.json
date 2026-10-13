@@ -1,0 +1,9 @@
+{
+  "app": "npx tsx bin/fitfinder.ts",
+  "context": {
+    "fromAddress": "",
+    "appUrl": "",
+    "supabaseUrl": "",
+    "secretName": "fitfinder/daily-email"
+  }
+}
