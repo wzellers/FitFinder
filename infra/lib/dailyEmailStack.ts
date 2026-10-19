@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -31,11 +31,13 @@ export class DailyEmailStack extends Stack {
   constructor(scope: Construct, id: string, props: DailyEmailStackProps) {
     super(scope, id, props);
 
-    const identity = new EmailIdentity(this, 'Sender', {
+    const identity = new EmailIdentity(this, 'SenderIdentity', {
       identity: Identity.email(props.fromAddress),
     });
 
     const secret = Secret.fromSecretNameV2(this, 'Secrets', props.secretName);
+
+    const logGroup = new LogGroup(this, 'SenderLogs', { retention: RetentionDays.ONE_MONTH });
 
     const repoRoot = path.join(__dirname, '..', '..');
     const fn = new NodejsFunction(this, 'Sender', {
@@ -63,7 +65,7 @@ export class DailyEmailStack extends Stack {
         SECRET_ID: props.secretName,
         NODE_OPTIONS: '--enable-source-maps',
       },
-      logGroup: new LogGroup(this, 'SenderLogs', { retention: RetentionDays.ONE_MONTH }),
+      logGroup,
     });
 
     secret.grantRead(fn);
@@ -74,5 +76,9 @@ export class DailyEmailStack extends Stack {
       schedule: ScheduleExpression.rate(Duration.minutes(15)),
       target: new LambdaInvoke(fn, { retryAttempts: 0 }),
     });
+
+    // For `aws lambda invoke` and finding the logs (see infra/README.md).
+    new CfnOutput(this, 'SenderFunctionName', { value: fn.functionName });
+    new CfnOutput(this, 'SenderLogGroupName', { value: logGroup.logGroupName });
   }
 }
