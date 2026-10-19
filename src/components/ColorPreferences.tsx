@@ -828,7 +828,7 @@ export default function ColorPreferences() {
             key={item.key}
             onClick={() => setActiveSection(item.key)}
             aria-pressed={activeSection === item.key}
-            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 min-h-[44px] rounded-md text-sm font-semibold transition-colors ${
+            className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-1 min-h-[44px] rounded-md text-xs sm:text-sm font-semibold transition-colors ${
               activeSection === item.key
                 ? 'bg-[var(--accent)] text-white'
                 : 'bg-[var(--card)] text-[var(--text-secondary)] border border-[var(--border)]'
