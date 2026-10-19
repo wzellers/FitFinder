@@ -155,7 +155,7 @@ export default function DailyEmailSettings() {
                 className="w-36 min-h-[44px]"
               />
             </div>
-            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+            <div className="flex flex-col gap-1.5 min-w-0 flex-1 basis-48">
               <label htmlFor="daily-email-zone" className="text-sm font-semibold">
                 Time zone
               </label>
