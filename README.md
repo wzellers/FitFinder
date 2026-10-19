@@ -62,6 +62,16 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 - Build a library of liked color combinations
 - Visual color pairing interface with your actual wardrobe colors
 
+### Daily Outfit Email
+
+- Opt in from Settings → Email and choose a send time in your own time zone
+- Each morning: an outfit picked for the day's forecast high (the learning
+  model's best pick, weather rules applied), plus clean items you haven't worn
+  this week
+- One email per day at most; one-click unsubscribe from the email itself
+- Sent by a small AWS stack (EventBridge Scheduler → Lambda → SES). See
+  [`infra/README.md`](infra/README.md) to deploy it.
+
 ### Onboarding
 
 - Guided 3-step setup for new users (zip code, first items, finish)
@@ -78,6 +88,7 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   with `@imgly/background-removal`; cropping with `react-easy-crop`
 - **Icons**: Lucide React
 - **Weather**: OpenWeatherMap API
+- **Daily email**: AWS CDK, EventBridge Scheduler, Lambda, SES, Secrets Manager
 - **Testing**: Vitest + Testing Library (unit/component), Playwright (e2e)
 
 ## Getting Started
@@ -193,6 +204,7 @@ CloudWatch and CloudTrail. Remove `CLAUDE_PROVIDER` to switch back.
 src/
   app/
     api/detect-clothing/route.ts # Server route: Claude Vision type/color detection
+    api/email/unsubscribe/route.ts # Unsubscribe from the daily email (no sign-in)
     layout.tsx          # Root layout with custom fonts and ToastProvider
     page.tsx            # Main page with tab navigation and modal management
   components/
@@ -200,6 +212,7 @@ src/
     Closet.tsx          # Wardrobe grid with section filters
     ColorPreferences.tsx # Color combo builder + zip code settings
     ColorCombinationModal.tsx # Modal for editing color pairings
+    DailyEmailSettings.tsx # Settings → Email: opt-in, send time, time zone
     EditItem.tsx        # Edit item type, colors, and laundry status
     ImageUpload.tsx     # Upload new items (detect, crop, background removal)
     Onboarding.tsx      # New user guided setup
@@ -217,6 +230,7 @@ src/
     banditModel.ts      # Contextual-bandit online learning model
     colorUtils.ts       # Color display helpers
     constants.ts        # Shared constants (types, palettes, occasion rules)
+    dailyEmail/         # Daily email: schedule, digest, render, sender
     imageColor.ts       # Local dominant-color detection
     imageCrop.ts        # Crop an image region to a PNG blob
     occasionRules.ts    # Per-occasion clothing-type rules
@@ -225,10 +239,12 @@ src/
     types.ts            # TypeScript interfaces and weather rules
     uploadPipeline.ts   # Detect + background-removal + upload orchestration
     weatherApi.ts       # OpenWeatherMap integration with caching
+    weatherProvider.ts  # Server-side OpenWeatherMap calls (incl. daily forecast)
   styles/
     globals.css         # Tailwind directives + CSS custom properties + component classes
   __tests__/            # Vitest unit/component tests and Playwright e2e specs
 supabase/migrations/    # Ordered SQL migrations (schema source of truth)
+infra/                  # AWS CDK stack for the daily email (own package.json)
 ```
 
 ## Scripts
@@ -262,6 +278,8 @@ Reproducible experiments used during development:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the outfit scorer, the
   contextual-bandit learning loop, the upload pipeline, and the data model fit together.
+- [`infra/README.md`](infra/README.md) — deploying, testing, and tearing down
+  the daily email stack on AWS.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — local setup, branch/PR workflow, and coding conventions.
 
 ## License

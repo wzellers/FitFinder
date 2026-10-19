@@ -160,7 +160,7 @@ files applied in order. Each is immutable; changes are made by adding a new file
 | `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                |
 | `outfit_wears`         | Daily wear log with rating (1–10) and occasion                               |
 | `color_preferences`    | Liked color combinations and the user's zip code                             |
-| `profiles`             | Onboarding state and user metadata                                           |
+| `profiles`             | Onboarding state, user metadata, and daily email settings                    |
 | `outfit_model_weights` | Per-user learned bandit weights + metadata                                   |
 
 All per-user tables use the same Row-Level-Security pattern established in
@@ -184,6 +184,42 @@ All per-user tables use the same Row-Level-Security pattern established in
   and occasion rules all live in `src/lib/constants.ts`; the detection route
   validates Claude's output against these same lists.
 
+## Daily outfit email
+
+The one piece of FitFinder that runs without the browser. A CDK stack in
+[`infra/`](../infra) (with its own `package.json`, outside the app's tsconfig and
+ESLint) runs a Lambda every 15 minutes from EventBridge Scheduler:
+
+```
+EventBridge Scheduler (15 min) ─▶ Lambda ─▶ Supabase (service-role key)
+                                    │      ─▶ OpenWeatherMap (daily forecast)
+                                    └────▶ SES ─▶ user's inbox
+```
+
+The logic is app code in `src/lib/dailyEmail/`, so it's unit-tested with the rest
+of the suite. The Lambda handler only wires in AWS:
+
+- **`schedule.ts`.** A user is due once their local send time
+  (`profiles.daily_email_time` in `profiles.timezone`) has passed, at most
+  once per local day, within a two-hour catch-up window.
+- **`digest.ts`.** Picks the outfit: the bandit's exploit-only best pick for the
+  forecast high, filtered by the same weather rules as the generator. Also
+  lists up to six clean items not worn in the last week.
+- **`render.ts`.** HTML (tables and inline styles, for email clients) plus plain
+  text.
+- **`sender.ts`.** For each due user, claims the day with a conditional update
+  on `daily_email_last_sent` before sending, so overlapping runs can't
+  double-send. If the send fails, it releases the claim. Errors are isolated
+  per user, and logs carry user ids only. Images use signed URLs that last
+  7 days.
+
+Unsubscribe links carry a random per-user `email_unsubscribe_token`.
+`/api/email/unsubscribe` calls the `SECURITY DEFINER` function
+`unsubscribe_daily_email(token)`, which can only turn the email off. A GET
+shows a confirmation button, because mail scanners follow links. A POST
+unsubscribes, which also serves RFC 8058 one-click unsubscribe. Deployment
+steps are in [`infra/README.md`](../infra/README.md).
+
 ## External services
 
 | Service                 | Used for                                     | Where                                      |
@@ -191,3 +227,5 @@ All per-user tables use the same Row-Level-Security pattern established in
 | Supabase                | Auth, Postgres, Storage                      | `lib/supabaseClient.ts`, hooks, components |
 | Anthropic Claude Vision | Clothing type/color detection                | `app/api/detect-clothing/route.ts`         |
 | OpenWeatherMap          | Temperature forecast for the weather feature | `lib/weatherApi.ts`                        |
+| AWS (Scheduler, Lambda) | Running the daily email every 15 minutes     | `infra/`                                   |
+| Amazon SES              | Delivering the daily email                   | `infra/lambda/dailyEmail.ts`               |
