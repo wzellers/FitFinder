@@ -82,10 +82,9 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 - **Framework**: Next.js 15 (App Router)
 - **UI**: React 19, TypeScript (strict mode), Tailwind CSS 3
 - **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Clothing detection**: Claude Haiku 4.5 vision via a server route, served
-  either by the Anthropic API (`@anthropic-ai/sdk`) or Amazon Bedrock
-  (`@anthropic-ai/bedrock-sdk`, SigV4-signed, IAM-scoped); background removal
-  with `@imgly/background-removal`; cropping with `react-easy-crop`
+- **Clothing detection**: Claude Haiku 4.5 vision (`@anthropic-ai/sdk`) via a
+  server route; background removal with `@imgly/background-removal`; cropping
+  with `react-easy-crop`
 - **Icons**: Lucide React
 - **Weather**: OpenWeatherMap API
 - **Daily email**: AWS CDK, EventBridge Scheduler, Lambda, SES, Secrets Manager
@@ -124,9 +123,6 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
 
-   To run detection on Amazon Bedrock instead, see
-   [Clothing detection on Amazon Bedrock](#clothing-detection-on-amazon-bedrock).
-
 4. Set up the Supabase database. Run the migrations in `supabase/migrations/` in
    order (001, 002, …) using the Supabase SQL Editor. They create and evolve the
    full schema:
@@ -149,54 +145,6 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    ```
 
 6. Open [http://localhost:3000](http://localhost:3000)
-
-### Clothing detection on Amazon Bedrock
-
-The `/api/detect-clothing` route calls Claude Haiku 4.5 through
-`src/lib/claudeClient.ts`, which picks the provider from the environment. The
-default is the Anthropic API (`ANTHROPIC_API_KEY`). To serve it from Amazon
-Bedrock instead:
-
-1. Make sure the AWS account can use Anthropic models: it must be on a paid
-   plan (the Free plan can't use third-party Marketplace models), and the
-   one-time Anthropic use-case form in the Bedrock console must be submitted.
-   A quick check is sending a message to Claude Haiku 4.5 in the Bedrock
-   Playground in your region.
-2. Create an IAM user (or a role, if you federate Vercel into AWS) with an
-   access key and only this permission. Bedrock authorizes Claude requests
-   against the account's default Bedrock project, not the model:
-
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Effect": "Allow",
-         "Action": "bedrock-mantle:CreateInference",
-         "Resource": "arn:aws:bedrock-mantle:<region>:<account-id>:project/default"
-       }
-     ]
-   }
-   ```
-
-3. Set these environment variables (in `.env.local`, and in Vercel's project
-   settings for production). Vercel reserves the standard `AWS_*` names, so the
-   app reads `BEDROCK_AWS_*` instead:
-
-   ```env
-   CLAUDE_PROVIDER=bedrock
-   BEDROCK_AWS_REGION=us-east-1
-   BEDROCK_AWS_ACCESS_KEY_ID=...
-   BEDROCK_AWS_SECRET_ACCESS_KEY=...
-   # optional: BEDROCK_AWS_SESSION_TOKEN for temporary credentials,
-   # BEDROCK_MODEL_ID to use a different model (default anthropic.claude-haiku-4-5)
-   ```
-
-   Locally you can leave the key variables unset; the SDK then uses your
-   standard AWS credentials (`~/.aws`, SSO, `AWS_PROFILE`).
-
-Requests are SigV4-signed to `bedrock-mantle.{region}.api.aws` and show up in
-CloudWatch and CloudTrail. Remove `CLAUDE_PROVIDER` to switch back.
 
 ## Project Structure
 

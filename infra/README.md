@@ -29,8 +29,7 @@ run retries.
   says the feature isn't available yet.
 - The AWS CLI v2 and Node 22.
 - An **admin** AWS profile, for example through IAM Identity Center (SSO):
-  `aws configure sso`, then `aws sso login --profile <name>`. Don't use the
-  `bedrock-haiku-client` IAM user, which can only call Bedrock. In the
+  `aws configure sso`, then `aws sso login --profile <name>`. In the
   commands below, `export AWS_PROFILE=<name>` first (or add `--profile`).
   Use the same region throughout, for example `export AWS_REGION=us-east-1`.
 
