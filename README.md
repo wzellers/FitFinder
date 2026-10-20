@@ -69,8 +69,9 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   model's best pick, weather rules applied), plus clean items you haven't worn
   this week
 - One email per day at most; one-click unsubscribe from the email itself
-- Sent by a small AWS stack (EventBridge Scheduler → Lambda → SES). See
-  [`infra/README.md`](infra/README.md) to deploy it.
+- A Supabase `pg_cron` job calls the app every 15 minutes, and the app sends
+  through [Resend](https://resend.com). See
+  [Daily outfit email setup](#daily-outfit-email-setup).
 
 ### Onboarding
 
@@ -87,7 +88,7 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   with `react-easy-crop`
 - **Icons**: Lucide React
 - **Weather**: OpenWeatherMap API
-- **Daily email**: AWS CDK, EventBridge Scheduler, Lambda, SES, Secrets Manager
+- **Daily email**: Supabase `pg_cron` + `pg_net`, Resend
 - **Testing**: Vitest + Testing Library (unit/component), Playwright (e2e)
 
 ## Getting Started
@@ -146,12 +147,53 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 
 6. Open [http://localhost:3000](http://localhost:3000)
 
+### Daily outfit email setup
+
+Optional. Without it, the Settings → Email tab still saves preferences, but
+nothing is sent.
+
+1. Apply migrations `017_daily_email.sql` and `018_daily_email_cron.sql`. 018
+   turns on the `pg_cron` and `pg_net` extensions and schedules a job that
+   calls `POST /api/email/send-due` every 15 minutes.
+2. Create a [Resend](https://resend.com) account and an API key with sending
+   access. Until you verify a domain in Resend, mail comes from
+   `onboarding@resend.dev` and can only go to your Resend account's own
+   address. After verifying one, set `EMAIL_FROM` to send to anyone.
+3. Make a random secret for the cron job: `openssl rand -hex 32`.
+4. In Vercel → Project → Settings → Environment Variables, add these
+   (server-only; never prefix them with `NEXT_PUBLIC_`), then redeploy:
+
+   ```env
+   SUPABASE_SERVICE_ROLE_KEY=...  # Supabase → Project Settings → API keys
+   RESEND_API_KEY=...
+   CRON_SECRET=...                # the secret from step 3
+   # optional:
+   # EMAIL_FROM=FitFinder <daily@your-domain.com>
+   # APP_URL=https://your-domain.com  (links in the email; defaults to the called URL)
+   ```
+
+5. In the Supabase SQL Editor, store the route URL and the same secret in
+   Vault, where the cron job reads them:
+
+   ```sql
+   select vault.create_secret('https://<your-app>/api/email/send-due', 'daily_email_url');
+   select vault.create_secret('<the secret from step 3>', 'daily_email_cron_secret');
+   ```
+
+To test, turn the email on in Settings → Email with the time a few minutes
+ahead; it arrives on the next run after that time. To send again the same
+day, clear the claim in the SQL Editor:
+`update profiles set daily_email_last_sent = null where id = '<your user id>';`.
+Recent runs are in `cron.job_run_details`, and the route's responses (a
+`{ optedIn, due, sent, failed }` summary) in `net._http_response`.
+
 ## Project Structure
 
 ```
 src/
   app/
     api/detect-clothing/route.ts # Server route: Claude Vision type/color detection
+    api/email/send-due/route.ts # Send due daily emails (called by pg_cron)
     api/email/unsubscribe/route.ts # Unsubscribe from the daily email (no sign-in)
     layout.tsx          # Root layout with custom fonts and ToastProvider
     page.tsx            # Main page with tab navigation and modal management
@@ -178,7 +220,7 @@ src/
     banditModel.ts      # Contextual-bandit online learning model
     colorUtils.ts       # Color display helpers
     constants.ts        # Shared constants (types, palettes, occasion rules)
-    dailyEmail/         # Daily email: schedule, digest, render, sender
+    dailyEmail/         # Daily email: schedule, digest, render, sender, Resend
     imageColor.ts       # Local dominant-color detection
     imageCrop.ts        # Crop an image region to a PNG blob
     occasionRules.ts    # Per-occasion clothing-type rules
@@ -192,7 +234,6 @@ src/
     globals.css         # Tailwind directives + CSS custom properties + component classes
   __tests__/            # Vitest unit/component tests and Playwright e2e specs
 supabase/migrations/    # Ordered SQL migrations (schema source of truth)
-infra/                  # AWS CDK stack for the daily email (own package.json)
 ```
 
 ## Scripts
@@ -226,8 +267,6 @@ Reproducible experiments used during development:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the outfit scorer, the
   contextual-bandit learning loop, the upload pipeline, and the data model fit together.
-- [`infra/README.md`](infra/README.md) — deploying, testing, and tearing down
-  the daily email stack on AWS.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — local setup, branch/PR workflow, and coding conventions.
 
 ## License

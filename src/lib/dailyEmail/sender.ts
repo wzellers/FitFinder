@@ -1,8 +1,8 @@
 // Send the daily email to every opted-in user who is due.
 //
-// Runs server-side with the Supabase service-role key (the AWS Lambda in
-// infra/ wires in SES and Secrets Manager). Dependencies are passed in so the
-// whole run can be tested without AWS or a database.
+// Runs server-side with the Supabase service-role key (the route at
+// /api/email/send-due wires in Resend). Dependencies are passed in so the
+// whole run can be tested without an email provider or a database.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildDigest } from '@/lib/dailyEmail/digest';
@@ -232,7 +232,7 @@ export async function sendDueEmails(deps: SenderDeps): Promise<SendSummary> {
   };
   const forecasts = new Map<string, Promise<DailyForecast | null>>();
 
-  // One at a time: a handful of users, and it keeps SES under its send rate.
+  // One at a time: a handful of users, and it stays under Resend's rate limit.
   for (const { profile, localDate } of due) {
     try {
       if (await sendOne(deps, profile, localDate, forecasts)) summary.sent++;

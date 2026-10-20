@@ -32,7 +32,8 @@ type LoadState = 'loading' | 'ready' | 'unavailable' | 'error';
 
 /**
  * Settings for the daily outfit email: on/off, the local time it arrives
- * and the time zone that time is in. The email itself is sent from AWS.
+ * and the time zone that time is in. The email itself is sent by
+ * /api/email/send-due, which a Supabase cron job calls every 15 minutes.
  */
 export default function DailyEmailSettings() {
   const { user } = useAuth();

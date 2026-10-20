@@ -174,14 +174,14 @@ describe('sendDueEmails', () => {
   it('releases the claim and carries on when a send fails', async () => {
     const { db, updates } = fakeDb({ profiles: [profile('a'), profile('b')] });
     const sendEmail = vi.fn(async (e: OutgoingEmail) => {
-      if (e.to.startsWith('a@')) throw new Error('SES throttled');
+      if (e.to.startsWith('a@')) throw new Error('Resend throttled');
     });
     const { summary, log } = run(db, sendEmail);
     expect(await summary).toEqual({ optedIn: 2, due: 2, sent: 1, failed: 1 });
     expect(updates).toContainEqual({ id: 'a', values: { daily_email_last_sent: null } });
     expect(log).toHaveBeenCalledWith('daily email failed', {
       userId: 'a',
-      error: 'SES throttled',
+      error: 'Resend throttled',
     });
     // Addresses never reach the logs.
     expect(JSON.stringify(log.mock.calls)).not.toContain('@example.com');

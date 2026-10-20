@@ -8,8 +8,8 @@ reading the code for the first time.
 ## Overview
 
 FitFinder is a **Next.js 15 (App Router)** application. Almost all logic runs in
-the browser; the only server code is a single API route that proxies clothing
-photos to Claude Vision. State is stored in **Supabase** (Postgres + Auth +
+the browser; the server code is a few API routes: clothing detection with
+Claude Vision, a weather proxy, and the [daily outfit email](#daily-outfit-email). State is stored in **Supabase** (Postgres + Auth +
 Storage), and there is **no separate ML backend** — the learning model is a few
 numbers that live in a Supabase row and are updated client-side.
 
@@ -179,18 +179,18 @@ All per-user tables use the same Row-Level-Security pattern established in
 
 ## Daily outfit email
 
-The one piece of FitFinder that runs without the browser. A CDK stack in
-[`infra/`](../infra) (with its own `package.json`, outside the app's tsconfig and
-ESLint) runs a Lambda every 15 minutes from EventBridge Scheduler:
+The one piece of FitFinder that runs without the browser. Every 15 minutes a
+Supabase `pg_cron` job (migration 018) uses `pg_net` to call the app:
 
 ```
-EventBridge Scheduler (15 min) ─▶ Lambda ─▶ Supabase (service-role key)
-                                    │      ─▶ OpenWeatherMap (daily forecast)
-                                    └────▶ SES ─▶ user's inbox
+pg_cron (15 min) ─▶ POST /api/email/send-due ─▶ Supabase (service-role key)
+                    (Bearer CRON_SECRET)      ─▶ OpenWeatherMap (daily forecast)
+                                              ─▶ Resend ─▶ user's inbox
 ```
 
-The logic is app code in `src/lib/dailyEmail/`, so it's unit-tested with the rest
-of the suite. The Lambda handler only wires in AWS:
+The job reads the route's URL and secret from Supabase Vault, so neither is in
+the repo. The route rejects any caller without `CRON_SECRET`, then runs the
+logic in `src/lib/dailyEmail/`:
 
 - **`schedule.ts`.** A user is due once their local send time
   (`profiles.daily_email_time` in `profiles.timezone`) has passed, at most
@@ -200,6 +200,7 @@ of the suite. The Lambda handler only wires in AWS:
   lists up to six clean items not worn in the last week.
 - **`render.ts`.** HTML (tables and inline styles, for email clients) plus plain
   text.
+- **`resend.ts`.** Delivers through Resend's HTTP API.
 - **`sender.ts`.** For each due user, claims the day with a conditional update
   on `daily_email_last_sent` before sending, so overlapping runs can't
   double-send. If the send fails, it releases the claim. Errors are isolated
@@ -210,8 +211,8 @@ Unsubscribe links carry a random per-user `email_unsubscribe_token`.
 `/api/email/unsubscribe` calls the `SECURITY DEFINER` function
 `unsubscribe_daily_email(token)`, which can only turn the email off. A GET
 shows a confirmation button, because mail scanners follow links. A POST
-unsubscribes, which also serves RFC 8058 one-click unsubscribe. Deployment
-steps are in [`infra/README.md`](../infra/README.md).
+unsubscribes, which also serves RFC 8058 one-click unsubscribe. Setup steps
+are in the README under "Daily outfit email setup".
 
 ## External services
 
@@ -220,5 +221,4 @@ steps are in [`infra/README.md`](../infra/README.md).
 | Supabase                | Auth, Postgres, Storage                      | `lib/supabaseClient.ts`, hooks, components |
 | Anthropic Claude Vision | Clothing type/color detection                | `app/api/detect-clothing/route.ts`         |
 | OpenWeatherMap          | Temperature forecast for the weather feature | `lib/weatherApi.ts`                        |
-| AWS (Scheduler, Lambda) | Running the daily email every 15 minutes     | `infra/`                                   |
-| Amazon SES              | Delivering the daily email                   | `infra/lambda/dailyEmail.ts`               |
+| Resend                  | Delivering the daily email                   | `lib/dailyEmail/resend.ts`                 |
