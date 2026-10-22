@@ -124,8 +124,9 @@ describe('Closet sections', () => {
 
   it('hides empty types by default and lists them as quick-add chips', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    await screen.findByRole('heading', { name: 'Tops' });
-    const toggle = screen.getByRole('button', { name: 'Hide empty types' });
+    // Wait for the loaded closet, not the loading skeleton (which also shows
+    // a "Tops" heading).
+    const toggle = await screen.findByRole('button', { name: 'Hide empty types' });
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: '+ Tank Top' })).toBeTruthy();
 
