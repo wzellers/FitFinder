@@ -706,6 +706,7 @@ export default function ColorPreferences() {
                   setSelectedCombination(combo);
                   setShowEditModal(true);
                 }}
+                aria-label={`Edit ${getColorName(combo.topColor)} top with ${getColorName(combo.bottomColor)} bottom`}
                 className="w-14 h-14 rounded-lg border-2 border-[var(--line-strong)] overflow-hidden hover:border-[var(--accent)] hover:scale-105 transition-all"
               >
                 <div className="w-full h-1/2" style={getColorStyle(combo.topColor)} />
@@ -767,6 +768,8 @@ export default function ColorPreferences() {
                       <button
                         type="button"
                         onClick={() => toggleOccasionType(o, type)}
+                        aria-pressed={valid}
+                        aria-label={`${type} for ${o}`}
                         className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
                           valid
                             ? 'bg-[#e6f2ec] text-[var(--success)] hover:bg-[#d3e8dd]'
