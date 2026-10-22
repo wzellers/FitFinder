@@ -261,14 +261,16 @@ stats, settings, onboarding, the rating prompt, the daily email settings and
 unsubscribe, and the server routes all work. Any error the page logs fails the
 test that caused it.
 
-1. Create a **dedicated** account in the app; its email must contain `e2e`
-   (for example `you+e2e@gmail.com`). Every run deletes and re-seeds that
-   account's closet, so never use a real account.
-2. Put its details in `.env.e2e` (git-ignored):
+1. Create a **dedicated** account in the app with an email you don't use for
+   FitFinder. Every run deletes and re-seeds that account's closet, so never
+   use a real account.
+2. Put its details in `.env.e2e` (git-ignored). The last line confirms the
+   wipe; the suite refuses to run without it:
 
    ```env
-   E2E_TEST_EMAIL=you+e2e@gmail.com
+   E2E_TEST_EMAIL=second-address@example.com
    E2E_TEST_PASSWORD=...
+   E2E_WIPES_THIS_ACCOUNT=yes
    ```
 
 3. Make sure `.env.local` has working `ANTHROPIC_API_KEY` and

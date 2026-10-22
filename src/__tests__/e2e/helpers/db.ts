@@ -19,11 +19,10 @@ export function testCredentials() {
       'Set E2E_TEST_EMAIL and E2E_TEST_PASSWORD in .env.e2e (see README → End-to-end tests).',
     );
   }
-  // Every run deletes this account's closet. Refuse anything that doesn't
-  // look like a dedicated test account.
-  if (!/e2e/i.test(email)) {
+  // Every run deletes this account's closet, so the owner has to say so.
+  if (process.env.E2E_WIPES_THIS_ACCOUNT !== 'yes') {
     throw new Error(
-      `E2E_TEST_EMAIL must contain "e2e" (e.g. you+e2e@gmail.com): the suite wipes that account's data on every run.`,
+      "Add E2E_WIPES_THIS_ACCOUNT=yes to .env.e2e to confirm: every run deletes that account's closet, so it must not be an account you use.",
     );
   }
   return { email, password };
