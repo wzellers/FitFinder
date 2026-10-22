@@ -297,6 +297,8 @@ Reproducible experiments used during development:
 
 ## Documentation
 
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — the current state of the project: what's live,
+  infrastructure, tests, decisions and open items. Kept up to date with every PR.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the outfit scorer, the
   contextual-bandit learning loop, the upload pipeline, and the data model fit together.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — local setup, branch/PR workflow, and coding conventions.

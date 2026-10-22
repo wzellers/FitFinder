@@ -3,6 +3,29 @@
 Next.js 15 (App Router) + React 19 + Tailwind + Supabase, deployed on Vercel.
 See `README.md` for setup and `docs/ARCHITECTURE.md` for how it fits together.
 
+## Start here: the handoff
+
+The current state of the project (what's live, infrastructure, tests, decisions,
+open items) is in `docs/HANDOFF.md`, imported below so every session starts up
+to date. Trust it over memory or older notes, and check the code when they
+disagree.
+
+@docs/HANDOFF.md
+
+## Keep the handoff current
+
+`docs/HANDOFF.md` must always describe the project as it is right now:
+
+- Update it **in the same PR** as any change that makes it wrong: a new
+  feature, a removed one, a migration applied, an env var or secret added,
+  infrastructure or CI changed, a decision made, an open item done or found.
+- Before finishing a session, re-read it and fix anything this session changed,
+  including work that's still unmerged or waiting on the user.
+- Keep it short and current: replace outdated lines rather than appending a
+  log, delete open items once they're done, and bump **Last updated**.
+- Never put secret values, passwords or personal account details in it; the
+  repo is public. Names of env vars and secrets are fine.
+
 ## Every change ships with tests
 
 A feature or fix isn't done until tests cover it, in the same PR:
@@ -20,6 +43,9 @@ A feature or fix isn't done until tests cover it, in the same PR:
 
 When a change removes or renames something a test relies on, update the test in
 the same PR rather than deleting it.
+
+This applies to every future change, in every session: don't consider a
+feature done, or open its PR, until its tests exist and pass.
 
 ## Before every commit
 
