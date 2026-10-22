@@ -39,8 +39,12 @@ export interface BanditModel {
 
 export const MODEL_VERSION = 1;
 
-/** Default online learning rate for `updateWeights`. */
-export const DEFAULT_LEARNING_RATE = 0.05;
+/**
+ * Default online learning rate for `updateWeights`. 0.1 roughly halves the
+ * ratings needed to learn a user's taste versus 0.05 while staying stable with
+ * noisy ratings; 0.2+ starts chasing noise (see banditConvergence.sim.test.ts).
+ */
+export const DEFAULT_LEARNING_RATE = 0.1;
 
 /** Default exploration rate for ε-greedy selection. */
 export const DEFAULT_EPSILON = 0.15;
