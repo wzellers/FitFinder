@@ -37,7 +37,13 @@ test('filters by category, color and laundry status', async ({ page }) => {
 
 test('toggles one item dirty and the change persists', async ({ page }) => {
   await openApp(page);
+  // The badge flips at once and saves in the background; wait for the save
+  // before reloading, as reloading cancels it.
+  const saved = page.waitForResponse(
+    (res) => res.url().includes('/rest/v1/clothing_items') && res.request().method() === 'PATCH',
+  );
   await page.getByRole('button', { name: 'White T-Shirt is clean. Mark as dirty' }).click();
+  expect((await saved).ok()).toBe(true);
   await expect(
     page.getByRole('button', { name: 'White T-Shirt is dirty. Mark as clean' }),
   ).toBeVisible();
