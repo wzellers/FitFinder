@@ -1,72 +1,38 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, nav } from './helpers/test';
+import { testCredentials } from './helpers/db';
 
-const EMAIL = process.env.E2E_TEST_EMAIL ?? 'test@fitfinder.dev';
-const PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'test-password';
+test.describe('signed out', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
 
-test.describe('Authentication', () => {
-  test.beforeEach(async ({ page }) => {
+  test('shows the login form', async ({ page }) => {
     await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    await expect(page.getByLabel('Email')).toBeVisible();
+    await expect(page.getByLabel('Password')).toBeVisible();
+    await expect(nav(page)).toHaveCount(0);
   });
 
-  test('shows AuthForm when not logged in', async ({ page }) => {
-    // The auth form should be visible
-    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('input[type="password"]')).toBeVisible();
+  test.describe('wrong password', () => {
+    // Supabase answers a bad password with a 400, which the browser logs.
+    test.use({ allowedErrors: [/status of 400/] });
+
+    test('is rejected with an inline error', async ({ page }) => {
+      const { email } = testCredentials();
+      await page.goto('/');
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password').fill('definitely-not-the-password');
+      await page.getByRole('button', { name: 'Log in' }).click();
+      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(nav(page)).toHaveCount(0);
+    });
   });
 
-  test('can switch between sign-in and sign-up modes', async ({ page }) => {
-    // Ensure we see the sign-in form
-    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 10_000 });
-
-    // Click the toggle to switch to sign-up
-    await page.click('text=Sign up');
-    await expect(page.locator('button:has-text("Sign Up")')).toBeVisible({ timeout: 5_000 });
-
-    // Switch back to sign-in
-    await page.click('text=Sign in');
-    await expect(page.locator('button:has-text("Sign In")')).toBeVisible({ timeout: 5_000 });
-  });
-
-  test('shows error on invalid credentials', async ({ page }) => {
-    await page.fill('input[type="email"]', 'invalid@example.com');
-    await page.fill('input[type="password"]', 'wrongpassword');
-    await page.click('button:has-text("Sign In")');
-
-    // Should show an error message (toast or inline)
-    await expect(page.locator('text=/invalid|error|incorrect/i')).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('can log in with valid credentials', async ({ page }) => {
-    await page.fill('input[type="email"]', EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button:has-text("Sign In")');
-
-    // After login the main tabs should appear
-    await expect(page.locator('text=Closet').first()).toBeVisible({ timeout: 15_000 });
-  });
-
-  test('can log out', async ({ page }) => {
-    // Log in first
-    await page.fill('input[type="email"]', EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button:has-text("Sign In")');
-    await expect(page.locator('text=Closet').first()).toBeVisible({ timeout: 15_000 });
-
-    // Sign out
-    await page.locator('button:has-text("Sign Out")').first().click();
-
-    // Auth form should reappear
-    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('session persists on page reload', async ({ page }) => {
-    await page.fill('input[type="email"]', EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button:has-text("Sign In")');
-    await expect(page.locator('text=Closet').first()).toBeVisible({ timeout: 15_000 });
-
-    // Reload and confirm still logged in
-    await page.reload();
-    await expect(page.locator('text=Closet').first()).toBeVisible({ timeout: 15_000 });
+  test('switches between log in and create account', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'New here? Create an account' }).click();
+    await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create account' })).toBeVisible();
+    await page.getByRole('button', { name: 'Have an account? Log in' }).click();
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
   });
 });

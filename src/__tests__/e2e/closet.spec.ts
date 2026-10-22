@@ -1,133 +1,133 @@
-import { test, expect, Page } from '@playwright/test';
+import path from 'path';
+import { test, expect, openApp, toast, expectImagesLoaded } from './helpers/test';
+import { BUCKET, SEED_ITEMS, ok, testDb } from './helpers/db';
 
-const EMAIL = process.env.E2E_TEST_EMAIL ?? 'test@fitfinder.dev';
-const PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'test-password';
+const item = (page: import('@playwright/test').Page, name: string) =>
+  page.getByRole('button', { name: `Edit ${name}`, exact: true });
 
-async function login(page: Page) {
-  await page.goto('/');
-  await page.fill('input[type="email"]', EMAIL);
-  await page.fill('input[type="password"]', PASSWORD);
-  await page.click('button:has-text("Sign In")');
-  await expect(page.locator('text=Closet').first()).toBeVisible({ timeout: 15_000 });
-}
+test('shows every seeded item with its photo', async ({ page }) => {
+  await openApp(page);
+  await expect(page.getByText('{ 6 items · 1 in the wash }')).toBeVisible();
+  for (const { name } of Object.values(SEED_ITEMS)) {
+    await expect(item(page, name)).toBeVisible();
+  }
+  // Photos come from a private bucket through signed URLs; all must load.
+  await expectImagesLoaded(page, 'main button[aria-label^="Edit "] img', 6);
+});
 
-test.describe('Closet', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-    await page.locator('button:has-text("Closet")').first().click();
-    await page.waitForLoadState('networkidle');
-  });
+test('filters by category, color and laundry status', async ({ page }) => {
+  await openApp(page);
+  const filters = page.getByRole('group', { name: 'Filter closet' });
 
-  test('shows Add Item button and Mark All buttons', async ({ page }) => {
-    await expect(page.locator('button:has-text("Add Item")')).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('button:has-text("Mark All Dirty")')).toBeVisible();
-    await expect(page.locator('button:has-text("Mark All Clean")')).toBeVisible();
-  });
+  await filters.getByLabel('Category').selectOption('Bottoms');
+  await expect(item(page, 'Denim Jeans')).toBeVisible();
+  await expect(item(page, 'White T-Shirt')).toHaveCount(0);
 
-  test('clicking Add Item opens the upload modal', async ({ page }) => {
-    await page.locator('button:has-text("Add Item")').first().click();
-    await expect(page.locator('text=/upload|drag|select/i').first()).toBeVisible({
-      timeout: 5_000,
-    });
-    await page.keyboard.press('Escape');
-  });
+  await filters.getByRole('button', { name: 'Clear filters' }).click();
+  await filters.getByLabel('Color').selectOption('white');
+  await expect(item(page, 'White T-Shirt')).toBeVisible();
+  await expect(item(page, 'White Shoes')).toBeVisible();
+  await expect(item(page, 'Denim Jeans')).toHaveCount(0);
 
-  test('shows collapsible section headers (Tops, Bottoms, Shoes)', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-    // Section headers should be visible
-    await expect(page.locator('h2:has-text("Tops")')).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('h2:has-text("Bottoms")')).toBeVisible();
-    await expect(page.locator('h2:has-text("Shoes")')).toBeVisible();
-  });
+  await filters.getByRole('button', { name: 'Clear filters' }).click();
+  await filters.getByRole('button', { name: 'Dirty', exact: true }).click();
+  await expect(item(page, 'Black Sweatshirt')).toBeVisible();
+  await expect(item(page, 'White T-Shirt')).toHaveCount(0);
+});
 
-  test('section headers show item count badges', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-    // Each section header button should have a count badge (span with a number)
-    const sectionButtons = page.locator('button:has(h2)');
-    const count = await sectionButtons.count();
-    expect(count).toBeGreaterThanOrEqual(3);
-    // Each button should have a badge span
-    for (let i = 0; i < Math.min(count, 4); i++) {
-      const badge = sectionButtons.nth(i).locator('span.rounded-full');
-      await expect(badge).toBeVisible();
-    }
-  });
+test('toggles one item dirty and the change persists', async ({ page }) => {
+  await openApp(page);
+  // The badge flips at once and saves in the background; wait for the save
+  // before reloading, as reloading cancels it.
+  const saved = page.waitForResponse(
+    (res) => res.url().includes('/rest/v1/clothing_items') && res.request().method() === 'PATCH',
+  );
+  await page.getByRole('button', { name: 'White T-Shirt is clean. Mark as dirty' }).click();
+  expect((await saved).ok()).toBe(true);
+  await expect(
+    page.getByRole('button', { name: 'White T-Shirt is dirty. Mark as clean' }),
+  ).toBeVisible();
 
-  test('clicking section header collapses/expands that section', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-    const topsHeader = page.locator('button:has(h2:has-text("Tops"))');
-    await expect(topsHeader).toBeVisible({ timeout: 10_000 });
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'White T-Shirt is dirty. Mark as clean' }),
+  ).toBeVisible();
+  await expect(page.getByText('{ 6 items · 2 in the wash }')).toBeVisible();
+});
 
-    // Get subsection content before collapsing
-    const subsectionsBefore = page.locator('text=T-Shirt');
-    const wasBefore = await subsectionsBefore.count();
+test('marks everything dirty, then everything clean', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'Mark all dirty' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Mark all dirty' }).click();
+  await expect(toast(page, 'Everything is in the wash.')).toBeVisible();
+  await expect(page.getByText('{ 6 items · 6 in the wash }')).toBeVisible();
 
-    // Click to collapse
-    await topsHeader.click();
+  await page.getByRole('button', { name: 'Mark all clean' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Mark all clean' }).click();
+  await expect(toast(page, 'Everything is clean.')).toBeVisible();
+  await expect(page.getByText('{ 6 items · 0 in the wash }')).toBeVisible();
+});
 
-    // If there were subsections visible, they should be hidden now
-    if (wasBefore > 0) {
-      await expect(page.locator('button:has(h2:has-text("Tops")) ~ div >> text=T-Shirt'))
-        .not.toBeVisible({ timeout: 3_000 })
-        .catch(() => {
-          // Section might not have T-Shirt items — that's fine
-        });
-    }
+test('edits an item and the change persists', async ({ page }) => {
+  await openApp(page);
+  await item(page, 'White T-Shirt').click();
+  const dialog = page.getByRole('dialog', { name: 'Edit White T-Shirt' });
+  await expect(dialog).toBeVisible();
+  await expectImagesLoaded(page, '[role="dialog"] img');
 
-    // Click again to expand
-    await topsHeader.click();
-  });
+  await dialog.getByLabel('Type').selectOption('Polo');
+  await dialog
+    .getByRole('group', { name: /Main color/ })
+    .getByRole('button', { name: 'Gray' })
+    .click();
+  await dialog.getByRole('button', { name: 'Save changes' }).click();
+  await expect(toast(page, 'Changes saved.')).toBeVisible();
 
-  test('filter bar has category, color, and dirty filters', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-    // Category select dropdown
-    await expect(page.locator('select >> text=All Categories')).toBeVisible({ timeout: 10_000 });
-    // Color select dropdown
-    await expect(page.locator('select >> text=All Colors')).toBeVisible();
-    // Dirty filter buttons
-    await expect(page.locator('button:has-text("All")').first()).toBeVisible();
-    await expect(page.locator('button:has-text("Clean")')).toBeVisible();
-    await expect(page.locator('button:has-text("Dirty")')).toBeVisible();
-  });
+  await page.reload();
+  await expect(item(page, 'Gray Polo')).toBeVisible();
+  await expect(item(page, 'White T-Shirt')).toHaveCount(0);
+});
 
-  test('Hide Empty toggle works', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-    const hideEmptyBtn = page.locator('button:has-text("Hide Empty")');
-    await expect(hideEmptyBtn).toBeVisible({ timeout: 10_000 });
+test('deletes an item and its photo', async ({ page, seeded }) => {
+  const { db, userId } = await testDb();
+  await openApp(page);
+  await item(page, 'Beige Pants').click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete item' }).click();
+  await page
+    .getByRole('dialog', { name: /Delete this pants\?/ })
+    .getByRole('button', { name: 'Delete item' })
+    .click();
+  await expect(toast(page, 'Item deleted.')).toBeVisible();
+  await expect(item(page, 'Beige Pants')).toHaveCount(0);
 
-    // Click to toggle hide empty on
-    await hideEmptyBtn.click();
+  const rows = ok(await db.from('clothing_items').select('id').eq('id', seeded.beigePants), 'item');
+  expect(rows).toHaveLength(0);
+  // The photo is removed from storage too (the next reset re-uploads it).
+  const files = ok(await db.storage.from(BUCKET).list(userId), 'list');
+  expect(files?.map((f) => f.name)).not.toContain('e2e-beige-pants.png');
+});
 
-    // Click again to toggle off
-    await hideEmptyBtn.click();
-  });
+test('adds an item from a photo', async ({ page }) => {
+  // Detection is stubbed here (the live model is checked in api.spec.ts) so
+  // the form is filled predictably.
+  await page.route('**/api/detect-clothing', (route) =>
+    route.fulfill({ json: { type: 'T-Shirt', color: 'red', secondaryColor: null } }),
+  );
+  await openApp(page);
+  await page.getByRole('button', { name: 'Add item' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add a clothing item' });
+  await dialog
+    .locator('input[type="file"]')
+    .setInputFiles(path.resolve(__dirname, 'fixtures/red-tee.png'));
 
-  test('can filter by category using select dropdown', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-    const categorySelect = page.locator('select').first();
-    await categorySelect.selectOption('Tops');
+  await expect(dialog.getByLabel('Type')).toHaveValue('T-Shirt');
+  await expect(
+    dialog.getByRole('group', { name: 'Main color' }).getByRole('button', { name: 'Red' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Add to closet' }).click();
 
-    // Clear filters should appear
-    await expect(page.locator('text=/Clear/').first()).toBeVisible({ timeout: 5_000 });
-
-    // Click clear filters
-    await page.locator('button:has-text("Clear")').click();
-  });
-
-  test('dirty filter buttons toggle active state', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-
-    // Click Dirty filter
-    const dirtyBtn = page.locator('button:has-text("Dirty")').first();
-    await dirtyBtn.click();
-
-    // Clear filters should appear
-    await expect(page.locator('text=/Clear/').first()).toBeVisible({ timeout: 5_000 });
-
-    // Click Clean filter
-    await page.locator('button:has-text("Clean")').first().click();
-
-    // Click All to reset
-    await page.locator('button:has-text("All")').first().click();
-  });
+  await expect(dialog).toHaveCount(0);
+  await expect(item(page, 'Red T-Shirt')).toBeVisible();
+  await expect(page.getByText('{ 7 items · 1 in the wash }')).toBeVisible();
+  await expectImagesLoaded(page, 'main button[aria-label="Edit Red T-Shirt"] img');
 });

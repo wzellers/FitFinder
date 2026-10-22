@@ -252,6 +252,34 @@ supabase/migrations/    # Ordered SQL migrations (schema source of truth)
 - `npm run test:e2e` — run end-to-end tests (Playwright)
 - `npm run test:e2e:ui` — run Playwright tests in UI mode
 
+### End-to-end tests
+
+The Playwright suite drives the real app in a browser (desktop and a phone),
+against the real Supabase project, Claude and OpenWeatherMap. A green run means
+sign-in, the closet (with private photos), outfit generation, the calendar,
+stats, settings, onboarding, the rating prompt, the daily email settings and
+unsubscribe, and the server routes all work. Any error the page logs fails the
+test that caused it.
+
+1. Create a **dedicated** account in the app with an email you don't use for
+   FitFinder. Every run deletes and re-seeds that account's closet, so never
+   use a real account.
+2. Put its details in `.env.e2e` (git-ignored). The last line confirms the
+   wipe; the suite refuses to run without it:
+
+   ```env
+   E2E_TEST_EMAIL=second-address@example.com
+   E2E_TEST_PASSWORD=...
+   E2E_WIPES_THIS_ACCOUNT=yes
+   ```
+
+3. Make sure `.env.local` has working `ANTHROPIC_API_KEY` and
+   `OPENWEATHERMAP_API_KEY` values, then run `npm run test:e2e`. It starts a
+   dev server on port 3100.
+
+To test a deployed site instead, set `E2E_BASE_URL=https://your-app` (no dev
+server is started). Each run makes one small Claude call (well under a cent).
+
 ### Measurement tools
 
 Reproducible experiments used during development:
