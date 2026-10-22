@@ -280,6 +280,10 @@ test that caused it.
 To test a deployed site instead, set `E2E_BASE_URL=https://your-app` (no dev
 server is started). Each run makes one small Claude call (well under a cent).
 
+CI runs the suite on every pull request and push to `main` (the "End-to-end
+tests" job), against a production build, with the test account and API keys
+from the repository's Actions secrets.
+
 ### Measurement tools
 
 Reproducible experiments used during development:
