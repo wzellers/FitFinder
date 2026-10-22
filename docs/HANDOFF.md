@@ -11,6 +11,9 @@ Never put secret values or personal account details here: the repo is public.
 
 Production is `main`, deployed by Vercel on every push.
 
+Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.118
+needs Node's built-in WebSocket, so clients fail to start on Node 20.
+
 - **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
   outfits). Closet, outfit generator (contextual bandit, learning rate 0.1),
   calendar, stats, settings (weather, occasions, colors, email), onboarding,

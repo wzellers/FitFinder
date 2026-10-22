@@ -95,7 +95,7 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22 (supabase-js needs its built-in WebSocket)
 - npm
 - A Supabase project
 
