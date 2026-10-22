@@ -30,6 +30,17 @@ export const test = base.extend<{
 
   pageErrors: [
     async ({ page, allowedErrors }, use) => {
+      // The dev server's floating Next.js button covers the phone tab bar.
+      // Hide it; errors are still caught below, through the console.
+      await page.addInitScript(() => {
+        const hide = () => {
+          const style = document.createElement('style');
+          style.textContent = 'nextjs-portal { display: none !important; }';
+          document.head.appendChild(style);
+        };
+        if (document.head) hide();
+        else document.addEventListener('DOMContentLoaded', hide);
+      });
       const ignored = [...IGNORED_ERRORS, ...allowedErrors];
       const errors: string[] = [];
       page.on('pageerror', (err) => {
