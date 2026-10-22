@@ -1,0 +1,187 @@
+// Render the daily email as HTML and plain text.
+//
+// Email clients ignore stylesheets and most modern CSS, so the HTML uses
+// tables and inline styles in the app's burgundy and sky palette.
+
+import { describeItem } from '@/lib/itemLabels';
+import { colorMap } from '@/lib/constants';
+import type { ClothingItem } from '@/lib/types';
+import type { DailyForecast, Digest } from '@/lib/dailyEmail/digest';
+
+export interface RenderInput {
+  digest: Digest;
+  forecast: DailyForecast | null;
+  /** The email's local date, `YYYY-MM-DD`. */
+  date: string;
+  /** Signed image URLs by item id. Items without one show a color swatch. */
+  imageUrls: Record<string, string>;
+  appUrl: string;
+  unsubscribeUrl: string;
+}
+
+export interface RenderedEmail {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+const C = {
+  burgundy: '#5c1a26',
+  text: '#3a1018',
+  secondary: '#6e5459',
+  sky: '#9fd0f0',
+  wash: '#edf6fb',
+  muted: '#f4f2f1',
+  border: '#ece6e7',
+};
+
+const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+const MONO = "'SFMono-Regular', Menlo, Consolas, monospace";
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** "Tuesday, October 13" for a `YYYY-MM-DD` date. */
+export function formatEmailDate(date: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date(`${date}T12:00:00Z`));
+}
+
+/** One line of weather, e.g. "High 64° · Low 48° · 70% chance of rain". */
+export function forecastLine(forecast: DailyForecast): string {
+  const parts = [`High ${forecast.high}°`, `Low ${forecast.low}°`];
+  const rain = Math.round(forecast.rainChance * 100);
+  if (rain >= 20) parts.push(`${rain}% chance of rain`);
+  else parts.push(forecast.description || forecast.condition);
+  return parts.join(' · ');
+}
+
+/** A short nudge for the day's weather, or null when there's nothing to add. */
+export function weatherTip(forecast: DailyForecast): string | null {
+  if (forecast.rainChance >= 0.5) return 'Rain is likely, so bring a jacket or an umbrella.';
+  if (forecast.high - forecast.low >= 20)
+    return 'Big swing between morning and afternoon. Layer up.';
+  return null;
+}
+
+function itemCell(
+  item: ClothingItem,
+  label: string,
+  imageUrls: Record<string, string>,
+  size: number,
+) {
+  const url = imageUrls[item.id];
+  const name = escapeHtml(describeItem(item));
+  const swatch = colorMap[item.colors[0]] ?? C.muted;
+  const visual = url
+    ? `<img src="${escapeHtml(url)}" width="${size}" height="${size}" alt="${name}" style="display:block;width:${size}px;height:${size}px;object-fit:contain;background:${C.muted};border-radius:12px;border:0;">`
+    : `<div role="img" aria-label="${name}" style="width:${size}px;height:${size}px;background:${swatch};border-radius:12px;"></div>`;
+  return `<td valign="top" style="padding:6px;width:${size}px;">
+  ${visual}
+  ${label ? `<div style="font-family:${MONO};font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${C.secondary};padding-top:8px;">${label}</div>` : ''}
+  <div style="font-family:${FONT};font-size:13px;line-height:18px;color:${C.text};padding-top:2px;">${name}</div>
+</td>`;
+}
+
+function row(cells: string[]) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${cells.join('')}</tr></table>`;
+}
+
+function heading(text: string) {
+  return `<div style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${C.burgundy};padding:28px 0 10px;">${text}</div>`;
+}
+
+export function renderDailyEmail(input: RenderInput): RenderedEmail {
+  const { digest, forecast, date, imageUrls, appUrl, unsubscribeUrl } = input;
+  const dateLabel = formatEmailDate(date);
+  const tip = forecast ? weatherTip(forecast) : null;
+  const weatherText = forecast ? forecastLine(forecast) : null;
+
+  const subject = digest.outfit
+    ? `Today's fit: ${describeItem(digest.outfit.top)} + ${describeItem(digest.outfit.bottom)}${forecast ? ` · ${forecast.high}°` : ''}`
+    : `Your FitFinder morning, ${dateLabel}`;
+
+  // ---- HTML -------------------------------------------------------------
+  const weatherBlock = forecast
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.wash};border-radius:14px;"><tr><td style="padding:16px 18px;">
+  <div style="font-family:${FONT};font-size:28px;font-weight:700;color:${C.burgundy};">${forecast.high}° <span style="font-size:18px;font-weight:400;color:${C.secondary};">/ ${forecast.low}°</span></div>
+  <div style="font-family:${FONT};font-size:14px;color:${C.text};padding-top:4px;">${escapeHtml(weatherText!)}</div>
+  ${tip ? `<div style="font-family:${FONT};font-size:14px;color:${C.text};padding-top:8px;">${escapeHtml(tip)}</div>` : ''}
+</td></tr></table>`
+    : `<p style="font-family:${FONT};font-size:14px;color:${C.secondary};margin:0;">No forecast today. Add your ZIP code in Settings to dress for the weather.</p>`;
+
+  const outfitBlock = digest.outfit
+    ? row([
+        itemCell(digest.outfit.top, 'Top', imageUrls, 160),
+        itemCell(digest.outfit.bottom, 'Bottom', imageUrls, 160),
+        itemCell(digest.outfit.shoes, 'Shoes', imageUrls, 160),
+      ])
+    : `<p style="font-family:${FONT};font-size:14px;color:${C.text};margin:0;">Nothing clean fits today's weather. Do a load of laundry, or add a few pieces to your closet.</p>`;
+
+  const extra = digest.unwornCount - digest.unworn.length;
+  const unwornBlock =
+    digest.unworn.length > 0
+      ? `${heading('Not worn this week')}
+${row(digest.unworn.slice(0, 3).map((i) => itemCell(i, '', imageUrls, 100)))}
+${digest.unworn.length > 3 ? row(digest.unworn.slice(3).map((i) => itemCell(i, '', imageUrls, 100))) : ''}
+${extra > 0 ? `<p style="font-family:${FONT};font-size:13px;color:${C.secondary};margin:8px 6px 0;">And ${extra} more waiting in your closet.</p>` : ''}`
+      : '';
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:24px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;"><tr><td>
+  <div style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${C.secondary};">FitFinder · ${escapeHtml(dateLabel)}</div>
+  <div style="font-family:${FONT};font-size:30px;font-weight:800;color:${C.burgundy};padding:6px 0 18px;">Today's fit</div>
+  ${weatherBlock}
+  ${heading('Wear this')}
+  ${outfitBlock}
+  ${unwornBlock}
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;"><tr><td style="background:${C.sky};border-radius:999px;">
+    <a href="${escapeHtml(appUrl)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:700;color:${C.burgundy};text-decoration:none;">Open FitFinder</a>
+  </td></tr></table>
+  <p style="font-family:${FONT};font-size:12px;line-height:18px;color:${C.secondary};border-top:1px solid ${C.border};margin:32px 0 0;padding-top:14px;">
+    You get this because you turned on the daily email in FitFinder Settings.
+    <a href="${escapeHtml(unsubscribeUrl)}" style="color:${C.secondary};">Unsubscribe</a>
+  </p>
+</td></tr></table>
+</td></tr></table>
+</body></html>`;
+
+  // ---- Plain text -------------------------------------------------------
+  const lines = [`FitFinder · ${dateLabel}`, ''];
+  if (forecast) {
+    lines.push(weatherText!);
+    if (tip) lines.push(tip);
+  } else {
+    lines.push('No forecast today. Add your ZIP code in Settings to dress for the weather.');
+  }
+  lines.push('', 'WEAR THIS');
+  if (digest.outfit) {
+    lines.push(
+      `Top: ${describeItem(digest.outfit.top)}`,
+      `Bottom: ${describeItem(digest.outfit.bottom)}`,
+      `Shoes: ${describeItem(digest.outfit.shoes)}`,
+    );
+  } else {
+    lines.push("Nothing clean fits today's weather.");
+  }
+  if (digest.unworn.length > 0) {
+    lines.push('', 'NOT WORN THIS WEEK', ...digest.unworn.map((i) => `- ${describeItem(i)}`));
+    if (extra > 0) lines.push(`And ${extra} more waiting in your closet.`);
+  }
+  lines.push('', `Open FitFinder: ${appUrl}`, `Unsubscribe: ${unsubscribeUrl}`);
+
+  return { subject, html, text: lines.join('\n') };
+}

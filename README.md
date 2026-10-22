@@ -62,6 +62,17 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 - Build a library of liked color combinations
 - Visual color pairing interface with your actual wardrobe colors
 
+### Daily Outfit Email
+
+- Opt in from Settings → Email and choose a send time in your own time zone
+- Each morning: an outfit picked for the day's forecast high (the learning
+  model's best pick, weather rules applied), plus clean items you haven't worn
+  this week
+- One email per day at most; one-click unsubscribe from the email itself
+- A Supabase `pg_cron` job calls the app every 15 minutes, and the app sends
+  through [Resend](https://resend.com). See
+  [Daily outfit email setup](#daily-outfit-email-setup).
+
 ### Onboarding
 
 - Guided 3-step setup for new users (zip code, first items, finish)
@@ -72,11 +83,12 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 - **Framework**: Next.js 15 (App Router)
 - **UI**: React 19, TypeScript (strict mode), Tailwind CSS 3
 - **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Clothing detection**: Anthropic Claude Vision (`@anthropic-ai/sdk`) via a
+- **Clothing detection**: Claude Haiku 4.5 vision (`@anthropic-ai/sdk`) via a
   server route; background removal with `@imgly/background-removal`; cropping
   with `react-easy-crop`
 - **Icons**: Lucide React
 - **Weather**: OpenWeatherMap API
+- **Daily email**: Supabase `pg_cron` + `pg_net`, Resend
 - **Testing**: Vitest + Testing Library (unit/component), Playwright (e2e)
 
 ## Getting Started
@@ -123,7 +135,9 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    - `profiles` — zip code and onboarding state
    - `outfit_model_weights` — persisted per-user contextual-bandit weights
 
-   Then create a `clothing-images` storage bucket in Supabase with public access.
+   Then create a private `clothing-images` storage bucket in Supabase; the
+   migrations add its per-user access policies, and the app loads photos
+   through short-lived signed URLs.
 
 5. Run the dev server
 
@@ -133,12 +147,54 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 
 6. Open [http://localhost:3000](http://localhost:3000)
 
+### Daily outfit email setup
+
+Optional. Without it, the Settings → Email tab still saves preferences, but
+nothing is sent.
+
+1. Apply migrations `017_daily_email.sql` and `018_daily_email_cron.sql`. 018
+   turns on the `pg_cron` and `pg_net` extensions and schedules a job that
+   calls `POST /api/email/send-due` every 15 minutes.
+2. Create a [Resend](https://resend.com) account and an API key with sending
+   access. Until you verify a domain in Resend, mail comes from
+   `onboarding@resend.dev` and can only go to your Resend account's own
+   address. After verifying one, set `EMAIL_FROM` to send to anyone.
+3. Make a random secret for the cron job: `openssl rand -hex 32`.
+4. In Vercel → Project → Settings → Environment Variables, add these
+   (server-only; never prefix them with `NEXT_PUBLIC_`), then redeploy:
+
+   ```env
+   SUPABASE_SERVICE_ROLE_KEY=...  # Supabase → Project Settings → API keys
+   RESEND_API_KEY=...
+   CRON_SECRET=...                # the secret from step 3
+   # optional:
+   # EMAIL_FROM=FitFinder <daily@your-domain.com>
+   # APP_URL=https://your-domain.com  (links in the email; defaults to the called URL)
+   ```
+
+5. In the Supabase SQL Editor, store the route URL and the same secret in
+   Vault, where the cron job reads them:
+
+   ```sql
+   select vault.create_secret('https://<your-app>/api/email/send-due', 'daily_email_url');
+   select vault.create_secret('<the secret from step 3>', 'daily_email_cron_secret');
+   ```
+
+To test, turn the email on in Settings → Email with the time a few minutes
+ahead; it arrives on the next run after that time. To send again the same
+day, clear the claim in the SQL Editor:
+`update profiles set daily_email_last_sent = null where id = '<your user id>';`.
+Recent runs are in `cron.job_run_details`, and the route's responses (a
+`{ optedIn, due, sent, failed }` summary) in `net._http_response`.
+
 ## Project Structure
 
 ```
 src/
   app/
     api/detect-clothing/route.ts # Server route: Claude Vision type/color detection
+    api/email/send-due/route.ts # Send due daily emails (called by pg_cron)
+    api/email/unsubscribe/route.ts # Unsubscribe from the daily email (no sign-in)
     layout.tsx          # Root layout with custom fonts and ToastProvider
     page.tsx            # Main page with tab navigation and modal management
   components/
@@ -146,6 +202,7 @@ src/
     Closet.tsx          # Wardrobe grid with section filters
     ColorPreferences.tsx # Color combo builder + zip code settings
     ColorCombinationModal.tsx # Modal for editing color pairings
+    DailyEmailSettings.tsx # Settings → Email: opt-in, send time, time zone
     EditItem.tsx        # Edit item type, colors, and laundry status
     ImageUpload.tsx     # Upload new items (detect, crop, background removal)
     Onboarding.tsx      # New user guided setup
@@ -163,6 +220,7 @@ src/
     banditModel.ts      # Contextual-bandit online learning model
     colorUtils.ts       # Color display helpers
     constants.ts        # Shared constants (types, palettes, occasion rules)
+    dailyEmail/         # Daily email: schedule, digest, render, sender, Resend
     imageColor.ts       # Local dominant-color detection
     imageCrop.ts        # Crop an image region to a PNG blob
     occasionRules.ts    # Per-occasion clothing-type rules
@@ -171,6 +229,7 @@ src/
     types.ts            # TypeScript interfaces and weather rules
     uploadPipeline.ts   # Detect + background-removal + upload orchestration
     weatherApi.ts       # OpenWeatherMap integration with caching
+    weatherProvider.ts  # Server-side OpenWeatherMap calls (incl. daily forecast)
   styles/
     globals.css         # Tailwind directives + CSS custom properties + component classes
   __tests__/            # Vitest unit/component tests and Playwright e2e specs

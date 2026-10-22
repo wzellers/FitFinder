@@ -2,7 +2,8 @@
 
 import PosterHeader from '@/components/ui/PosterHeader';
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapPin, Thermometer, RotateCcw, Sun, Palette, Briefcase } from 'lucide-react';
+import { MapPin, Thermometer, RotateCcw, Sun, Palette, Briefcase, Mail } from 'lucide-react';
+import DailyEmailSettings from '@/components/DailyEmailSettings';
 import ColorCombinationModal from '@/components/ColorCombinationModal';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
@@ -41,7 +42,9 @@ export default function ColorPreferences() {
     cool: TEMPERATURE_THRESHOLDS.COOL,
     warm: TEMPERATURE_THRESHOLDS.WARM,
   });
-  const [activeSection, setActiveSection] = useState<'weather' | 'colors' | 'occasions'>('weather');
+  const [activeSection, setActiveSection] = useState<'weather' | 'colors' | 'occasions' | 'email'>(
+    'weather',
+  );
   const [clothingRulesState, setClothingRulesState] = useState<
     Record<string, ClothingWeatherRules>
   >({});
@@ -391,6 +394,7 @@ export default function ColorPreferences() {
     { key: 'weather' as const, label: 'Weather', icon: Sun },
     { key: 'occasions' as const, label: 'Occasions', icon: Briefcase },
     { key: 'colors' as const, label: 'Colors', icon: Palette },
+    { key: 'email' as const, label: 'Email', icon: Mail },
   ];
 
   /* ─── Weather Section ─── */
@@ -800,11 +804,15 @@ export default function ColorPreferences() {
   );
 
   const sectionContent =
-    activeSection === 'weather'
-      ? weatherContent
-      : activeSection === 'occasions'
-        ? occasionsContent
-        : colorsContent;
+    activeSection === 'weather' ? (
+      weatherContent
+    ) : activeSection === 'occasions' ? (
+      occasionsContent
+    ) : activeSection === 'email' ? (
+      <DailyEmailSettings />
+    ) : (
+      colorsContent
+    );
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -812,7 +820,7 @@ export default function ColorPreferences() {
       <PosterHeader
         title="Settings"
         script="your rules"
-        readout="{ weather · occasions · colors }"
+        readout="{ weather · occasions · colors · email }"
       />
       <div className="flex md:hidden gap-1 mb-4" role="group" aria-label="Preference section">
         {sidebarItems.map((item) => (
@@ -820,7 +828,7 @@ export default function ColorPreferences() {
             key={item.key}
             onClick={() => setActiveSection(item.key)}
             aria-pressed={activeSection === item.key}
-            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 min-h-[44px] rounded-md text-sm font-semibold transition-colors ${
+            className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-1 min-h-[44px] rounded-md text-xs sm:text-sm font-semibold transition-colors ${
               activeSection === item.key
                 ? 'bg-[var(--accent)] text-white'
                 : 'bg-[var(--card)] text-[var(--text-secondary)] border border-[var(--border)]'

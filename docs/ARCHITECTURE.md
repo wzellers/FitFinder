@@ -8,8 +8,8 @@ reading the code for the first time.
 ## Overview
 
 FitFinder is a **Next.js 15 (App Router)** application. Almost all logic runs in
-the browser; the only server code is a single API route that proxies clothing
-photos to Claude Vision. State is stored in **Supabase** (Postgres + Auth +
+the browser; the server code is a few API routes: clothing detection with
+Claude Vision, a weather proxy, and the [daily outfit email](#daily-outfit-email). State is stored in **Supabase** (Postgres + Auth +
 Storage), and there is **no separate ML backend** — the learning model is a few
 numbers that live in a Supabase row and are updated client-side.
 
@@ -30,7 +30,7 @@ Browser (React 19)                         Supabase
             │                              └─────────────────────┘
             │ POST /api/detect-clothing
             ▼
-   app/api/detect-clothing (server) ──▶ Anthropic Claude Vision
+   app/api/detect-clothing (server) ──▶ Claude Haiku 4.5 vision
 ```
 
 ### Layout at a glance
@@ -158,7 +158,7 @@ files applied in order. Each is immutable; changes are made by adding a new file
 | `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                |
 | `outfit_wears`         | Daily wear log with rating (1–10) and occasion                               |
 | `color_preferences`    | Liked color combinations and the user's zip code                             |
-| `profiles`             | Onboarding state and user metadata                                           |
+| `profiles`             | Onboarding state, user metadata, and daily email settings                    |
 | `outfit_model_weights` | Per-user learned bandit weights + metadata                                   |
 
 All per-user tables use the same Row-Level-Security pattern established in
@@ -171,11 +171,48 @@ All per-user tables use the same Row-Level-Security pattern established in
   prerendering (e.g. on Vercel) from trying to initialize Supabase before env vars
   are available, while callers still `import { supabase }` normally.
 - **Single API surface for detection.** `/api/detect-clothing` is the only
-  server-side code and the only place the Anthropic key is used, keeping the secret
-  off the client.
+  place a model is called and the only place the Anthropic key is used,
+  keeping the secret off the client. It requires a signed-in user.
 - **Constants as one source of truth.** Clothing types, sections, color palette,
   and occasion rules all live in `src/lib/constants.ts`; the detection route
   validates Claude's output against these same lists.
+
+## Daily outfit email
+
+The one piece of FitFinder that runs without the browser. Every 15 minutes a
+Supabase `pg_cron` job (migration 018) uses `pg_net` to call the app:
+
+```
+pg_cron (15 min) ─▶ POST /api/email/send-due ─▶ Supabase (service-role key)
+                    (Bearer CRON_SECRET)      ─▶ OpenWeatherMap (daily forecast)
+                                              ─▶ Resend ─▶ user's inbox
+```
+
+The job reads the route's URL and secret from Supabase Vault, so neither is in
+the repo. The route rejects any caller without `CRON_SECRET`, then runs the
+logic in `src/lib/dailyEmail/`:
+
+- **`schedule.ts`.** A user is due once their local send time
+  (`profiles.daily_email_time` in `profiles.timezone`) has passed, at most
+  once per local day, within a two-hour catch-up window.
+- **`digest.ts`.** Picks the outfit: the bandit's exploit-only best pick for the
+  forecast high, filtered by the same weather rules as the generator. Also
+  lists up to six clean items not worn in the last week.
+- **`render.ts`.** HTML (tables and inline styles, for email clients) plus plain
+  text.
+- **`resend.ts`.** Delivers through Resend's HTTP API.
+- **`sender.ts`.** For each due user, claims the day with a conditional update
+  on `daily_email_last_sent` before sending, so overlapping runs can't
+  double-send. If the send fails, it releases the claim. Errors are isolated
+  per user, and logs carry user ids only. Images use signed URLs that last
+  7 days.
+
+Unsubscribe links carry a random per-user `email_unsubscribe_token`.
+`/api/email/unsubscribe` calls the `SECURITY DEFINER` function
+`unsubscribe_daily_email(token)`, which can only turn the email off. A GET
+shows a confirmation button, because mail scanners follow links. A POST
+unsubscribes, which also serves RFC 8058 one-click unsubscribe. Setup steps
+are in the README under "Daily outfit email setup".
 
 ## External services
 
@@ -184,3 +221,4 @@ All per-user tables use the same Row-Level-Security pattern established in
 | Supabase                | Auth, Postgres, Storage                      | `lib/supabaseClient.ts`, hooks, components |
 | Anthropic Claude Vision | Clothing type/color detection                | `app/api/detect-clothing/route.ts`         |
 | OpenWeatherMap          | Temperature forecast for the weather feature | `lib/weatherApi.ts`                        |
+| Resend                  | Delivering the daily email                   | `lib/dailyEmail/resend.ts`                 |
