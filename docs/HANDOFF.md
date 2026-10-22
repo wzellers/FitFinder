@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-22
+**Last updated:** 2026-10-22 (sign-out fix)
 
 ## What's live
 
@@ -52,6 +52,8 @@ Production is `main`, deployed by Vercel on every push.
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a
   production build; runs are serialized.
+- Don't use the test account in a browser for anything real: every CI run wipes
+  its data, and the sign-out test ends all of its sessions.
 - Claude can't run the end-to-end suite itself (it signs in with a password),
   so the user runs `npm run test:e2e` and Claude reads the terminal output.
 
