@@ -49,7 +49,7 @@ describe('RatingPrompt', () => {
       />,
     );
     // Header renders synchronously before async item loading
-    expect(screen.getByText("Rate Yesterday's Outfit")).toBeTruthy();
+    expect(screen.getByText("How was yesterday's outfit?")).toBeTruthy();
   });
 
   it('renders the date', () => {
@@ -64,7 +64,7 @@ describe('RatingPrompt', () => {
     expect(screen.getByText(/February 26/)).toBeTruthy();
   });
 
-  it('shows Skip and Submit Rating buttons', () => {
+  it('shows Skip and Save rating buttons', () => {
     render(
       <RatingPrompt
         pendingRating={pendingRating}
@@ -74,7 +74,7 @@ describe('RatingPrompt', () => {
       />,
     );
     expect(screen.getByText('Skip')).toBeTruthy();
-    expect(screen.getByText('Submit Rating')).toBeTruthy();
+    expect(screen.getByText('Save rating')).toBeTruthy();
   });
 
   it('calls onSkip when Skip is clicked', () => {
@@ -116,7 +116,7 @@ describe('RatingPrompt', () => {
         onMinimize={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByText('Submit Rating'));
+    fireEvent.click(screen.getByText('Save rating'));
     expect(onSubmit).toHaveBeenCalledWith('wear-1', 5);
   });
 

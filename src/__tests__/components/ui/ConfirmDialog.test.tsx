@@ -82,7 +82,7 @@ describe('ConfirmDialog', () => {
     const overlay =
       screen.getByText('Confirm?').closest('.modal-overlay') ??
       document.querySelector('.modal-overlay');
-    if (overlay) fireEvent.click(overlay);
+    if (overlay) fireEvent.mouseDown(overlay);
     expect(onCancel).toHaveBeenCalled();
   });
 

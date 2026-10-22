@@ -1,11 +1,15 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import ClothingImage from '@/components/ui/ClothingImage';
+import { imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
 import { useToast } from '@/components/ToastProvider';
-import { clothingTypes, colorPalette } from '@/lib/constants';
-import { getColorStyle } from '@/lib/colorUtils';
+import { clothingTypes } from '@/lib/constants';
+import { describeItem } from '@/lib/itemLabels';
+import ColorSwatchGroup from '@/components/ui/ColorSwatchGroup';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ClothingItem, ClothingSection } from '@/lib/types';
 
@@ -46,7 +50,7 @@ export default function EditItem({
 
   const handleUpdate = async () => {
     if (!item || !selectedType || selectedColors.length === 0) {
-      showToast('Please select a type and color', 'warning');
+      showToast('Choose a type and a color first.', 'warning');
       return;
     }
     setUpdating(true);
@@ -56,11 +60,11 @@ export default function EditItem({
         .update({ type: selectedType, colors: selectedColors })
         .eq('id', item.id);
       if (error) throw error;
-      showToast('Item updated', 'success');
+      showToast('Changes saved.', 'success');
       onItemUpdated?.();
       setTimeout(onClose, 800);
     } catch {
-      showToast('Update failed', 'error');
+      showToast("Couldn't save your changes. Try again.", 'error');
     } finally {
       setUpdating(false);
     }
@@ -73,11 +77,12 @@ export default function EditItem({
     try {
       const { error } = await supabase.from('clothing_items').delete().eq('id', item.id);
       if (error) throw error;
-      showToast('Item deleted', 'success');
+      await removeClothingImages([imagePathFromUrl(item.image_url)]);
+      showToast('Item deleted.', 'success');
       onItemDeleted?.();
       setTimeout(onClose, 800);
     } catch {
-      showToast('Delete failed', 'error');
+      showToast("Couldn't delete this item. Try again.", 'error');
     } finally {
       setUpdating(false);
     }
@@ -95,7 +100,7 @@ export default function EditItem({
       setIsDirty(!isDirty);
       onItemUpdated?.();
     } catch {
-      showToast('Failed to update laundry status', 'error');
+      showToast("Couldn't update laundry status. Try again.", 'error');
     } finally {
       setUpdating(false);
     }
@@ -104,106 +109,115 @@ export default function EditItem({
   if (!isOpen || !item) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-xl" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[var(--text)]">Edit Item</h2>
-          <div className="flex gap-2 items-center">
-            <button
-              onClick={handleToggleDirty}
-              disabled={updating}
-              className={`text-xs px-2 py-1 rounded font-medium ${isDirty ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
-            >
-              {isDirty ? 'Mark Clean' : 'Mark Dirty'}
-            </button>
-            <button
-              onClick={() => setConfirmOpen(true)}
-              disabled={updating}
-              className="btn-danger text-xs py-1 px-2"
-            >
-              <Trash2 size={14} />
-            </button>
-            <button onClick={onClose} className="btn-ghost p-1">
-              <X size={18} />
+    <>
+      <Modal label={`Edit ${describeItem(item)}`} onClose={onClose} className="max-w-xl">
+        <div className="flex items-start justify-between gap-3 mb-5">
+          <div>
+            <h2 className="text-2xl">Edit item</h2>
+          </div>
+          <button onClick={onClose} className="btn-ghost px-2" aria-label="Close">
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-5 mb-6">
+          <div className="item-card w-36 shrink-0">
+            <div className="item-card-photo aspect-square">
+              <ClothingImage
+                src={item.image_url}
+                alt={describeItem(item)}
+                className="w-full h-full object-contain p-2"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col items-start gap-3">
+            <span className={isDirty ? 'badge-dirty' : 'badge-clean'}>
+              {isDirty ? 'Dirty' : 'Clean'}
+            </span>
+            <button onClick={handleToggleDirty} disabled={updating} className="btn-secondary">
+              {isDirty ? 'Mark clean' : 'Mark dirty'}
             </button>
           </div>
         </div>
 
-        {/* Image */}
-        <div className="flex flex-col items-center gap-3 mb-5">
-          <div className="w-32 h-32 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
-            <img src={item.image_url} alt={item.type} className="w-full h-full object-contain" />
-          </div>
-        </div>
-
-        {/* Category / type */}
-        <div className="flex flex-col items-center gap-3 mb-5">
-          <label className="text-sm font-medium text-[var(--text)]">Item Type</label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setSelectedType('');
-            }}
-            className="w-48 text-center"
-          >
-            <option value="">Select category...</option>
-            <option value="Tops">Tops</option>
-            <option value="Bottoms">Bottoms</option>
-            <option value="Shoes">Shoes</option>
-          </select>
-          {selectedCategory && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="edit-item-category" className="text-sm font-semibold">
+              Category
+            </label>
             <select
+              id="edit-item-category"
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setSelectedType('');
+              }}
+              className="min-h-[44px]"
+            >
+              <option value="">Choose a category</option>
+              <option value="Tops">Tops</option>
+              <option value="Bottoms">Bottoms</option>
+              <option value="Shoes">Shoes</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="edit-item-type" className="text-sm font-semibold">
+              Type
+            </label>
+            <select
+              id="edit-item-type"
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="w-48 text-center"
+              disabled={!selectedCategory}
+              className="min-h-[44px]"
             >
-              <option value="">Select type...</option>
+              <option value="">Choose a type</option>
               {clothingTypes[selectedCategory as ClothingSection]?.map((type) => (
                 <option key={type} value={type}>
                   {type}
                 </option>
               ))}
             </select>
-          )}
-        </div>
-
-        {/* Color selection */}
-        <div className="mb-5">
-          <label className="text-sm font-medium text-[var(--text)] block text-center mb-2">
-            Select main color
-          </label>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 justify-center mx-auto w-fit">
-            {colorPalette.map((color) => (
-              <button
-                key={color}
-                onClick={() => setSelectedColors([color])}
-                className={`w-12 h-12 rounded-lg border-2 transition-all ${
-                  selectedColors.includes(color)
-                    ? 'border-[var(--accent)] ring-2 ring-[var(--accent)] scale-105'
-                    : 'border-gray-200 hover:border-gray-400'
-                }`}
-                style={{ backgroundColor: getColorStyle(color).backgroundColor }}
-                title={color}
-              />
-            ))}
           </div>
-          {selectedColors.length > 0 && (
-            <p className="text-center text-xs text-[var(--text-secondary)] mt-2 capitalize">
-              Selected: {selectedColors[0]}
-            </p>
-          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-3 justify-center">
+        <div className="mb-6">
+          <ColorSwatchGroup
+            legend="Main color"
+            value={selectedColors[0] ?? null}
+            onChange={(color) => {
+              if (!color) return;
+              // Keep the second colour unless it now matches the main one.
+              const second = selectedColors[1];
+              setSelectedColors(second && second !== color ? [color, second] : [color]);
+            }}
+          />
+          <div className="mt-4">
+            <ColorSwatchGroup
+              legend={
+                <>
+                  Second color{' '}
+                  <span className="font-normal text-[var(--text-secondary)]">(optional)</span>
+                </>
+              }
+              size="sm"
+              allowNone
+              value={selectedColors[1] ?? null}
+              disabledColor={selectedColors[0] ?? null}
+              onChange={(color) =>
+                setSelectedColors(color ? [selectedColors[0], color] : [selectedColors[0]])
+              }
+            />
+          </div>
+        </div>
+
+        <div className="divider pt-5 flex flex-wrap gap-3 items-center">
           <button
             onClick={handleUpdate}
             disabled={updating || !selectedType || selectedColors.length === 0}
-            className="btn-primary disabled:opacity-50"
+            className="btn-primary"
           >
-            {updating ? 'Updating...' : 'Update Item'}
+            {updating ? 'Saving…' : 'Save changes'}
           </button>
           <button
             onClick={() => {
@@ -214,21 +228,28 @@ export default function EditItem({
             }}
             className="btn-secondary"
           >
-            Reset
+            Undo changes
+          </button>
+          <button
+            onClick={() => setConfirmOpen(true)}
+            disabled={updating}
+            className="btn-ghost text-[var(--danger)] hover:text-[var(--danger)] ml-auto"
+          >
+            <Trash2 size={16} aria-hidden="true" /> Delete item
           </button>
         </div>
-      </div>
+      </Modal>
 
       {/* Confirm delete dialog */}
       <ConfirmDialog
         isOpen={confirmOpen}
-        message="Delete this item? This cannot be undone."
-        confirmLabel="Delete"
+        message={`Delete this ${item.type.toLowerCase()}? It will also disappear from saved outfits. This can't be undone.`}
+        confirmLabel="Delete item"
         cancelLabel="Cancel"
         variant="danger"
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}
       />
-    </div>
+    </>
   );
 }

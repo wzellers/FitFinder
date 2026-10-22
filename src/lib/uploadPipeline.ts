@@ -10,6 +10,7 @@
 // fills the corresponding field in manually.
 
 import { supabase } from '@/lib/supabaseClient';
+import { CLOTHING_BUCKET as BUCKET, removeClothingImages } from '@/lib/clothingImages';
 import { typeToSection } from '@/lib/constants';
 import { detectColors } from '@/lib/imageColor';
 import type { ClothingSection } from '@/lib/types';
@@ -95,9 +96,16 @@ interface DetectResult {
 async function tryDetectType(blob: Blob): Promise<DetectResult> {
   try {
     const dataUrl = await imageDataUrlForDetection(blob);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { type: null, color: null, secondaryColor: null };
     const res = await fetch('/api/detect-clothing', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: JSON.stringify({ image: dataUrl }),
     });
     if (!res.ok) return { type: null, color: null, secondaryColor: null };
@@ -169,11 +177,16 @@ export async function runWithConcurrency<T, R>(
   return results;
 }
 
-const BUCKET = 'clothing-images';
-
 /** Build a unique storage path for a user's image. */
-function newImagePath(userId: string): string {
-  return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+const EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+
+function newImagePath(userId: string, mimeType: string): string {
+  const ext = EXTENSIONS[mimeType] ?? 'png';
+  return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 }
 
 export interface UploadItemInput {
@@ -184,15 +197,78 @@ export interface UploadItemInput {
   isDirty: boolean;
 }
 
-/** Upload a blob to the bucket and return its public URL. */
+/** An upload failure with a message that can be shown to the user as-is. */
+export class UploadError extends Error {}
+
+// Storage rejects files over 10 MB. Closet images never need more than this
+// many pixels on the long edge, so larger photos are scaled down first.
+const UPLOAD_MAX_EDGE = 2000;
+const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const WEBP_QUALITY = 0.9;
+
+/**
+ * Re-encode an image as WebP (keeps transparency, far smaller than PNG for
+ * photos), scaled to fit `maxEdge`. Browsers without WebP encoding return PNG.
+ */
+async function encodeImage(blob: Blob, maxEdge: number): Promise<Blob> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    throw new UploadError("This photo's format can't be read here. Try a JPEG or PNG.");
+  }
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    bitmap.close();
+    throw new UploadError('Your browser could not process this photo.');
+  }
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (out) => (out ? resolve(out) : reject(new UploadError('Could not convert this photo.'))),
+      'image/webp',
+      WEBP_QUALITY,
+    ),
+  );
+}
+
+/**
+ * Prepare an image for the clothing-images bucket, which accepts PNG, JPEG
+ * and WebP up to 10 MB. Small PNGs (cropped or background-removed images) are
+ * kept as-is; everything else is scaled down and re-encoded, which also
+ * converts formats Storage would reject (HEIC, GIF, ...).
+ */
+export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
+  if (blob.type === 'image/png' && blob.size <= UPLOAD_MAX_BYTES) return blob;
+
+  let edge = UPLOAD_MAX_EDGE;
+  let out = await encodeImage(blob, edge);
+  while (out.size > UPLOAD_MAX_BYTES && edge > 500) {
+    edge = Math.round(edge * 0.75);
+    out = await encodeImage(blob, edge);
+  }
+  if (out.size > UPLOAD_MAX_BYTES) {
+    throw new UploadError('This photo is too large to upload. Try cropping it first.');
+  }
+  return out;
+}
+
+/** Upload a blob to the bucket and return its storage path. */
 async function uploadBlob(userId: string, blob: Blob): Promise<string> {
-  const fileName = newImagePath(userId);
+  const prepared = await prepareImageForUpload(blob);
+  const contentType = EXTENSIONS[prepared.type] ? prepared.type : 'image/png';
+  const fileName = newImagePath(userId, contentType);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .upload(fileName, blob, { contentType: 'image/png' });
+    .upload(fileName, prepared, { contentType });
   if (uploadError) throw uploadError;
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
-  return urlData.publicUrl;
+  // The bucket is private: store the path and sign URLs when displaying.
+  return fileName;
 }
 
 /**
@@ -206,11 +282,15 @@ export async function uploadItem({
   colors,
   isDirty,
 }: UploadItemInput): Promise<void> {
-  const url = await uploadBlob(userId, blob);
+  const path = await uploadBlob(userId, blob);
 
   const { error } = await supabase
     .from('clothing_items')
-    .insert([{ user_id: userId, type, colors, image_url: url, is_dirty: isDirty }])
+    .insert([{ user_id: userId, type, colors, image_url: path, is_dirty: isDirty }])
     .select();
-  if (error) throw error;
+  if (error) {
+    // Don't leave the uploaded image behind; a retry uploads a fresh copy.
+    await removeClothingImages([path]);
+    throw error;
+  }
 }

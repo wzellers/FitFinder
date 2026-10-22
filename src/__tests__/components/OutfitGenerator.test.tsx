@@ -106,42 +106,42 @@ describe('OutfitGenerator', () => {
     );
   });
 
-  it('shows Actions section heading', async () => {
+  it('shows the Occasion section heading', async () => {
     renderWithProviders(<OutfitGenerator />);
     await waitFor(
       () => {
-        expect(screen.getByText('Actions')).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Occasion' })).toBeTruthy();
       },
       { timeout: 3000 },
     );
   });
 
-  it('shows Save Outfit and Wear Today action buttons', async () => {
+  it('shows Save outfit and Wear today buttons', async () => {
     renderWithProviders(<OutfitGenerator />);
     await waitFor(
       () => {
-        expect(screen.getByText('Save Outfit')).toBeTruthy();
-        expect(screen.getByText('Wear Today')).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Save outfit/ })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Wear today/ })).toBeTruthy();
       },
       { timeout: 3000 },
     );
   });
 
-  it('shows View Calendar button', async () => {
+  it('links to the calendar', async () => {
     renderWithProviders(<OutfitGenerator />);
     await waitFor(
       () => {
-        expect(screen.getByText('View Calendar')).toBeTruthy();
+        expect(screen.getByText("See what you've worn")).toBeTruthy();
       },
       { timeout: 3000 },
     );
   });
 
-  it('View Calendar button calls onNavigateToCalendar', async () => {
+  it('calendar link calls onNavigateToCalendar', async () => {
     const onNav = vi.fn();
     renderWithProviders(<OutfitGenerator onNavigateToCalendar={onNav} />);
-    await waitFor(() => screen.getByText('View Calendar'), { timeout: 3000 });
-    fireEvent.click(screen.getByText('View Calendar'));
+    await waitFor(() => screen.getByText("See what you've worn"), { timeout: 3000 });
+    fireEvent.click(screen.getByText("See what you've worn"));
     expect(onNav).toHaveBeenCalledTimes(1);
   });
 

@@ -1,22 +1,22 @@
 import '@/styles/globals.css';
-import localFont from 'next/font/local';
+import { Anton, Geist, Geist_Mono, Yellowtail } from 'next/font/google';
 import ToastProvider from '@/components/ToastProvider';
 import type { Metadata, Viewport } from 'next';
 
-// Body font: "Super Retro M54" — a retro pixel-ish face used app-wide.
-const superRetro = localFont({
-  src: [
-    { path: '../../public/fonts/SuperRetroM54.ttf', style: 'normal' },
-    { path: '../../public/fonts/SuperRetroM54-Italic.ttf', style: 'italic' },
-  ],
-  variable: '--font-sans',
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
+// Tall condensed poster face for page titles and the wordmark.
+const anton = Anton({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-poster',
   display: 'swap',
 });
-
-// Display font: "Kelvinized" — bold italic wordmark used for the FitFinder logo.
-const kelvinized = localFont({
-  src: '../../public/fonts/Kelvinized.ttf',
-  variable: '--font-display',
+// Retro script, used for one decorative word per page header.
+const yellowtail = Yellowtail({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-script',
   display: 'swap',
 });
 
@@ -33,7 +33,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${superRetro.variable} ${kelvinized.variable}`}>
+    <html
+      lang="en"
+      className={`${geist.variable} ${geistMono.variable} ${anton.variable} ${yellowtail.variable}`}
+    >
       <body className="font-sans">
         <ToastProvider>{children}</ToastProvider>
       </body>

@@ -100,6 +100,13 @@ beforeEach(() => {
 });
 
 describe('Page — Auth State', () => {
+  it('shows a skeleton instead of the login form while the session loads', () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: true, signOut: vi.fn() });
+    renderWithProviders(<Page />);
+    expect(screen.getByTestId('skeleton-fullscreen')).toBeTruthy();
+    expect(screen.queryByTestId('auth-form')).toBeNull();
+  });
+
   it('shows AuthForm when user is null', () => {
     mockUseAuth.mockReturnValue({ user: null, signOut: vi.fn() });
     renderWithProviders(<Page />);
@@ -132,10 +139,10 @@ describe('Page — Logged In Navigation', () => {
     await waitFor(() => {
       expect(screen.queryAllByText('Closet').length).toBeGreaterThan(0);
     });
-    expect(screen.queryAllByText('Generator').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Outfits').length).toBeGreaterThan(0);
     expect(screen.queryAllByText('Calendar').length).toBeGreaterThan(0);
     expect(screen.queryAllByText('Stats').length).toBeGreaterThan(0);
-    expect(screen.queryAllByText('Preferences').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Settings').length).toBeGreaterThan(0);
   });
 
   it('shows Closet tab content by default', async () => {
@@ -146,8 +153,8 @@ describe('Page — Logged In Navigation', () => {
 
   it('navigates to Generator tab on click', async () => {
     renderWithProviders(<Page />);
-    await waitFor(() => screen.queryAllByText('Generator').length > 0, { timeout: 3000 });
-    const genBtns = screen.queryAllByText('Generator');
+    await waitFor(() => screen.queryAllByText('Outfits').length > 0, { timeout: 3000 });
+    const genBtns = screen.queryAllByText('Outfits');
     if (genBtns.length > 0) fireEvent.click(genBtns[0]);
     await waitFor(() => screen.getByTestId('generator'), { timeout: 3000 });
     expect(screen.getByTestId('generator')).toBeTruthy();
@@ -171,8 +178,8 @@ describe('Page — Logged In Navigation', () => {
 
   it('navigates to Preferences tab on click', async () => {
     renderWithProviders(<Page />);
-    await waitFor(() => screen.queryAllByText('Preferences').length > 0, { timeout: 3000 });
-    fireEvent.click(screen.queryAllByText('Preferences')[0]);
+    await waitFor(() => screen.queryAllByText('Settings').length > 0, { timeout: 3000 });
+    fireEvent.click(screen.queryAllByText('Settings')[0]);
     await waitFor(() => screen.getByTestId('preferences'), { timeout: 3000 });
     expect(screen.getByTestId('preferences')).toBeTruthy();
   });
@@ -180,7 +187,7 @@ describe('Page — Logged In Navigation', () => {
   it('shows sign out button when user is logged in', async () => {
     renderWithProviders(<Page />);
     await waitFor(() => screen.queryAllByText('Closet').length > 0, { timeout: 3000 });
-    expect(screen.queryAllByText('Sign Out').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
   });
 
   it('navigating between tabs switches displayed content', async () => {
@@ -191,14 +198,15 @@ describe('Page — Logged In Navigation', () => {
     expect(screen.getByTestId('closet')).toBeTruthy();
 
     // Go to Generator
-    fireEvent.click(screen.queryAllByText('Generator')[0]);
+    fireEvent.click(screen.queryAllByText('Outfits')[0]);
     await waitFor(() => screen.getByTestId('generator'), { timeout: 3000 });
     expect(screen.queryByTestId('closet')).toBeNull();
 
     // Go to Calendar
     fireEvent.click(screen.queryAllByText('Calendar')[0]);
     await waitFor(() => screen.getByTestId('calendar'), { timeout: 3000 });
-    expect(screen.queryByTestId('generator')).toBeNull();
+    // The generator stays mounted (hidden) so its outfit survives tab switches.
+    expect(screen.getByTestId('generator').closest('[hidden]')).toBeTruthy();
 
     // Back to Closet
     fireEvent.click(screen.queryAllByText('Closet')[0]);

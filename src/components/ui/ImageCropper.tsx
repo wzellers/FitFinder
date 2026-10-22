@@ -1,5 +1,6 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useCallback, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
@@ -60,80 +61,78 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
   );
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[var(--text)]">Adjust &amp; crop</h2>
-          <button onClick={onCancel} className="btn-ghost p-1" aria-label="Cancel crop">
-            <X size={18} />
-          </button>
-        </div>
+    <Modal label="Adjust and crop" onClose={onCancel} dismissible={!saving}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-[var(--text)]">Adjust &amp; crop</h2>
+        <button onClick={onCancel} className="btn-ghost p-1" aria-label="Cancel crop">
+          <X size={18} />
+        </button>
+      </div>
 
-        {/* Crop area */}
-        <div className="relative w-full h-64 sm:h-80 rounded-lg overflow-hidden bg-[var(--muted)] border border-[var(--border)]">
-          <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            minZoom={0.3}
-            aspect={aspect}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={handleCropComplete}
-            restrictPosition={false}
-            objectFit="contain"
+      {/* Crop area */}
+      <div className="relative w-full h-64 sm:h-80 rounded-lg overflow-hidden bg-[var(--muted)] border border-[var(--border)]">
+        <Cropper
+          image={imageSrc}
+          crop={crop}
+          zoom={zoom}
+          minZoom={0.3}
+          aspect={aspect}
+          onCropChange={setCrop}
+          onZoomChange={setZoom}
+          onCropComplete={handleCropComplete}
+          restrictPosition={false}
+          objectFit="contain"
+        />
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-col gap-4 mt-4">
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-medium text-[var(--text-secondary)] w-10">Zoom</label>
+          <input
+            type="range"
+            min={0.3}
+            max={3}
+            step={0.01}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="flex-1 accent-[var(--accent)]"
+            aria-label="Zoom"
           />
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col gap-4 mt-4">
-          <div className="flex items-center gap-3">
-            <label className="text-xs font-medium text-[var(--text-secondary)] w-10">Zoom</label>
-            <input
-              type="range"
-              min={0.3}
-              max={3}
-              step={0.01}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="flex-1 accent-[var(--accent)]"
-              aria-label="Zoom"
-            />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Shape</span>
+            {aspectBtn('Free', undefined)}
+            {aspectBtn('1:1', 1)}
           </div>
-
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[var(--text-secondary)]">Shape</span>
-              {aspectBtn('Free', undefined)}
-              {aspectBtn('1:1', 1)}
-            </div>
-            <button onClick={resetView} className="btn-ghost text-xs flex items-center gap-1">
-              <RotateCcw size={13} /> Reset
-            </button>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 justify-end mt-6">
-          <button onClick={onCancel} disabled={saving} className="btn-secondary">
-            Cancel
-          </button>
-          <button
-            onClick={handleDone}
-            disabled={saving || !areaPercent}
-            className="btn-primary disabled:opacity-50 flex items-center gap-1"
-          >
-            {saving ? (
-              <>
-                <Loader2 size={14} className="animate-spin" /> Saving…
-              </>
-            ) : (
-              'Apply crop'
-            )}
+          <button onClick={resetView} className="btn-ghost text-xs flex items-center gap-1">
+            <RotateCcw size={13} /> Reset
           </button>
         </div>
       </div>
-    </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 justify-end mt-6">
+        <button onClick={onCancel} disabled={saving} className="btn-secondary">
+          Cancel
+        </button>
+        <button
+          onClick={handleDone}
+          disabled={saving || !areaPercent}
+          className="btn-primary disabled:opacity-50 flex items-center gap-1"
+        >
+          {saving ? (
+            <>
+              <Loader2 size={14} className="animate-spin" /> Saving…
+            </>
+          ) : (
+            'Apply crop'
+          )}
+        </button>
+      </div>
+    </Modal>
   );
 }

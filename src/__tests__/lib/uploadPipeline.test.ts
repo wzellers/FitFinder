@@ -24,7 +24,7 @@ vi.mock('@/lib/supabaseClient', () => ({
   },
 }));
 
-import { runWithConcurrency, uploadItem } from '@/lib/uploadPipeline';
+import { runWithConcurrency, uploadItem, prepareImageForUpload } from '@/lib/uploadPipeline';
 
 describe('runWithConcurrency', () => {
   it('runs every item and preserves result order', async () => {
@@ -94,7 +94,9 @@ describe('uploadItem', () => {
     await uploadItem(baseInput);
     expect(mockUpload).toHaveBeenCalledTimes(1);
     const row = mockRowInsert.mock.calls[0][0][0];
-    expect(row.image_url).toBe(`${base}u1/file-0.png`);
+    // The bucket is private, so the row stores the storage path, not a URL.
+    expect(row.image_url).toBe(mockUpload.mock.calls[0][0]);
+    expect(row.image_url).toMatch(/^u1\/.+\.png$/);
     expect(row.type).toBe('T-Shirt');
     expect(row.colors).toEqual(['blue']);
     expect(row.user_id).toBe('u1');
@@ -110,5 +112,43 @@ describe('uploadItem', () => {
   it('throws when the insert fails', async () => {
     mockRowInsertSelect.mockResolvedValue({ error: { message: 'insert failed' } });
     await expect(uploadItem(baseInput)).rejects.toBeTruthy();
+  });
+});
+
+describe('prepareImageForUpload', () => {
+  it('passes PNGs through untouched', async () => {
+    const png = new Blob(['img'], { type: 'image/png' });
+    expect(await prepareImageForUpload(png)).toBe(png);
+  });
+
+  it('rejects with a readable message when the browser cannot decode the photo', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('decode')));
+    const heic = new Blob(['img'], { type: 'image/heic' });
+    await expect(prepareImageForUpload(heic)).rejects.toThrow(/format/);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('uploadItem cleanup', () => {
+  it('removes the uploaded image when the row insert fails', async () => {
+    mockUpload.mockReset().mockResolvedValue({ error: null });
+    mockGetPublicUrl.mockReset().mockReturnValue({
+      data: {
+        publicUrl: 'https://proj.supabase.co/storage/v1/object/public/clothing-images/u1/a.png',
+      },
+    });
+    mockRemove.mockReset().mockResolvedValue({ error: null });
+    mockRowInsertSelect.mockReset().mockResolvedValue({ error: { message: 'insert failed' } });
+
+    await expect(
+      uploadItem({
+        userId: 'u1',
+        blob: new Blob(['img'], { type: 'image/png' }),
+        type: 'T-Shirt',
+        colors: ['blue'],
+        isDirty: false,
+      }),
+    ).rejects.toBeTruthy();
+    expect(mockRemove).toHaveBeenCalledWith([mockUpload.mock.calls[0][0]]);
   });
 });

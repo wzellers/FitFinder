@@ -1,16 +1,18 @@
 'use client';
 
+import Modal from '@/components/ui/Modal';
 import React, { useState, useRef } from 'react';
 import { X, Upload, Loader2, Eraser, Check, AlertCircle, Crop, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes, colorPalette } from '@/lib/constants';
-import { getColorStyle } from '@/lib/colorUtils';
+import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import {
   detectItem,
   removeImageBackground,
   uploadItem,
   runWithConcurrency,
+  UploadError,
 } from '@/lib/uploadPipeline';
 import ImageCropper from '@/components/ui/ImageCropper';
 import type { ClothingSection } from '@/lib/types';
@@ -43,6 +45,8 @@ interface ItemDraft {
   removingBg: boolean;
   detecting: boolean;
   status: DraftStatus;
+  /** Why the last upload attempt failed, shown on the card. */
+  errorMessage: string | null;
 }
 
 const DETECT_CONCURRENCY = 4;
@@ -67,6 +71,7 @@ function makeDraft(blob: Blob): ItemDraft {
     removingBg: false,
     detecting: false,
     status: 'pending',
+    errorMessage: null,
   };
 }
 
@@ -132,11 +137,11 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
         bgRemoved: true,
         edited: true,
       });
-      showToast('Background removed!', 'success');
+      showToast('Background removed.', 'success');
       // Colors are more accurate without the background; re-run detection.
       runDetection(id, result);
     } catch {
-      showToast('Background removal failed. Please try again.', 'error');
+      showToast("Couldn't remove the background. Try again, or keep the original photo.", 'error');
     } finally {
       updateDraft(id, { removingBg: false });
     }
@@ -196,7 +201,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
     const toUpload = drafts.filter((d) => d.status !== 'done');
     const incomplete = toUpload.filter((d) => !isComplete(d));
     if (incomplete.length > 0) {
-      showToast('Please complete all items before uploading', 'warning');
+      showToast('Some photos still need a type and color.', 'warning');
       return;
     }
 
@@ -205,7 +210,7 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
     let failed = 0;
 
     await runWithConcurrency(toUpload, UPLOAD_CONCURRENCY, async (draft) => {
-      updateDraft(draft.id, { status: 'uploading' });
+      updateDraft(draft.id, { status: 'uploading', errorMessage: null });
       try {
         const colors = draft.secondaryColor
           ? [draft.primaryColor!, draft.secondaryColor]
@@ -220,8 +225,12 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
         updateDraft(draft.id, { status: 'done' });
         succeeded += 1;
         onItemUploaded?.();
-      } catch {
-        updateDraft(draft.id, { status: 'error' });
+      } catch (err) {
+        updateDraft(draft.id, {
+          status: 'error',
+          errorMessage:
+            err instanceof UploadError ? err.message : "Couldn't upload this item. Try again.",
+        });
         failed += 1;
       }
     });
@@ -229,11 +238,17 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
     setUploading(false);
 
     if (failed === 0) {
-      showToast(succeeded === 1 ? 'Item uploaded!' : `Uploaded ${succeeded} items`, 'success');
+      showToast(
+        succeeded === 1 ? 'Item added to your closet.' : `${succeeded} items added to your closet.`,
+        'success',
+      );
       resetForm();
       setTimeout(onClose, 800);
     } else {
-      showToast(`${succeeded} uploaded, ${failed} failed`, 'error');
+      showToast(
+        `${succeeded} added, ${failed} couldn't be uploaded. Check the cards below.`,
+        'error',
+      );
       // Keep only the failed cards so the user can fix and retry.
       setDrafts((prev) => {
         prev
@@ -274,137 +289,137 @@ export default function ImageUpload({ isOpen, onClose, onItemUploaded }: ImageUp
   const incompleteCount = drafts.filter((d) => !d.detecting && !isComplete(d)).length;
 
   return (
-    <div className="modal-overlay" onClick={closeModal}>
-      <div
-        className={`modal-content ${isGrid ? 'max-w-3xl' : 'max-w-xl'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[var(--text)]">
-            {isGrid ? `Add ${drafts.length} Items` : 'Add Clothing Item'}
-          </h2>
-          <button onClick={closeModal} className="btn-ghost p-1">
-            <X size={18} />
+    <Modal
+      label={isGrid ? `Add ${drafts.length} items` : 'Add a clothing item'}
+      onClose={closeModal}
+      className={isGrid ? 'max-w-3xl' : 'max-w-xl'}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl">{isGrid ? `Add ${drafts.length} items` : 'Add an item'}</h2>
+        <button onClick={closeModal} className="btn-ghost px-2" aria-label="Close">
+          <X size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* Shared hidden file input (used by both the select and review stages). */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Stage: select file */}
+      {stage === 'select' && (
+        <div className="mb-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full rounded-md border-2 border-dashed border-[var(--line-strong)] bg-[var(--muted)] hover:bg-white px-6 py-10 flex flex-col items-center gap-2 transition-colors"
+          >
+            <Upload size={28} aria-hidden="true" className="text-[var(--carbon)]" />
+            <span className="font-semibold text-xl font-bold">Choose photos</span>
+            <span className="text-sm text-[var(--text-secondary)] max-w-xs text-center">
+              Add one or more photos. We&apos;ll guess the type and colors — you can fix anything
+              before saving.
+            </span>
           </button>
         </div>
+      )}
 
-        {/* Shared hidden file input (used by both the select and review stages). */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-
-        {/* Stage: select file */}
-        {stage === 'select' && (
-          <div className="flex flex-col items-center gap-3 mb-5">
-            <button onClick={() => fileInputRef.current?.click()} className="btn-secondary">
-              <Upload size={16} /> Upload Photos
-            </button>
-            <p className="text-xs text-[var(--text-secondary)] text-center">
-              Pick one photo or several at once. We&apos;ll detect the type and colors automatically
-              — you can remove the background and fix anything before saving. You can also add more
-              items one at a time on the next screen.
-            </p>
-          </div>
-        )}
-
-        {/* Stage: review + correct */}
-        {stage === 'review' && drafts.length > 0 && (
-          <>
-            {isGrid ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-                {drafts.map((draft) => (
-                  <DraftCard
-                    key={draft.id}
-                    draft={draft}
-                    invalidType={!draft.detecting && !draft.type}
-                    invalidColor={!draft.detecting && !draft.primaryColor}
-                    onRemoveBackground={() => handleRemoveBackground(draft.id)}
-                    onCrop={() => setCropDraftId(draft.id)}
-                    onRevert={() => handleRevertOriginal(draft.id)}
-                    onCategoryChange={(c) => handleCategoryChange(draft.id, c)}
-                    onTypeChange={(t) => updateDraft(draft.id, { type: t })}
-                    onPrimarySelect={(c) => handlePrimarySelect(draft, c)}
-                    onSecondarySelect={(c) => handleSecondarySelect(draft, c)}
-                    onClearSecondary={() => updateDraft(draft.id, { secondaryColor: null })}
-                    onToggleDirty={() => updateDraft(draft.id, { isDirty: !draft.isDirty })}
-                    onRemove={() => removeDraft(draft.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DraftDetail
-                draft={drafts[0]}
-                invalidType={!drafts[0].detecting && !drafts[0].type}
-                invalidColor={!drafts[0].detecting && !drafts[0].primaryColor}
-                onRemoveBackground={() => handleRemoveBackground(drafts[0].id)}
-                onCrop={() => setCropDraftId(drafts[0].id)}
-                onRevert={() => handleRevertOriginal(drafts[0].id)}
-                onCategoryChange={(c) => handleCategoryChange(drafts[0].id, c)}
-                onTypeChange={(t) => updateDraft(drafts[0].id, { type: t })}
-                onPrimarySelect={(c) => handlePrimarySelect(drafts[0], c)}
-                onSecondarySelect={(c) => handleSecondarySelect(drafts[0], c)}
-                onClearSecondary={() => updateDraft(drafts[0].id, { secondaryColor: null })}
-                onToggleDirty={() => updateDraft(drafts[0].id, { isDirty: !drafts[0].isDirty })}
-              />
-            )}
-
-            {/* Validation summary */}
-            {incompleteCount > 0 && (
-              <p className="flex items-center justify-center gap-1.5 text-sm text-red-600 mb-3">
-                <AlertCircle size={14} />
-                {incompleteCount} {incompleteCount === 1 ? 'item needs' : 'items need'} a type and
-                primary color (highlighted in red).
-              </p>
-            )}
-
-            {/* Actions */}
-            <div className="flex flex-wrap gap-3 justify-center">
-              <button
-                onClick={handleUploadAll}
-                disabled={uploading || !allComplete}
-                className="btn-primary disabled:opacity-50"
-              >
-                {uploading
-                  ? 'Uploading...'
-                  : isGrid
-                    ? `Upload All (${drafts.length})`
-                    : 'Upload Item'}
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="btn-secondary disabled:opacity-50"
-              >
-                <Upload size={16} /> Add another
-              </button>
-              <button onClick={resetForm} className="btn-secondary" disabled={uploading}>
-                Reset
-              </button>
+      {/* Stage: review + correct */}
+      {stage === 'review' && drafts.length > 0 && (
+        <>
+          {isGrid ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              {drafts.map((draft) => (
+                <DraftCard
+                  key={draft.id}
+                  draft={draft}
+                  invalidType={!draft.detecting && !draft.type}
+                  invalidColor={!draft.detecting && !draft.primaryColor}
+                  onRemoveBackground={() => handleRemoveBackground(draft.id)}
+                  onCrop={() => setCropDraftId(draft.id)}
+                  onRevert={() => handleRevertOriginal(draft.id)}
+                  onCategoryChange={(c) => handleCategoryChange(draft.id, c)}
+                  onTypeChange={(t) => updateDraft(draft.id, { type: t })}
+                  onPrimarySelect={(c) => handlePrimarySelect(draft, c)}
+                  onSecondarySelect={(c) => handleSecondarySelect(draft, c)}
+                  onClearSecondary={() => updateDraft(draft.id, { secondaryColor: null })}
+                  onToggleDirty={() => updateDraft(draft.id, { isDirty: !draft.isDirty })}
+                  onRemove={() => removeDraft(draft.id)}
+                />
+              ))}
             </div>
-          </>
-        )}
+          ) : (
+            <DraftDetail
+              draft={drafts[0]}
+              invalidType={!drafts[0].detecting && !drafts[0].type}
+              invalidColor={!drafts[0].detecting && !drafts[0].primaryColor}
+              onRemoveBackground={() => handleRemoveBackground(drafts[0].id)}
+              onCrop={() => setCropDraftId(drafts[0].id)}
+              onRevert={() => handleRevertOriginal(drafts[0].id)}
+              onCategoryChange={(c) => handleCategoryChange(drafts[0].id, c)}
+              onTypeChange={(t) => updateDraft(drafts[0].id, { type: t })}
+              onPrimarySelect={(c) => handlePrimarySelect(drafts[0], c)}
+              onSecondarySelect={(c) => handleSecondarySelect(drafts[0], c)}
+              onClearSecondary={() => updateDraft(drafts[0].id, { secondaryColor: null })}
+              onToggleDirty={() => updateDraft(drafts[0].id, { isDirty: !drafts[0].isDirty })}
+            />
+          )}
 
-        {/* Crop overlay (renders above the modal content). */}
-        {cropDraftId &&
-          (() => {
-            const d = drafts.find((x) => x.id === cropDraftId);
-            if (!d) return null;
-            return (
-              <ImageCropper
-                imageSrc={d.previewUrl}
-                onCancel={() => setCropDraftId(null)}
-                onCropComplete={(blob) => handleCropApplied(cropDraftId, blob)}
-              />
-            );
-          })()}
-      </div>
-    </div>
+          {/* Validation summary */}
+          {incompleteCount > 0 && (
+            <p className="flex items-center justify-center gap-1.5 text-sm text-[var(--danger)] mb-3">
+              <AlertCircle size={14} />
+              {incompleteCount} {incompleteCount === 1 ? 'photo needs' : 'photos need'} a type and
+              main color (marked in red).
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={handleUploadAll}
+              disabled={uploading || !allComplete}
+              className="btn-primary disabled:opacity-50"
+            >
+              {uploading
+                ? 'Adding…'
+                : isGrid
+                  ? `Add ${drafts.length} items to closet`
+                  : 'Add to closet'}
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="btn-secondary disabled:opacity-50"
+            >
+              <Upload size={16} aria-hidden="true" /> Add more photos
+            </button>
+            <button onClick={resetForm} className="btn-ghost" disabled={uploading}>
+              Start over
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Crop overlay (renders above the modal content). */}
+      {cropDraftId &&
+        (() => {
+          const d = drafts.find((x) => x.id === cropDraftId);
+          if (!d) return null;
+          return (
+            <ImageCropper
+              imageSrc={d.previewUrl}
+              onCancel={() => setCropDraftId(null)}
+              onCropComplete={(blob) => handleCropApplied(cropDraftId, blob)}
+            />
+          );
+        })()}
+    </Modal>
   );
 }
 
@@ -425,15 +440,24 @@ interface DraftEditorProps {
   onToggleDirty: () => void;
 }
 
+function UploadErrorNote({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="max-w-[14rem] text-center text-xs text-[var(--danger)]">
+      {message}
+    </p>
+  );
+}
+
 function StatusBadge({ status }: { status: DraftStatus }) {
   if (status === 'uploading') {
     return <Loader2 size={14} className="animate-spin text-[var(--accent)]" />;
   }
   if (status === 'done') {
-    return <Check size={14} className="text-green-600" />;
+    return <Check size={14} className="text-[var(--success)]" />;
   }
   if (status === 'error') {
-    return <AlertCircle size={14} className="text-red-600" />;
+    return <AlertCircle size={14} className="text-[var(--danger)]" />;
   }
   return null;
 }
@@ -442,11 +466,10 @@ function DirtyToggle({ isDirty, onToggle }: { isDirty: boolean; onToggle: () => 
   return (
     <button
       onClick={onToggle}
-      className={`text-xs px-2 py-1 rounded font-medium ${
-        isDirty ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-      }`}
+      aria-label={`Laundry status: ${isDirty ? 'dirty' : 'clean'}. Mark as ${isDirty ? 'clean' : 'dirty'}`}
+      className="min-h-[36px] min-w-[44px] flex items-center justify-center"
     >
-      {isDirty ? 'Dirty' : 'Clean'}
+      <span className={isDirty ? 'badge-dirty' : 'badge-clean'}>{isDirty ? 'Dirty' : 'Clean'}</span>
     </button>
   );
 }
@@ -464,7 +487,7 @@ function BgRemoveButton({
     <button
       onClick={onClick}
       disabled={draft.removingBg || draft.bgRemoved}
-      className={`btn-secondary ${compact ? 'text-[10px] px-2 py-1' : 'text-xs'} flex items-center gap-1 disabled:opacity-50`}
+      className={`btn-secondary ${compact ? 'text-xs px-2.5 min-h-[36px]' : 'text-sm'} flex items-center gap-1 disabled:opacity-50`}
     >
       {draft.removingBg ? (
         <>
@@ -487,7 +510,7 @@ function CropButton({ onClick, compact }: { onClick: () => void; compact?: boole
   return (
     <button
       onClick={onClick}
-      className={`btn-secondary ${compact ? 'text-[10px] px-2 py-1' : 'text-xs'} flex items-center gap-1`}
+      className={`btn-secondary ${compact ? 'text-xs px-2.5 min-h-[36px]' : 'text-sm'} flex items-center gap-1`}
     >
       <Crop size={compact ? 12 : 14} /> Adjust / crop
     </button>
@@ -498,8 +521,8 @@ function RevertButton({ onClick, compact }: { onClick: () => void; compact?: boo
   return (
     <button
       onClick={onClick}
-      title="Undo crop / background removal"
-      className={`btn-ghost ${compact ? 'text-[10px] px-2 py-1' : 'text-xs'} flex items-center gap-1`}
+      aria-label="Undo crop and background removal"
+      className={`btn-ghost ${compact ? 'text-xs px-2.5 min-h-[36px]' : 'text-sm'} flex items-center gap-1`}
     >
       <RotateCcw size={compact ? 12 : 14} /> Revert
     </button>
@@ -507,23 +530,27 @@ function RevertButton({ onClick, compact }: { onClick: () => void; compact?: boo
 }
 
 function ColorPalette({
+  label,
   selected,
   disabledColor,
   invalid,
   onSelect,
 }: {
+  label: string;
   selected: string | null;
   disabledColor?: string | null;
   invalid?: boolean;
   onSelect: (color: string) => void;
 }) {
   const baseBorder = invalid
-    ? 'border-red-400 hover:border-red-500'
-    : 'border-gray-200 hover:border-gray-400';
+    ? 'border-[var(--danger)] hover:border-[var(--danger)]'
+    : 'border-[var(--border)] hover:border-[var(--text-secondary)]';
   return (
     <div
+      role="group"
+      aria-label={label}
       className={`grid grid-cols-8 gap-2 justify-center mx-auto w-fit ${
-        invalid ? 'p-1.5 rounded-lg ring-1 ring-red-400 bg-red-50' : ''
+        invalid ? 'p-1.5 rounded-lg ring-1 ring-[var(--danger)] bg-[#fbeceb]' : ''
       }`}
     >
       {colorPalette.map((color) => {
@@ -533,13 +560,15 @@ function ColorPalette({
             key={color}
             onClick={() => onSelect(color)}
             disabled={isDisabled}
+            aria-pressed={selected === color}
+            aria-label={getColorName(color)}
             className={`w-9 h-9 rounded-lg border-2 transition-all ${
               selected === color
                 ? 'border-[var(--accent)] ring-2 ring-[var(--accent)] scale-105'
                 : baseBorder
             } ${isDisabled ? 'opacity-30 cursor-not-allowed' : ''}`}
             style={{ backgroundColor: getColorStyle(color).backgroundColor }}
-            title={isDisabled ? `${color} (primary)` : color}
+            title={isDisabled ? `${getColorName(color)} (main color)` : getColorName(color)}
           />
         );
       })}
@@ -558,26 +587,30 @@ function TypeSelects({
   onCategoryChange: (c: ClothingSection | '') => void;
   onTypeChange: (t: string) => void;
 }) {
-  const errorRing = 'border-red-400 ring-1 ring-red-400 bg-red-50';
+  const errorRing = 'border-[var(--danger)] ring-1 ring-[var(--danger)] bg-[#fbeceb]';
   return (
     <>
       <select
+        aria-label="Category"
+        aria-invalid={invalid && !draft.category ? true : undefined}
         value={draft.category}
         onChange={(e) => onCategoryChange(e.target.value as ClothingSection | '')}
         className={`w-48 text-center ${invalid && !draft.category ? errorRing : ''}`}
       >
-        <option value="">Select category...</option>
+        <option value="">Choose a category</option>
         <option value="Tops">Tops</option>
         <option value="Bottoms">Bottoms</option>
         <option value="Shoes">Shoes</option>
       </select>
       {draft.category && (
         <select
+          aria-label="Type"
+          aria-invalid={invalid && !draft.type ? true : undefined}
           value={draft.type}
           onChange={(e) => onTypeChange(e.target.value)}
           className={`w-48 text-center ${invalid && !draft.type ? errorRing : ''}`}
         >
-          <option value="">Select type...</option>
+          <option value="">Choose a type</option>
           {clothingTypes[draft.category]?.map((type) => (
             <option key={type} value={type}>
               {type}
@@ -611,8 +644,13 @@ function DraftDetail({
           <DirtyToggle isDirty={draft.isDirty} onToggle={onToggleDirty} />
           <StatusBadge status={draft.status} />
         </div>
+        <UploadErrorNote message={draft.errorMessage} />
         <div className="w-40 h-40 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
-          <img src={draft.previewUrl} alt="Preview" className="w-full h-full object-contain" />
+          <img
+            src={draft.previewUrl}
+            alt="Photo preview"
+            className="w-full h-full object-contain"
+          />
         </div>
         <div className="flex items-center gap-2">
           <CropButton onClick={onCrop} />
@@ -621,7 +659,7 @@ function DraftDetail({
         </div>
         {!draft.bgRemoved && !draft.removingBg && (
           <p className="text-[10px] text-[var(--text-secondary)] text-center">
-            First use downloads a model (~30 MB).
+            The first background removal downloads about 30 MB.
           </p>
         )}
       </div>
@@ -629,9 +667,9 @@ function DraftDetail({
       {/* Category / type */}
       <div className="flex flex-col items-center gap-3 mb-5">
         <label
-          className={`text-sm font-medium flex items-center gap-2 ${invalidType ? 'text-red-600' : 'text-[var(--text)]'}`}
+          className={`text-sm font-medium flex items-center gap-2 ${invalidType ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}
         >
-          Item Type {invalidType && '(required)'}
+          Type {invalidType && '(required)'}
           {draft.detecting && <Loader2 size={12} className="animate-spin text-[var(--accent)]" />}
         </label>
         <TypeSelects
@@ -645,11 +683,12 @@ function DraftDetail({
       {/* Primary color */}
       <div className="mb-5">
         <label
-          className={`text-sm font-medium block text-center mb-2 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}
+          className={`text-sm font-medium block text-center mb-2 ${invalidColor ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}
         >
-          Primary color {invalidColor && '(required)'}
+          Main color {invalidColor && '(required)'}
         </label>
         <ColorPalette
+          label="Main color"
           selected={draft.primaryColor}
           invalid={invalidColor}
           onSelect={onPrimarySelect}
@@ -664,29 +703,27 @@ function DraftDetail({
       {/* Secondary color (optional) */}
       <div className="mb-5">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <label className="text-sm font-medium text-[var(--text)]">Secondary color</label>
+          <span className="text-sm font-medium text-[var(--text)]">Second color</span>
           <span className="text-xs text-[var(--text-secondary)]">(optional)</span>
         </div>
         <ColorPalette
+          label="Second color"
           selected={draft.secondaryColor}
           disabledColor={draft.primaryColor}
           onSelect={onSecondarySelect}
         />
         <div className="flex items-center justify-center gap-3 mt-2">
-          {draft.secondaryColor ? (
-            <p className="text-xs text-[var(--text-secondary)] capitalize">
-              Selected: {draft.secondaryColor}
-            </p>
-          ) : (
-            <p className="text-xs text-[var(--text-secondary)]">No secondary color</p>
+          <p className="text-xs text-[var(--text-secondary)]">
+            {draft.secondaryColor ? getColorName(draft.secondaryColor) : 'None'}
+          </p>
+          {draft.secondaryColor && (
+            <button
+              onClick={onClearSecondary}
+              className="min-h-[32px] text-sm font-semibold underline text-[var(--carbon)]"
+            >
+              Remove second color
+            </button>
           )}
-          <button
-            onClick={onClearSecondary}
-            disabled={!draft.secondaryColor}
-            className="text-xs underline text-[var(--accent)] disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed"
-          >
-            No secondary color
-          </button>
         </div>
       </div>
     </>
@@ -712,15 +749,17 @@ function DraftCard({
   return (
     <div
       className={`rounded-lg border p-3 relative ${
-        needsInfo ? 'border-red-400 ring-1 ring-red-400 bg-red-50/40' : 'border-[var(--border)]'
+        needsInfo
+          ? 'border-[var(--danger)] ring-1 ring-[var(--danger)] bg-[#fbeceb]/60'
+          : 'border-[var(--border)]'
       }`}
     >
       <button
         onClick={onRemove}
-        className="absolute top-2 right-2 btn-ghost p-1"
-        title="Remove from batch"
+        className="absolute top-1 right-1 btn-ghost px-2"
+        aria-label="Remove this photo"
       >
-        <X size={14} />
+        <X size={14} aria-hidden="true" />
       </button>
 
       {/* Preview + bg removal */}
@@ -730,13 +769,18 @@ function DraftCard({
           <StatusBadge status={draft.status} />
           {draft.detecting && <Loader2 size={12} className="animate-spin text-[var(--accent)]" />}
           {needsInfo && (
-            <span className="flex items-center gap-1 text-[10px] font-medium text-red-600">
-              <AlertCircle size={11} /> Needs info
+            <span className="flex items-center gap-1 text-[10px] font-medium text-[var(--danger)]">
+              <AlertCircle size={11} aria-hidden="true" /> Needs a type and color
             </span>
           )}
         </div>
+        <UploadErrorNote message={draft.errorMessage} />
         <div className="w-28 h-28 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]">
-          <img src={draft.previewUrl} alt="Preview" className="w-full h-full object-contain" />
+          <img
+            src={draft.previewUrl}
+            alt="Photo preview"
+            className="w-full h-full object-contain"
+          />
         </div>
         <div className="flex items-center gap-1.5">
           <CropButton onClick={onCrop} compact />
@@ -758,11 +802,12 @@ function DraftCard({
       {/* Primary color */}
       <div className="mb-3">
         <label
-          className={`text-xs font-medium block text-center mb-1 ${invalidColor ? 'text-red-600' : 'text-[var(--text)]'}`}
+          className={`text-xs font-medium block text-center mb-1 ${invalidColor ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}
         >
-          Primary {invalidColor && '(required)'}
+          Main color {invalidColor && '(required)'}
         </label>
         <ColorPalette
+          label="Main color"
           selected={draft.primaryColor}
           invalid={invalidColor}
           onSelect={onPrimarySelect}
@@ -772,16 +817,18 @@ function DraftCard({
       {/* Secondary color */}
       <div className="mb-1">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <label className="text-xs font-medium text-[var(--text)]">Secondary</label>
-          <button
-            onClick={onClearSecondary}
-            disabled={!draft.secondaryColor}
-            className="text-[10px] underline text-[var(--accent)] disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed"
-          >
-            clear
-          </button>
+          <span className="text-xs font-medium text-[var(--text)]">Second color</span>
+          {draft.secondaryColor && (
+            <button
+              onClick={onClearSecondary}
+              className="min-h-[32px] px-1 text-xs font-semibold underline text-[var(--carbon)]"
+            >
+              Remove
+            </button>
+          )}
         </div>
         <ColorPalette
+          label="Second color"
           selected={draft.secondaryColor}
           disabledColor={draft.primaryColor}
           onSelect={onSecondarySelect}

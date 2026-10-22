@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LogOut } from 'lucide-react';
+import { BarChart3, CalendarDays, LogOut, Shirt, SlidersHorizontal, Sparkles } from 'lucide-react';
+import Wordmark from '@/components/ui/Wordmark';
+import LiveClock from '@/components/ui/LiveClock';
+import PillNav from '@/components/ui/PillNav';
+import { OutfitThemeProvider } from '@/components/OutfitTheme';
 import AuthForm from '@/components/AuthForm';
 import Closet from '@/components/Closet';
 import ColorPreferences from '@/components/ColorPreferences';
@@ -13,7 +17,10 @@ import Onboarding from '@/components/Onboarding';
 import ImageUpload from '@/components/ImageUpload';
 import EditItem from '@/components/EditItem';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ToastProvider';
 import { supabase } from '@/lib/supabaseClient';
+import { throwIfAnyError } from '@/lib/supabaseResult';
+import { toLocalDateString } from '@/lib/dates';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import { featureVector } from '@/lib/outfitScoring';
 import { getUserClothingWeatherRules } from '@/lib/weatherApi';
@@ -22,17 +29,22 @@ import type { OccasionRules } from '@/lib/outfitScoring';
 import { deserializeModel, serializeModel, updateWeights, computeReward } from '@/lib/banditModel';
 import type { DashboardTab, ClothingItem, PendingRating, ColorCombination } from '@/lib/types';
 
-const tabs: { key: DashboardTab; label: string }[] = [
-  { key: 'closet', label: 'Closet' },
-  { key: 'generator', label: 'Generator' },
-  { key: 'calendar', label: 'Calendar' },
-  { key: 'stats', label: 'Stats' },
-  { key: 'preferences', label: 'Preferences' },
+const tabs: { key: DashboardTab; label: string; icon: React.ElementType }[] = [
+  { key: 'closet', label: 'Closet', icon: Shirt },
+  { key: 'generator', label: 'Outfits', icon: Sparkles },
+  { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { key: 'stats', label: 'Stats', icon: BarChart3 },
+  { key: 'preferences', label: 'Settings', icon: SlidersHorizontal },
 ];
 
 export default function Page() {
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<DashboardTab>('closet');
+  const [generatorOpened, setGeneratorOpened] = useState(false);
+  useEffect(() => {
+    if (activeTab === 'generator') setGeneratorOpened(true);
+  }, [activeTab]);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showEditItem, setShowEditItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
@@ -50,19 +62,17 @@ export default function Page() {
   useEffect(() => {
     if (!user) return;
     const check = async () => {
-      const { data: items } = await supabase
-        .from('clothing_items')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
+      const [itemsRes, profileRes] = await Promise.all([
+        supabase.from('clothing_items').select('id').eq('user_id', user.id).limit(1),
+        supabase.from('profiles').select('onboarding_completed').eq('id', user.id).maybeSingle(),
+      ]);
+      const items = itemsRes.data;
+      const profile = profileRes.data;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('onboarding_completed')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if ((!items || items.length === 0) && !profile?.onboarding_completed) {
+      // If either check failed we can't tell, so don't push a returning user
+      // back through onboarding.
+      const checkFailed = Boolean(itemsRes.error || profileRes.error);
+      if (!checkFailed && (!items || items.length === 0) && !profile?.onboarding_completed) {
         setShowOnboarding(true);
       }
       setOnboardingChecked(true);
@@ -75,7 +85,7 @@ export default function Page() {
     if (!user) return;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toISOString().split('T')[0];
+    const yStr = toLocalDateString(yesterday);
 
     const { data } = await supabase
       .from('outfit_wears')
@@ -105,7 +115,11 @@ export default function Page() {
   }, [user, onboardingChecked, showOnboarding, checkPendingRatings]);
 
   const handleRatingSubmit = async (wearId: string, rating: number) => {
-    await supabase.from('outfit_wears').update({ rating }).eq('id', wearId);
+    const { error } = await supabase.from('outfit_wears').update({ rating }).eq('id', wearId);
+    if (error) {
+      showToast("Couldn't save your rating. Try again.", 'error');
+      return;
+    }
 
     // Online learning: turn the rating into a reward and nudge the user's model.
     if (user && pendingRating) {
@@ -133,20 +147,22 @@ export default function Page() {
         { data: prefsData },
         { data: modelData },
         { data: occPrefsData },
-      ] = await Promise.all([
-        supabase.from('clothing_items').select('*').in('id', itemIds),
-        supabase
-          .from('color_preferences')
-          .select('liked_combinations')
-          .eq('user_id', userId)
-          .maybeSingle(),
-        supabase
-          .from('outfit_model_weights')
-          .select('weights, feature_meta')
-          .eq('user_id', userId)
-          .maybeSingle(),
-        supabase.from('occasion_preferences').select('rules').eq('user_id', userId).maybeSingle(),
-      ]);
+      ] = throwIfAnyError(
+        await Promise.all([
+          supabase.from('clothing_items').select('*').in('id', itemIds),
+          supabase
+            .from('color_preferences')
+            .select('liked_combinations')
+            .eq('user_id', userId)
+            .maybeSingle(),
+          supabase
+            .from('outfit_model_weights')
+            .select('weights, feature_meta')
+            .eq('user_id', userId)
+            .maybeSingle(),
+          supabase.from('occasion_preferences').select('rules').eq('user_id', userId).maybeSingle(),
+        ]),
+      );
 
       const byId = new Map((itemsData ?? []).map((i: ClothingItem) => [i.id, i]));
       const top = byId.get(rating.outfit_items.top_id ?? '');
@@ -171,26 +187,34 @@ export default function Page() {
 
       const updated = updateWeights(deserializeModel(modelData), features, computeReward(score));
       const serialized = serializeModel(updated);
-      await supabase.from('outfit_model_weights').upsert({
+      const { error } = await supabase.from('outfit_model_weights').upsert({
         user_id: userId,
         weights: serialized.weights,
         feature_meta: serialized.feature_meta,
         updated_at: new Date().toISOString(),
       });
-    } catch {
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Could not update outfit model', err);
       // Learning is best-effort; never block the rating flow.
     }
   };
 
+  if (authLoading) {
+    return <SkeletonFullScreen />;
+  }
+
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)] px-4">
-        <h1 className="logo text-5xl mb-2">
-          Fit<span className="logo-accent">Finder</span>
+      <main className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)] px-4 py-12">
+        <h1 className="mb-2">
+          <Wordmark size="lg" />
         </h1>
-        <p className="text-[var(--text-secondary)] mb-8 text-sm">Your smart wardrobe assistant</p>
+        <p className="text-[var(--text-secondary)] mb-8 text-center">
+          Your wardrobe and outfit planner.
+        </p>
         <AuthForm />
-      </div>
+      </main>
     );
   }
 
@@ -210,104 +234,85 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      {/* ===== TOP NAV BAR ===== */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[var(--border)] px-4 lg:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-14">
-          {/* Logo */}
-          <h1 className="logo text-xl">
-            Fit<span className="logo-accent">Finder</span>
-          </h1>
-
-          {/* Tab navigation */}
-          <nav className="hidden sm:flex items-center gap-1">
-            {tabs.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={activeTab === key ? 'nav-tab-active' : 'nav-tab'}
-              >
-                <span>{label}</span>
+    <OutfitThemeProvider>
+      <div className="min-h-screen bg-[var(--bg)]">
+        {/* ===== TOP BAR ===== */}
+        <header className="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-[var(--border)] px-4 lg:px-8">
+          <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
+            <h1>
+              <Wordmark />
+            </h1>
+            <div className="flex items-center gap-4">
+              <LiveClock className="hidden sm:inline" />
+              <button onClick={signOut} className="btn-ghost px-3" aria-label="Sign out">
+                <LogOut size={16} aria-hidden="true" />
+                <span className="hidden sm:inline">Sign out</span>
               </button>
-            ))}
-          </nav>
+            </div>
+          </div>
+        </header>
 
-          {/* Sign out */}
-          <button onClick={signOut} className="btn-ghost text-xs gap-1">
-            <LogOut size={14} />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
-        </div>
+        {/* Floating pill navigation, bottom-centre on every screen size */}
+        <PillNav items={tabs} active={activeTab} onChange={setActiveTab} />
 
-        {/* Mobile tab bar */}
-        <nav className="sm:hidden flex items-center justify-around py-1 -mx-4 px-2 border-t border-[var(--border)]">
-          {tabs.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-                activeTab === key
-                  ? 'text-[var(--accent)] bg-[var(--accent-light)]'
-                  : 'text-[var(--text-secondary)]'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-      </header>
+        {/* ===== MAIN CONTENT ===== */}
+        <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-32">
+          {activeTab === 'closet' && (
+            <Closet
+              key={closetRefreshKey}
+              onAddItem={() => setShowImageUpload(true)}
+              onEditItem={(item) => {
+                setSelectedItem(item);
+                setShowEditItem(true);
+              }}
+            />
+          )}
+          {activeTab === 'preferences' && <ColorPreferences />}
+          {/* Kept mounted once opened, so the generated outfit survives tab switches. */}
+          {generatorOpened && (
+            <div hidden={activeTab !== 'generator'}>
+              <OutfitGenerator
+                onNavigateToCalendar={() => setActiveTab('calendar')}
+                refreshKey={closetRefreshKey}
+              />
+            </div>
+          )}
+          {activeTab === 'calendar' && <OutfitCalendar />}
+          {activeTab === 'stats' && <WardrobeStats />}
+        </main>
 
-      {/* ===== MAIN CONTENT ===== */}
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
-        {activeTab === 'closet' && (
-          <Closet
-            key={closetRefreshKey}
-            onAddItem={() => setShowImageUpload(true)}
-            onEditItem={(item) => {
-              setSelectedItem(item);
-              setShowEditItem(true);
-            }}
+        {/* ===== MODALS ===== */}
+        <ImageUpload
+          isOpen={showImageUpload}
+          onClose={() => setShowImageUpload(false)}
+          onItemUploaded={() => setClosetRefreshKey((k) => k + 1)}
+        />
+        <EditItem
+          isOpen={showEditItem}
+          onClose={() => setShowEditItem(false)}
+          item={selectedItem}
+          onItemUpdated={() => setClosetRefreshKey((k) => k + 1)}
+          onItemDeleted={() => setClosetRefreshKey((k) => k + 1)}
+        />
+
+        {/* Rating prompt */}
+        {pendingRating && !ratingMinimized && (
+          <RatingPrompt
+            pendingRating={pendingRating}
+            onSubmit={handleRatingSubmit}
+            onSkip={() => setPendingRating(null)}
+            onMinimize={() => setRatingMinimized(true)}
           />
         )}
-        {activeTab === 'preferences' && <ColorPreferences />}
-        {activeTab === 'generator' && (
-          <OutfitGenerator onNavigateToCalendar={() => setActiveTab('calendar')} />
+        {pendingRating && ratingMinimized && (
+          <button
+            onClick={() => setRatingMinimized(false)}
+            className="fixed bottom-28 right-4 z-50 btn-primary shadow-lg"
+          >
+            Rate yesterday&apos;s outfit
+          </button>
         )}
-        {activeTab === 'calendar' && <OutfitCalendar />}
-        {activeTab === 'stats' && <WardrobeStats />}
-      </main>
-
-      {/* ===== MODALS ===== */}
-      <ImageUpload
-        isOpen={showImageUpload}
-        onClose={() => setShowImageUpload(false)}
-        onItemUploaded={() => setClosetRefreshKey((k) => k + 1)}
-      />
-      <EditItem
-        isOpen={showEditItem}
-        onClose={() => setShowEditItem(false)}
-        item={selectedItem}
-        onItemUpdated={() => setClosetRefreshKey((k) => k + 1)}
-        onItemDeleted={() => setClosetRefreshKey((k) => k + 1)}
-      />
-
-      {/* Rating prompt */}
-      {pendingRating && !ratingMinimized && (
-        <RatingPrompt
-          pendingRating={pendingRating}
-          onSubmit={handleRatingSubmit}
-          onSkip={() => setPendingRating(null)}
-          onMinimize={() => setRatingMinimized(true)}
-        />
-      )}
-      {pendingRating && ratingMinimized && (
-        <button
-          onClick={() => setRatingMinimized(false)}
-          className="fixed bottom-4 right-4 z-50 btn-primary shadow-lg"
-        >
-          Rate Yesterday&apos;s Outfit
-        </button>
-      )}
-    </div>
+      </div>
+    </OutfitThemeProvider>
   );
 }

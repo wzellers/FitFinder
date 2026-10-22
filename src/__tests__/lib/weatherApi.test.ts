@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const mockGetSession = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/supabaseClient', () => ({
+  supabase: { auth: { getSession: mockGetSession } },
+}));
+
 import {
   getTemperatureCategory,
   getWeatherIconUrl,
@@ -66,155 +72,96 @@ describe('clearWeatherCache', () => {
 });
 
 describe('fetchWeather', () => {
+  const weather = {
+    temperature: 72,
+    highTemperature: 80,
+    condition: 'Clear',
+    description: 'clear sky',
+    icon: '01d',
+    humidity: 55,
+    windSpeed: 10,
+    timestamp: Date.now(),
+    zipCode: '10001',
+  };
+
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    mockGetSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
   });
 
-  it('returns null when no API key', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', '');
-    const result = await fetchWeather('10001');
-    expect(result).toBeNull();
-  });
-
-  it('returns null on non-OK response', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', 'test-key');
-    vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
-    const result = await fetchWeather('99999');
-    expect(result).toBeNull();
-  });
-
-  it('returns WeatherData on success', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', 'test-key');
-    const mockCurrent = {
-      main: { temp: 72, humidity: 55 },
-      weather: [{ main: 'Clear', description: 'clear sky', icon: '01d' }],
-      wind: { speed: 10 },
-    };
-    const mockForecast = {
-      list: [
-        { dt: Math.floor((Date.now() + 3600000) / 1000), main: { temp: 80 } },
-        { dt: Math.floor((Date.now() + 7200000) / 1000), main: { temp: 75 } },
-      ],
-    };
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockCurrent,
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockForecast,
-      } as Response);
+  it('calls /api/weather with the session token and caches the result', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => weather } as Response);
 
     const result = await fetchWeather('10001');
-    expect(result).not.toBeNull();
+
     expect(result?.temperature).toBe(72);
-    expect(result?.highTemperature).toBe(80);
-    expect(result?.condition).toBe('Clear');
-    expect(result?.zipCode).toBe('10001');
-    expect(result?.humidity).toBe(55);
-    expect(result?.windSpeed).toBe(10);
-  });
-
-  it('saves weather data to localStorage after successful fetch', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', 'test-key');
-    const mockCurrent = {
-      main: { temp: 65, humidity: 40 },
-      weather: [{ main: 'Clouds', description: 'overcast', icon: '04d' }],
-      wind: { speed: 5 },
-    };
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockCurrent,
-      } as Response)
-      .mockResolvedValueOnce({ ok: false } as Response);
-
-    await fetchWeather('90210');
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe('/api/weather');
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+    expect(JSON.parse(init?.body as string)).toEqual({ zip: '10001' });
     expect(localStorage.setItem).toHaveBeenCalledWith(
       'fitfinder_weather_cache',
-      expect.stringContaining('"zipCode":"90210"'),
+      expect.stringContaining('"zipCode":"10001"'),
     );
   });
 
-  it('returns cached data when cache is fresh and zip matches', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', 'test-key');
-    const cached = {
-      temperature: 55,
-      highTemperature: 60,
-      condition: 'Rain',
-      description: 'light rain',
-      icon: '10d',
-      humidity: 80,
-      windSpeed: 8,
-      timestamp: Date.now() - 1000,
-      zipCode: '11111',
-    };
-    vi.mocked(localStorage.getItem).mockReturnValueOnce(JSON.stringify(cached));
+  it('never calls OpenWeatherMap directly from the browser', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => weather } as Response);
+    await fetchWeather('10001');
+    for (const [url] of vi.mocked(fetch).mock.calls) {
+      expect(String(url)).not.toContain('openweathermap');
+    }
+  });
 
+  it('returns null when signed out', async () => {
+    mockGetSession.mockResolvedValueOnce({ data: { session: null } });
+    expect(await fetchWeather('10001')).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns null on a non-OK response', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
+    expect(await fetchWeather('99999')).toBeNull();
+  });
+
+  it('returns null on network error', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+    expect(await fetchWeather('33333')).toBeNull();
+  });
+
+  it('returns cached data when cache is fresh and zip matches', async () => {
+    vi.mocked(localStorage.getItem).mockReturnValueOnce(
+      JSON.stringify({ ...weather, zipCode: '11111', timestamp: Date.now() - 1000 }),
+    );
     const result = await fetchWeather('11111');
     expect(result?.zipCode).toBe('11111');
-    expect(result?.condition).toBe('Rain');
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('bypasses cache when zip code differs', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', 'test-key');
-    const cached = {
-      temperature: 55,
-      highTemperature: 60,
-      condition: 'Rain',
-      description: 'light rain',
-      icon: '10d',
-      humidity: 80,
-      windSpeed: 8,
-      timestamp: Date.now() - 1000,
-      zipCode: '11111',
-    };
-    vi.mocked(localStorage.getItem).mockReturnValueOnce(JSON.stringify(cached));
+    vi.mocked(localStorage.getItem).mockReturnValueOnce(
+      JSON.stringify({ ...weather, zipCode: '11111', timestamp: Date.now() - 1000 }),
+    );
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
-
-    const result = await fetchWeather('22222');
+    await fetchWeather('22222');
     expect(fetch).toHaveBeenCalled();
-    expect(result).toBeNull();
   });
 
-  it('returns null on network error', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', 'test-key');
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
-
-    const result = await fetchWeather('33333');
-    expect(result).toBeNull();
-  });
-
-  it('returns null when cached data is corrupt JSON (getCachedWeather catch block)', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', '');
-    // Corrupt JSON triggers the catch block in getCachedWeather → returns null
+  it('ignores corrupt cache data', async () => {
     vi.mocked(localStorage.getItem).mockReturnValueOnce('not-valid-json{{{');
-    const result = await fetchWeather('44444');
-    expect(result).toBeNull();
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
+    expect(await fetchWeather('44444')).toBeNull();
   });
 
-  it('does not throw when localStorage.setItem throws (setCachedWeather catch block)', async () => {
-    vi.stubEnv('NEXT_PUBLIC_OPENWEATHERMAP_API_KEY', 'test-key');
-    const mockCurrent = {
-      main: { temp: 70, humidity: 50 },
-      weather: [{ main: 'Clear', description: 'clear sky', icon: '01d' }],
-      wind: { speed: 5 },
-    };
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({ ok: true, json: async () => mockCurrent } as Response)
-      .mockResolvedValueOnce({ ok: false } as Response);
-    // Make setItem throw to exercise the catch block in setCachedWeather
+  it('does not throw when localStorage.setItem throws', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => weather } as Response);
     vi.mocked(localStorage.setItem).mockImplementationOnce(() => {
       throw new Error('QuotaExceededError');
     });
-    // Should not throw despite localStorage.setItem failing
     await expect(fetchWeather('55555')).resolves.not.toThrow();
   });
 });

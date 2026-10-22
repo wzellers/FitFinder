@@ -1,5 +1,7 @@
 // Weather API utility — fetches data from OpenWeatherMap (free tier, cached 3h)
 
+import { supabase } from '@/lib/supabaseClient';
+
 export interface WeatherData {
   temperature: number;
   highTemperature: number;
@@ -62,49 +64,31 @@ function setCachedWeather(data: WeatherData): void {
   }
 }
 
+/**
+ * Today's weather for a US ZIP code, cached in localStorage for 3 hours.
+ * The OpenWeatherMap key stays on the server: this calls /api/weather, which
+ * requires the user's Supabase session.
+ */
 export async function fetchWeather(zipCode: string): Promise<WeatherData | null> {
   const cached = getCachedWeather(zipCode);
   if (cached) return cached;
 
-  const apiKey = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
-  if (!apiKey) return null;
-
   try {
-    const currentResponse = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?zip=${zipCode},US&units=imperial&appid=${apiKey}`,
-    );
-    if (!currentResponse.ok) return null;
-    const currentData = await currentResponse.json();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return null;
 
-    const forecastResponse = await fetch(
-      `https://api.openweathermap.org/data/2.5/forecast?zip=${zipCode},US&units=imperial&appid=${apiKey}`,
-    );
-
-    let highTemperature = currentData.main.temp;
-    if (forecastResponse.ok) {
-      const forecastData = await forecastResponse.json();
-      const todayEnd = Date.now() + 24 * 60 * 60 * 1000;
-      const todayForecasts = forecastData.list.filter(
-        (item: { dt: number }) => item.dt * 1000 < todayEnd,
-      );
-      if (todayForecasts.length > 0) {
-        highTemperature = Math.max(
-          ...todayForecasts.map((item: { main: { temp: number } }) => item.main.temp),
-        );
-      }
-    }
-
-    const weatherData: WeatherData = {
-      temperature: Math.round(currentData.main.temp),
-      highTemperature: Math.round(highTemperature),
-      condition: currentData.weather[0].main,
-      description: currentData.weather[0].description,
-      icon: currentData.weather[0].icon,
-      humidity: currentData.main.humidity,
-      windSpeed: Math.round(currentData.wind.speed),
-      timestamp: Date.now(),
-      zipCode,
-    };
+    const res = await fetch('/api/weather', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ zip: zipCode }),
+    });
+    if (!res.ok) return null;
+    const weatherData: WeatherData = await res.json();
 
     setCachedWeather(weatherData);
     return weatherData;

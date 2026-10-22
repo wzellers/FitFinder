@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { clothingTypes, colorPalette } from '@/lib/constants';
+import { getRequestUserId } from '@/lib/serverAuth';
 
 const VALID_TYPES = Object.values(clothingTypes).flat();
 const VALID_COLORS = [...colorPalette];
+
+// The client sends a JPEG scaled to 1024px (well under 1 MB). Anything much
+// larger is not from the app; refuse it before it reaches Claude.
+const MAX_IMAGE_CHARS = 3 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -11,10 +16,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
   }
 
+  // Only signed-in users may spend the Anthropic key.
+  const userId = await getRequestUserId(req);
+  if (!userId) {
+    return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
+  }
+
   try {
     const { image } = await req.json();
-    if (!image) {
+    if (!image || typeof image !== 'string') {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+    }
+    if (image.length > MAX_IMAGE_CHARS) {
+      return NextResponse.json({ error: 'Image too large' }, { status: 413 });
     }
 
     // image should be a base64 data URL like "data:image/png;base64,..."

@@ -1,5 +1,6 @@
 'use client';
 
+import PosterHeader from '@/components/ui/PosterHeader';
 import React, { useEffect, useMemo, useState } from 'react';
 import { MapPin, Thermometer, RotateCcw, Sun, Palette, Briefcase } from 'lucide-react';
 import ColorCombinationModal from '@/components/ColorCombinationModal';
@@ -69,17 +70,20 @@ export default function ColorPreferences() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
+      const results = await Promise.all([
+        supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+        supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('occasion_preferences').select('rules').eq('user_id', user.id).maybeSingle(),
+      ]);
+      // Don't show defaults on a failed load: saving them would overwrite
+      // the user's real preferences.
+      if (results.some((r) => r.error)) {
+        showToast("Couldn't load your preferences. Refresh to try again.", 'error');
+        return;
+      }
       const [{ data: prefs }, { data: profile }, { data: weatherPrefs }, { data: occasionPrefs }] =
-        await Promise.all([
-          supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
-          supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase
-            .from('occasion_preferences')
-            .select('rules')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
+        results;
 
       if (prefs) {
         const liked = (prefs.liked_combinations ?? []).map(
@@ -110,7 +114,7 @@ export default function ColorPreferences() {
       }
     };
     load();
-  }, [user]);
+  }, [user, showToast]);
 
   // Helper to persist color_preferences (liked top/bottom combinations).
   const persistColorPrefs = async (nextLiked: ColorCombination[]) => {
@@ -151,7 +155,7 @@ export default function ColorPreferences() {
       setSelectedTopColor('');
       setSelectedBottomColor('');
     } catch {
-      showToast('Failed to save', 'error');
+      showToast("Couldn't save. Try again.", 'error');
     } finally {
       setBusy(false);
     }
@@ -161,7 +165,7 @@ export default function ColorPreferences() {
     if (!user) return;
     const nextLiked = likedCombinations.filter((c) => c.id !== id);
     if (!(await persistColorPrefs(nextLiked))) {
-      showToast('Failed to delete', 'error');
+      showToast("Couldn't delete. Try again.", 'error');
       return;
     }
     setLikedCombinations(nextLiked);
@@ -179,7 +183,7 @@ export default function ColorPreferences() {
 
     const nextLiked = likedCombinations.map((c) => (c.id === updated.id ? updated : c));
     if (!(await persistColorPrefs(nextLiked))) {
-      showToast('Failed to update', 'error');
+      showToast("Couldn't update. Try again.", 'error');
       return false;
     }
     setLikedCombinations(nextLiked);
@@ -207,10 +211,10 @@ export default function ColorPreferences() {
       .from('profiles')
       .update({ zip_code: zipCode || null })
       .eq('id', user.id);
-    if (error) showToast('Failed to save zip code', 'error');
+    if (error) showToast("Couldn't save your ZIP code. Try again.", 'error');
     else {
       clearWeatherCache();
-      showToast('Zip code saved', 'success');
+      showToast('ZIP code saved.', 'success');
     }
     setSavingZip(false);
   };
@@ -233,7 +237,7 @@ export default function ColorPreferences() {
       const msg =
         err instanceof Error && err.message?.includes('relation')
           ? 'Weather preferences table not found — run migration 004'
-          : 'Failed to save weather preferences';
+          : "Couldn't save your weather rules. Try again.";
       showToast(msg, 'error');
     } finally {
       setSavingWeather(false);
@@ -265,7 +269,7 @@ export default function ColorPreferences() {
       if (error) throw error;
       showToast('Reset to defaults', 'success');
     } catch {
-      showToast('Failed to reset', 'error');
+      showToast("Couldn't reset. Try again.", 'error');
     } finally {
       setSavingWeather(false);
     }
@@ -355,7 +359,7 @@ export default function ColorPreferences() {
       const msg =
         err instanceof Error && err.message?.includes('relation')
           ? 'Occasion preferences table not found — run migration 005'
-          : 'Failed to save occasion preferences';
+          : "Couldn't save your occasion rules. Try again.";
       showToast(msg, 'error');
     } finally {
       setSavingOccasion(false);
@@ -377,7 +381,7 @@ export default function ColorPreferences() {
       if (error) throw error;
       showToast('Reset to defaults', 'success');
     } catch {
-      showToast('Failed to reset', 'error');
+      showToast("Couldn't reset. Try again.", 'error');
     } finally {
       setSavingOccasion(false);
     }
@@ -395,38 +399,50 @@ export default function ColorPreferences() {
       {/* Zip code */}
       <div className="card p-5 mb-6">
         <h3 className="text-sm font-semibold text-[var(--text)] mb-3 flex items-center gap-2">
-          <MapPin size={16} className="text-[var(--accent)]" /> Weather Location
+          <MapPin size={16} className="text-[var(--accent)]" aria-hidden="true" /> Weather location
         </h3>
+        <label htmlFor="pref-zip" className="text-sm font-semibold block mb-1.5">
+          US ZIP code
+        </label>
         <div className="flex items-center gap-2">
           <input
+            id="pref-zip"
             type="text"
-            placeholder="Enter zip code (e.g. 10001)"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            placeholder="e.g. 10001"
+            aria-describedby="pref-zip-hint"
             value={zipCode}
             onChange={(e) => setZipCode(e.target.value)}
-            className="w-44"
+            className="w-44 min-h-[44px]"
             maxLength={5}
           />
-          <button onClick={saveZipCode} disabled={savingZip} className="btn-primary text-xs">
-            {savingZip ? 'Saving...' : 'Save'}
+          <button onClick={saveZipCode} disabled={savingZip} className="btn-primary">
+            {savingZip ? 'Saving…' : 'Save'}
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)] mt-2">
-          Used for weather-aware outfit suggestions in the Generator tab.
+        <p id="pref-zip-hint" className="text-xs text-[var(--text-secondary)] mt-2">
+          Used to pick outfits for today&apos;s weather.
         </p>
       </div>
 
       {/* Temperature thresholds */}
       <div className="card p-5 mb-6">
         <h3 className="text-sm font-semibold text-[var(--text)] mb-3 flex items-center gap-2">
-          <Thermometer size={16} className="text-[var(--accent)]" /> Temperature Thresholds
+          <Thermometer size={16} className="text-[var(--accent)]" aria-hidden="true" /> Temperature
+          ranges
         </h3>
         <div className="flex flex-wrap gap-4 mb-3">
           {(['cold', 'cool', 'warm'] as const).map((key) => (
             <div key={key} className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-[var(--text-secondary)] capitalize">
+              <label
+                htmlFor={`pref-threshold-${key}`}
+                className="text-xs font-medium text-[var(--text-secondary)] capitalize"
+              >
                 {key} below (&deg;F)
               </label>
               <input
+                id={`pref-threshold-${key}`}
                 type="number"
                 value={thresholds[key]}
                 onChange={(e) =>
@@ -447,7 +463,7 @@ export default function ColorPreferences() {
       {/* Clothing Weather Rules */}
       <div className="card p-5 mb-6">
         <h4 className="text-sm font-semibold text-[var(--text)] mb-2">
-          Clothing Rules per Temperature
+          What to wear in each range
         </h4>
         <p className="text-xs text-[var(--text-secondary)] mb-3">
           Add clothing types you want to customize weather rules for. Types not listed here will use
@@ -458,6 +474,7 @@ export default function ColorPreferences() {
         {availableTypes.length > 0 && (
           <div className="flex items-center gap-2 mb-4">
             <select
+              aria-label="Add a clothing type"
               onChange={(e) => {
                 if (e.target.value) {
                   addClothingTypeRule(e.target.value);
@@ -468,7 +485,7 @@ export default function ColorPreferences() {
               defaultValue=""
             >
               <option value="" disabled>
-                Add clothing type...
+                Add a clothing type…
               </option>
               {availableTypes.map((type) => (
                 <option key={type} value={type}>
@@ -482,11 +499,11 @@ export default function ColorPreferences() {
         {customizedTypes.length > 0 && (
           <>
             <p className="text-xs text-[var(--text-secondary)] mb-3 flex items-center gap-1">
-              <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">
+              <span className="inline-block w-4 h-4 rounded bg-[#e6f2ec] text-[var(--success)] text-center leading-4 text-[10px] font-bold">
                 &#10003;
               </span>
               = allowed in that weather &nbsp;&middot;&nbsp;
-              <span className="inline-block w-4 h-4 rounded bg-red-100 text-red-500 text-center leading-4 text-[10px] font-bold">
+              <span className="inline-block w-4 h-4 rounded bg-[#fbeceb] text-[var(--danger)] text-center leading-4 text-[10px] font-bold">
                 &#10005;
               </span>
               = blocked
@@ -524,8 +541,8 @@ export default function ColorPreferences() {
                                 onClick={() => toggleClothingRule(type, cat)}
                                 className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
                                   allowed
-                                    ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                                    : 'bg-red-100 text-red-500 hover:bg-red-200'
+                                    ? 'bg-[#e6f2ec] text-[var(--success)] hover:bg-[#d3e8dd]'
+                                    : 'bg-[#fbeceb] text-[var(--danger)] hover:bg-[#f5d6d4]'
                                 }`}
                               >
                                 {allowed ? '\u2713' : '\u2715'}
@@ -537,7 +554,7 @@ export default function ColorPreferences() {
                           <button
                             type="button"
                             onClick={() => removeClothingTypeRule(type)}
-                            className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                            className="text-xs text-[var(--danger)] hover:text-[var(--danger)] transition-colors"
                             title="Remove custom rule"
                           >
                             &times;
@@ -565,7 +582,7 @@ export default function ColorPreferences() {
             disabled={savingWeather}
             className="btn-primary text-xs"
           >
-            {savingWeather ? 'Saving...' : 'Save Weather Rules'}
+            {savingWeather ? 'Saving…' : 'Save weather rules'}
           </button>
           <button
             onClick={resetWeatherDefaults}
@@ -618,7 +635,7 @@ export default function ColorPreferences() {
                 className={`w-14 h-14 rounded-lg border-2 transition-all ${
                   selectedTopColor === color || selectedBottomColor === color
                     ? 'border-[var(--accent)] ring-2 ring-[var(--accent)] scale-105'
-                    : 'border-gray-300 hover:border-gray-400 shadow-sm'
+                    : 'border-[var(--line-strong)] hover:border-[var(--text-secondary)] shadow-sm'
                 }`}
                 style={{ backgroundColor: getColorStyle(color).backgroundColor }}
                 title={color}
@@ -628,7 +645,7 @@ export default function ColorPreferences() {
 
           <div className="flex md:flex-col gap-3 items-center">
             <div
-              className="w-20 h-14 rounded-lg border-2 border-gray-300 flex items-center justify-center text-xs font-medium"
+              className="w-20 h-14 rounded-lg border-2 border-[var(--line-strong)] flex items-center justify-center text-xs font-medium"
               style={{
                 backgroundColor: selectedTopColor
                   ? getColorStyle(selectedTopColor).backgroundColor
@@ -641,7 +658,7 @@ export default function ColorPreferences() {
               {selectedTopColor ? getColorName(selectedTopColor) : 'Top'}
             </div>
             <div
-              className="w-20 h-14 rounded-lg border-2 border-gray-300 flex items-center justify-center text-xs font-medium"
+              className="w-20 h-14 rounded-lg border-2 border-[var(--line-strong)] flex items-center justify-center text-xs font-medium"
               style={{
                 backgroundColor: selectedBottomColor
                   ? getColorStyle(selectedBottomColor).backgroundColor
@@ -685,7 +702,7 @@ export default function ColorPreferences() {
                   setSelectedCombination(combo);
                   setShowEditModal(true);
                 }}
-                className="w-14 h-14 rounded-lg border-2 border-gray-300 overflow-hidden hover:border-[var(--accent)] hover:scale-105 transition-all"
+                className="w-14 h-14 rounded-lg border-2 border-[var(--line-strong)] overflow-hidden hover:border-[var(--accent)] hover:scale-105 transition-all"
               >
                 <div className="w-full h-1/2" style={getColorStyle(combo.topColor)} />
                 <div className="w-full h-1/2" style={getColorStyle(combo.bottomColor)} />
@@ -708,11 +725,11 @@ export default function ColorPreferences() {
         Generator, only its allowed types are used.
       </p>
       <p className="text-xs text-[var(--text-secondary)] mb-4 flex items-center gap-1">
-        <span className="inline-block w-4 h-4 rounded bg-emerald-100 text-emerald-600 text-center leading-4 text-[10px] font-bold">
+        <span className="inline-block w-4 h-4 rounded bg-[#e6f2ec] text-[var(--success)] text-center leading-4 text-[10px] font-bold">
           &#10003;
         </span>
         = allowed &nbsp;&middot;&nbsp;
-        <span className="inline-block w-4 h-4 rounded bg-gray-100 text-gray-400 text-center leading-4 text-[10px] font-bold">
+        <span className="inline-block w-4 h-4 rounded bg-[var(--muted)] text-[var(--text-secondary)] text-center leading-4 text-[10px] font-bold">
           &#10005;
         </span>
         = not allowed
@@ -748,8 +765,8 @@ export default function ColorPreferences() {
                         onClick={() => toggleOccasionType(o, type)}
                         className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
                           valid
-                            ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            ? 'bg-[#e6f2ec] text-[var(--success)] hover:bg-[#d3e8dd]'
+                            : 'bg-[var(--muted)] text-[var(--text-secondary)] hover:bg-[var(--border)]'
                         }`}
                       >
                         {valid ? '\u2713' : '\u2715'}
@@ -769,7 +786,7 @@ export default function ColorPreferences() {
           disabled={savingOccasion}
           className="btn-primary text-xs"
         >
-          {savingOccasion ? 'Saving...' : 'Save Occasion Rules'}
+          {savingOccasion ? 'Saving…' : 'Save occasion rules'}
         </button>
         <button
           onClick={resetOccasionDefaults}
@@ -792,19 +809,25 @@ export default function ColorPreferences() {
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Mobile tabs */}
-      <div className="flex md:hidden gap-1 mb-4">
+      <PosterHeader
+        title="Settings"
+        script="your rules"
+        readout="{ weather · occasions · colors }"
+      />
+      <div className="flex md:hidden gap-1 mb-4" role="group" aria-label="Preference section">
         {sidebarItems.map((item) => (
           <button
             key={item.key}
             onClick={() => setActiveSection(item.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            aria-pressed={activeSection === item.key}
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 min-h-[44px] rounded-md text-sm font-semibold transition-colors ${
               activeSection === item.key
                 ? 'bg-[var(--accent)] text-white'
                 : 'bg-[var(--card)] text-[var(--text-secondary)] border border-[var(--border)]'
             }`}
           >
-            <item.icon size={16} />
-            {item.label}
+            <item.icon size={16} aria-hidden="true" className="shrink-0" />
+            <span className="truncate">{item.label}</span>
           </button>
         ))}
       </div>
@@ -812,18 +835,22 @@ export default function ColorPreferences() {
       {/* Desktop sidebar + content */}
       <div className="flex gap-0">
         {/* Sidebar — desktop only */}
-        <nav className="hidden md:flex flex-col w-44 shrink-0 border-r border-[var(--border)] pr-4 mr-6 gap-1">
+        <nav
+          aria-label="Preference sections"
+          className="hidden md:flex flex-col w-44 shrink-0 border-r border-[var(--border)] pr-4 mr-6 gap-1"
+        >
           {sidebarItems.map((item) => (
             <button
               key={item.key}
               onClick={() => setActiveSection(item.key)}
+              aria-current={activeSection === item.key ? 'page' : undefined}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
                 activeSection === item.key
                   ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--card)] hover:text-[var(--text)]'
               }`}
             >
-              <item.icon size={16} />
+              <item.icon size={16} aria-hidden="true" />
               {item.label}
             </button>
           ))}

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import Modal from '@/components/ui/Modal';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Lock,
   Unlock,
@@ -11,9 +12,19 @@ import {
   CloudOff,
   X,
   Calendar,
+  Trash2,
 } from 'lucide-react';
+import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
+import ClothingImage from '@/components/ui/ClothingImage';
+import PosterHeader from '@/components/ui/PosterHeader';
+import ScrambleText from '@/components/ui/ScrambleText';
+import { useOutfitTheme } from '@/components/OutfitTheme';
+import { getColorName, getColorStyle } from '@/lib/colorUtils';
+import SlotReel from '@/components/ui/SlotReel';
 import { supabase } from '@/lib/supabaseClient';
+import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
+import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
 import {
@@ -49,14 +60,22 @@ import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
 
 interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
+  /** Changes when closet items change, so the generator reloads its data. */
+  refreshKey?: number;
 }
 
-export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGeneratorProps) {
+export default function OutfitGenerator({
+  onNavigateToCalendar,
+  refreshKey = 0,
+}: OutfitGeneratorProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
 
   // Data
-  const [items, setItems] = useState<ClothingItem[]>([]);
+  // Every item, including dirty ones (needed to show saved outfits); only clean
+  // items are used to generate outfits.
+  const [allItems, setAllItems] = useState<ClothingItem[]>([]);
+  const items = useMemo(() => allItems.filter((i) => !i.is_dirty), [allItems]);
   const [liked, setLiked] = useState<ColorCombination[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [recentWears, setRecentWears] = useState<OutfitWear[]>([]);
@@ -107,9 +126,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
       setLoading(true);
       try {
         // Recent wears for the variety feature: last RECENCY_WINDOW_DAYS days.
-        const recencyCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
+        const recencyCutoff = toLocalDateString(new Date(Date.now() - 14 * 24 * 60 * 60 * 1000));
 
         const [
           { data: itemsData },
@@ -121,41 +138,43 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           { data: ratedOutfitsData },
           { data: modelData },
           { data: occPrefsData },
-        ] = await Promise.all([
-          supabase.from('clothing_items').select('*').eq('user_id', user.id).eq('is_dirty', false),
-          supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase
-            .from('saved_outfits')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false }),
-          supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
-          supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase
-            .from('outfit_wears')
-            .select('*')
-            .eq('user_id', user.id)
-            .gte('worn_date', recencyCutoff),
-          supabase
-            .from('outfit_wears')
-            .select('*')
-            .eq('user_id', user.id)
-            .not('rating', 'is', null)
-            .order('worn_date', { ascending: false })
-            .limit(100),
-          supabase
-            .from('outfit_model_weights')
-            .select('weights, feature_meta')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-          supabase
-            .from('occasion_preferences')
-            .select('rules')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
+        ] = throwIfAnyError(
+          await Promise.all([
+            supabase.from('clothing_items').select('*').eq('user_id', user.id),
+            supabase.from('color_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+            supabase
+              .from('saved_outfits')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false }),
+            supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+            supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+            supabase
+              .from('outfit_wears')
+              .select('*')
+              .eq('user_id', user.id)
+              .gte('worn_date', recencyCutoff),
+            supabase
+              .from('outfit_wears')
+              .select('*')
+              .eq('user_id', user.id)
+              .not('rating', 'is', null)
+              .order('worn_date', { ascending: false })
+              .limit(100),
+            supabase
+              .from('outfit_model_weights')
+              .select('weights, feature_meta')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+            supabase
+              .from('occasion_preferences')
+              .select('rules')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+          ]),
+        );
 
-        setItems(itemsData || []);
+        setAllItems(itemsData || []);
         setLiked((prefsData?.liked_combinations ?? []) as ColorCombination[]);
         setSavedOutfits(outfitsData || []);
         setRecentWears((recentWearsData ?? []) as OutfitWear[]);
@@ -184,17 +203,23 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
           setWeatherLoading(false);
         }
       } catch {
-        setError('Failed to load data.');
+        setError("Couldn't load your closet. Refresh to try again.");
       } finally {
         setLoading(false);
       }
     };
     fetchAll();
-  }, [user]);
+  }, [user, refreshKey]);
 
   // Generate outfit — featurize candidates, then let the bandit select via
   // ε-greedy (explore/exploit) using the user's learned weights. Locked slots
   // constrain the candidate pool to the frozen item before scoring.
+  // Bumped per slot on each generate so its reel spins (kept slots don't).
+  const [spins, setSpins] = useState({ top: 0, bottom: 0, shoes: 0 });
+  const lastSpinAt = useRef(0);
+  const reelDuration = { top: 700, bottom: 950, shoes: 1200 } as const;
+  const sectionFor = { top: 'Tops', bottom: 'Bottoms', shoes: 'Shoes' } as const;
+
   const pickOutfit = () => {
     setError('');
 
@@ -216,8 +241,8 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (candidates.length === 0) {
       setError(
         occasion
-          ? `No outfits fit "${occasion}". Try "Any", add more items for this occasion, or adjust occasion rules in Preferences.`
-          : 'No valid outfits found. Try adding more items or adjusting your preferences.',
+          ? `Nothing clean in your closet suits ${occasion.toLowerCase()} right now. Try another occasion, or change what fits in Settings.`
+          : 'No outfit fits right now. You need at least one clean top, bottom and pair of shoes that suit the weather.',
       );
       return;
     }
@@ -235,6 +260,12 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (!lockedTop) setTop(pick.top);
     if (!lockedBottom) setBottom(pick.bottom);
     if (!lockedShoes) setShoes(pick.shoes);
+    lastSpinAt.current = Date.now();
+    setSpins((prev) => ({
+      top: lockedTop ? prev.top : prev.top + 1,
+      bottom: lockedBottom ? prev.bottom : prev.bottom + 1,
+      shoes: lockedShoes ? prev.shoes : prev.shoes + 1,
+    }));
   };
 
   // Apply an online learning update for a given outfit + reward, then persist the
@@ -267,21 +298,23 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     const updated = updateWeights(model ?? deserializeModel(null), features, reward);
     setModel(updated);
     const serialized = serializeModel(updated);
-    await supabase.from('outfit_model_weights').upsert({
+    const { error: weightsError } = await supabase.from('outfit_model_weights').upsert({
       user_id: user.id,
       weights: serialized.weights,
       feature_meta: serialized.feature_meta,
       updated_at: new Date().toISOString(),
     });
+    // Learning is best-effort; the in-memory model still updated.
+    if (weightsError) console.warn('Could not save outfit model', weightsError);
   };
 
   // Save outfit with name
   const openSaveModal = () => {
     if (!top || !bottom || !shoes || !user) {
-      setError('Cannot save incomplete outfit');
+      setError('Pick a top, bottom and shoes before saving.');
       return;
     }
-    setPendingSaveName(`Outfit #${savedOutfits.length + 1}`);
+    setPendingSaveName(`Outfit ${savedOutfits.length + 1}`);
     setShowSaveModal(true);
   };
 
@@ -304,7 +337,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         .select()
         .single();
       if (err) throw err;
-      showToast('Outfit saved!', 'success');
+      showToast('Outfit saved.', 'success');
       // Saving signals mild approval — nudge the model toward this outfit.
       void applyReward({ top, bottom, shoes }, SAVED_OUTFIT_REWARD);
       const { data } = await supabase
@@ -314,7 +347,7 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         .order('created_at', { ascending: false });
       setSavedOutfits(data || []);
     } catch {
-      showToast('Failed to save outfit', 'error');
+      showToast("Couldn't save this outfit. Try again.", 'error');
     } finally {
       setLoading(false);
     }
@@ -323,19 +356,20 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
   // Wear today
   const wearToday = async () => {
     if (!user || !top || !bottom || !shoes) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateString();
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from('outfit_wears')
         .select('id')
         .eq('user_id', user.id)
         .eq('worn_date', today)
         .maybeSingle();
+      if (lookupError) throw lookupError;
       if (existing) {
         showToast('Already logged an outfit for today', 'warning');
         return;
       }
-      await supabase.from('outfit_wears').insert({
+      const { error: insertError } = await supabase.from('outfit_wears').insert({
         user_id: user.id,
         worn_date: today,
         top_id: top.id,
@@ -343,9 +377,14 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
         shoes_id: shoes.id,
         occasion,
       });
-      showToast("Logged as today's outfit!", 'success');
+      if (isUniqueViolation(insertError)) {
+        showToast("You've already logged today's outfit. Edit it in Calendar.", 'warning');
+        return;
+      }
+      if (insertError) throw insertError;
+      showToast("Logged as today's outfit.", 'success');
     } catch {
-      showToast('Failed to log outfit', 'error');
+      showToast("Couldn't log today's outfit. Try again.", 'error');
     }
   };
 
@@ -359,25 +398,37 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     if (!user || !pendingDeleteId) return;
     setConfirmOpen(false);
     try {
-      await supabase
+      const { error: deleteError } = await supabase
         .from('saved_outfits')
         .delete()
         .eq('id', pendingDeleteId)
         .eq('user_id', user.id);
+      if (deleteError) throw deleteError;
       setSavedOutfits((prev) => prev.filter((o) => o.id !== pendingDeleteId));
       showToast('Outfit deleted', 'success');
     } catch {
-      showToast('Failed to delete', 'error');
+      showToast("Couldn't delete that outfit. Try again.", 'error');
     } finally {
       setPendingDeleteId(null);
     }
   };
 
+  // A saved outfit stores item ids in JSON (no foreign key), so an item can be
+  // deleted out from under it. Missing pieces come back as undefined.
+  const savedOutfitPieces = (outfit: SavedOutfit) =>
+    [outfit.outfit_items.top_id, outfit.outfit_items.bottom_id, outfit.outfit_items.shoes_id].map(
+      (id) => allItems.find((i) => i.id === id),
+    );
+
   // Load saved outfit
   const loadSavedOutfit = (outfit: SavedOutfit) => {
-    setTop(items.find((i) => i.id === outfit.outfit_items.top_id) ?? null);
-    setBottom(items.find((i) => i.id === outfit.outfit_items.bottom_id) ?? null);
-    setShoes(items.find((i) => i.id === outfit.outfit_items.shoes_id) ?? null);
+    const pieces = savedOutfitPieces(outfit);
+    setTop(pieces[0] ?? null);
+    setBottom(pieces[1] ?? null);
+    setShoes(pieces[2] ?? null);
+    if (pieces.some((p) => !p)) {
+      showToast('Part of this outfit was deleted from your closet. Pick a replacement.', 'info');
+    }
     setLockedTop(false);
     setLockedBottom(false);
     setLockedShoes(false);
@@ -409,54 +460,84 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
     setPickerSlot(null);
   };
 
-  const hasOutfit = top && bottom && shoes;
+  const hasOutfit = Boolean(top && bottom && shoes);
 
-  // Item slot renderer
-  const ItemSlot = ({
-    item,
-    label,
-    locked,
-    onToggleLock,
-    onClickSlot,
-  }: {
-    item: ClothingItem | null;
-    label: string;
-    locked: boolean;
-    onToggleLock: () => void;
-    onClickSlot: () => void;
-  }) => (
-    <div className="flex items-center gap-3 w-full">
-      <button
-        type="button"
-        onClick={onClickSlot}
-        className={`w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 ${
-          item
-            ? 'retro-cell'
-            : 'rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-[var(--accent)] transition-colors'
-        }`}
-        title={`Click to choose ${label.toLowerCase()}`}
-      >
-        {item ? (
-          <img src={item.image_url} alt={item.type} className="w-full h-full object-contain p-2" />
-        ) : (
-          <span className="text-sm text-[var(--text-secondary)]">{label}</span>
-        )}
-      </button>
-      <div className="flex flex-col items-start gap-1 min-h-[3.5rem]">
-        <span className="text-sm font-medium text-[var(--text)]">{label}</span>
-        <span className="text-xs text-[var(--text-secondary)]">{item ? item.type : '\u00A0'}</span>
-        <button
-          onClick={onToggleLock}
-          className={`p-1.5 rounded-md border transition-colors ${locked ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]'}`}
-          title={locked ? `Unlock ${label}` : `Lock ${label}`}
-        >
-          {locked ? <Lock size={12} /> : <Unlock size={12} />}
-        </button>
-      </div>
-    </div>
-  );
+  const thresholds = userWeatherPrefs?.thresholds ?? {
+    cold: TEMPERATURE_THRESHOLDS.COLD,
+    cool: TEMPERATURE_THRESHOLDS.COOL,
+    warm: TEMPERATURE_THRESHOLDS.WARM,
+  };
+  const tempLabel =
+    tempCategory === 'cold'
+      ? `Cold, under ${thresholds.cold}°F`
+      : tempCategory === 'cool'
+        ? `Cool, ${thresholds.cold}–${thresholds.cool}°F`
+        : tempCategory === 'warm'
+          ? `Warm, ${thresholds.cool}–${thresholds.warm}°F`
+          : `Hot, over ${thresholds.warm}°F`;
 
-  // Skeleton loading state
+  // What the panel's "special instructions" line says about today's conditions.
+  const instructions = [
+    occasion ? `${occasion} outfit` : 'Any occasion',
+    weather && !ignoreWeather
+      ? `${weather.highTemperature}°F high, ${weather.condition.toLowerCase()}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  // The outfit's colour pairing: the top's and the bottom's main colours.
+  // After a spin it is revealed once the last reel lands, as the payoff.
+  const currentPairing: [string, string] | null =
+    top?.colors[0] && bottom?.colors[0] ? [top.colors[0], bottom.colors[0]] : null;
+  const pairingKey = currentPairing ? currentPairing.join('|') : '';
+  const [pairing, setPairing] = useState<[string, string] | null>(null);
+  const { setPairing: setThemePairing } = useOutfitTheme();
+  useEffect(() => {
+    const justSpun = Date.now() - lastSpinAt.current < 300;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const delay = justSpun && !reduce ? reelDuration.shoes : 0;
+    const t = setTimeout(() => {
+      const next = pairingKey ? (pairingKey.split('|') as [string, string]) : null;
+      setPairing(next);
+      // Today's outfit restyles the app (headers, nav highlight).
+      if (next) setThemePairing(next);
+    }, delay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pairingKey, spins]);
+
+  const slots = [
+    {
+      key: 'top' as const,
+      label: 'Top',
+      item: top,
+      locked: lockedTop,
+      toggle: () => setLockedTop(!lockedTop),
+    },
+    {
+      key: 'bottom' as const,
+      label: 'Bottom',
+      item: bottom,
+      locked: lockedBottom,
+      toggle: () => setLockedBottom(!lockedBottom),
+    },
+    {
+      key: 'shoes' as const,
+      label: 'Shoes',
+      item: shoes,
+      locked: lockedShoes,
+      toggle: () => setLockedShoes(!lockedShoes),
+    },
+  ];
+
+  const chip = (active: boolean) =>
+    `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
+      active
+        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
+        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
+    }`;
+
   if (loading && items.length === 0) {
     return (
       <div className="w-full">
@@ -467,41 +548,165 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
 
   return (
     <div className="w-full">
-      {/* Error */}
-      {error && (
-        <div className="bg-amber-50 text-amber-800 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
-      )}
-
-      {/* Tab toggle */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('generator')}
-          className={activeTab === 'generator' ? 'btn-primary' : 'btn-secondary'}
-        >
-          Generator
-        </button>
-        <button
-          onClick={() => setActiveTab('saved')}
-          className={activeTab === 'saved' ? 'btn-primary' : 'btn-secondary'}
-        >
-          Saved ({savedOutfits.length})
-        </button>
-      </div>
+      <PosterHeader
+        title="Today's fit"
+        script="get dressed"
+        readout={`{ ${items.length} clean ${items.length === 1 ? 'item' : 'items'} to pick from }`}
+        actions={
+          <div className="segmented-poster">
+            <button
+              onClick={() => setActiveTab('generator')}
+              aria-pressed={activeTab === 'generator'}
+            >
+              New outfit
+            </button>
+            <button onClick={() => setActiveTab('saved')} aria-pressed={activeTab === 'saved'}>
+              Saved <span className="tabular">({savedOutfits.length})</span>
+            </button>
+          </div>
+        }
+      />
 
       {activeTab === 'generator' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_240px] gap-6">
-          {/* ====== LEFT PANEL — Occasion + Weather ====== */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-[var(--text)] text-center">Occasion</h3>
-            <div className="card p-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,36rem)_320px] lg:justify-center gap-8 lg:gap-14 items-start">
+          {/* ====== The outfit ====== */}
+          <div className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-7 pb-7">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-lg">Your outfit</h3>
+              {pairing && (
+                <span className="readout flex items-center gap-1.5">
+                  <span className="flex -space-x-1" aria-hidden="true">
+                    {pairing.map((c, i) => (
+                      <span
+                        key={i}
+                        className="w-3.5 h-3.5 rounded-full border border-white"
+                        style={getColorStyle(c)}
+                      />
+                    ))}
+                  </span>
+                  {pairing[0] === pairing[1]
+                    ? `${getColorName(pairing[0])} · tonal`
+                    : `${getColorName(pairing[0])} × ${getColorName(pairing[1])}`}
+                </span>
+              )}
+            </div>
+            <p className="readout mt-1.5">
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              })}
+              {instructions && <> · {instructions}</>}
+            </p>
+
+            <ul className="mt-5">
+              {slots.map(({ key, label, item, locked, toggle }) => (
+                <li key={key} className="divider flex items-center gap-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setPickerSlot(key)}
+                    aria-label={
+                      item
+                        ? `Change ${label.toLowerCase()}: ${describeItem(item)}`
+                        : `Choose a ${label.toLowerCase()}`
+                    }
+                    className={`w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-md overflow-hidden flex items-center justify-center ${
+                      item
+                        ? 'bg-white border border-[var(--border)] hover:border-[var(--line-strong)]'
+                        : 'border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {item ? (
+                      <SlotReel
+                        item={item}
+                        pool={items.filter((i) => typeToSection[i.type] === sectionFor[key])}
+                        spinKey={spins[key]}
+                        durationMs={reelDuration[key]}
+                        spinOnMount={Date.now() - lastSpinAt.current < 300}
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold">Choose</span>
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="panel-label">{label}</div>
+                    <div className="text-lg font-semibold tracking-tight truncate">
+                      {item ? <ScrambleText text={item.type} /> : 'Not picked yet'}
+                    </div>
+                    {item && (
+                      <div className="readout truncate mt-0.5">
+                        <ScrambleText
+                          text={describeItem(item).slice(0, -item.type.length).trim()}
+                          frames={10}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={toggle}
+                    disabled={!item}
+                    aria-pressed={locked}
+                    aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
+                    className={`min-h-[44px] px-3 rounded-md border text-sm font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-40 ${
+                      locked
+                        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
+                        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {locked ? (
+                      <Lock size={14} aria-hidden="true" />
+                    ) : (
+                      <Unlock size={14} aria-hidden="true" />
+                    )}
+                    <span className="hidden sm:inline">{locked ? 'Kept' : 'Keep'}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {error && (
+              <p
+                role="status"
+                className="text-sm text-[var(--warning)] bg-[#fdf4e3] rounded-md px-3 py-2 mt-2"
+              >
+                {error}
+              </p>
+            )}
+
+            <div className="divider pt-5 flex flex-col gap-3">
+              <button
+                onClick={pickOutfit}
+                disabled={loading}
+                className="btn-primary w-full text-base min-h-[52px]"
+              >
+                <Sparkles size={18} aria-hidden="true" />
+                {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
+              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={openSaveModal} disabled={!hasOutfit} className="btn-secondary">
+                  <Save size={16} aria-hidden="true" /> Save outfit
+                </button>
+                <button onClick={wearToday} disabled={!hasOutfit} className="btn-secondary">
+                  <CalendarPlus size={16} aria-hidden="true" /> Wear today
+                </button>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] text-center">
+                Keep a piece to build the rest of the outfit around it.
+              </p>
+            </div>
+          </div>
+
+          {/* ====== Conditions ====== */}
+          <div className="space-y-6">
+            <section aria-labelledby="occasion-heading">
+              <h3 id="occasion-heading" className="text-lg mb-2">
+                Occasion
+              </h3>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Occasion">
                 <button
                   onClick={() => setOccasion(null)}
-                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                    occasion === null
-                      ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                      : 'bg-white text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--accent)]'
-                  }`}
+                  aria-pressed={occasion === null}
+                  className={chip(occasion === null)}
                 >
                   Any
                 </button>
@@ -509,359 +714,236 @@ export default function OutfitGenerator({ onNavigateToCalendar }: OutfitGenerato
                   <button
                     key={o}
                     onClick={() => setOccasion(o)}
-                    className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                      occasion === o
-                        ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                        : 'bg-white text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--accent)]'
-                    }`}
+                    aria-pressed={occasion === o}
+                    className={chip(occasion === o)}
                   >
                     {o}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-[var(--text-secondary)]">
-                {occasion
-                  ? 'Only items that fit this occasion will be used.'
-                  : 'Filters generated outfits to items that fit the occasion. Customize rules in Preferences.'}
+              <p className="text-sm text-[var(--text-secondary)] mt-2">
+                Only items that suit the occasion are used. Change what fits in Settings.
               </p>
-            </div>
+            </section>
 
-            <h3 className="text-lg font-semibold text-[var(--text)] text-center">Weather</h3>
+            <section aria-labelledby="weather-heading">
+              <h3 id="weather-heading" className="text-lg mb-2">
+                Weather
+              </h3>
+              {weatherLoading && <div className="card h-28 animate-pulse" />}
 
-            {weatherLoading && (
-              <div className="card p-4 animate-pulse">
-                <div className="h-12 bg-[var(--muted)] rounded-lg" />
-              </div>
-            )}
-
-            {weather && !weatherLoading && (
-              <div className="card p-4 space-y-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={getWeatherIconUrl(weather.icon)}
-                    alt={weather.condition}
-                    className="w-14 h-14"
-                  />
-                  <div>
-                    <div className="text-2xl font-bold text-[var(--text)]">
-                      {weather.temperature}°F
+              {weather && !weatherLoading && (
+                <div className="card p-4">
+                  <div className="flex items-center gap-3">
+                    <img src={getWeatherIconUrl(weather.icon)} alt="" className="w-12 h-12 -my-1" />
+                    <div>
+                      <div className="tabular font-semibold text-3xl font-bold">
+                        {weather.temperature}°F
+                      </div>
+                      <div className="text-sm text-[var(--text-secondary)]">
+                        {weather.condition}, high of {weather.highTemperature}°F
+                      </div>
                     </div>
-                    <div className="text-xs text-[var(--text-secondary)]">{weather.condition}</div>
                   </div>
-                </div>
-
-                <div className="text-sm text-[var(--text-secondary)]">
-                  High:{' '}
-                  <span className="font-medium text-[var(--text)]">
-                    {weather.highTemperature}°F
-                  </span>
-                </div>
-
-                <div
-                  className={`text-xs font-medium px-3 py-1.5 rounded-full text-center ${
-                    ignoreWeather ? 'opacity-50' : ''
-                  } ${
-                    tempCategory === 'cold'
-                      ? 'bg-blue-100 text-blue-700'
-                      : tempCategory === 'cool'
-                        ? 'bg-sky-100 text-sky-700'
-                        : tempCategory === 'warm'
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {(() => {
-                    const t = userWeatherPrefs?.thresholds ?? {
-                      cold: TEMPERATURE_THRESHOLDS.COLD,
-                      cool: TEMPERATURE_THRESHOLDS.COOL,
-                      warm: TEMPERATURE_THRESHOLDS.WARM,
-                    };
-                    return tempCategory === 'cold'
-                      ? `Cold (<${t.cold}°F)`
-                      : tempCategory === 'cool'
-                        ? `Cool (${t.cold}-${t.cool}°F)`
-                        : tempCategory === 'warm'
-                          ? `Warm (${t.cool}-${t.warm}°F)`
-                          : `Hot (>${t.warm}°F)`;
-                  })()}
-                </div>
-
-                <button
-                  onClick={() => setIgnoreWeather(!ignoreWeather)}
-                  className={`w-full text-sm px-3 py-2 rounded-lg border font-medium transition-colors flex items-center justify-center gap-2 ${
-                    ignoreWeather
-                      ? 'bg-white text-[var(--text-secondary)] border-[var(--border)]'
-                      : 'bg-[var(--accent)] text-white border-[var(--accent)]'
-                  }`}
-                >
-                  {ignoreWeather ? (
-                    <>
-                      <CloudOff size={14} />
-                      Weather Off
-                    </>
-                  ) : (
-                    <>
-                      <CloudSun size={14} />
-                      Using Weather
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {!weather && !weatherLoading && (
-              <div className="card p-4 text-sm text-[var(--text-secondary)] flex items-start gap-2">
-                <CloudSun size={18} className="shrink-0 mt-0.5" />
-                <span>Set your zip code in Preferences to enable weather-aware suggestions.</span>
-              </div>
-            )}
-          </div>
-
-          {/* ====== CENTER PANEL — Outfit Display ====== */}
-          <div className="flex flex-col items-center">
-            <div className="flex gap-3 mb-6 mx-auto">
-              {/* Image column — generate button aligns under these */}
-              <div className="flex flex-col items-center gap-3">
-                {[
-                  { item: top, label: 'Top', onClick: () => setPickerSlot('top') },
-                  { item: bottom, label: 'Bottom', onClick: () => setPickerSlot('bottom') },
-                  { item: shoes, label: 'Shoes', onClick: () => setPickerSlot('shoes') },
-                ].map(({ item, label, onClick }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={onClick}
-                    className={`w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 ${
-                      item
-                        ? 'retro-cell'
-                        : 'rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-[var(--accent)] transition-colors'
-                    }`}
-                    title={`Click to choose ${label.toLowerCase()}`}
+                  <p
+                    className={`text-sm font-semibold mt-3 ${ignoreWeather ? 'text-[var(--text-secondary)] line-through' : ''}`}
                   >
-                    {item ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.type}
-                        className="w-full h-full object-contain p-2"
-                      />
-                    ) : (
-                      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
-                    )}
-                  </button>
-                ))}
-
-                <button
-                  onClick={pickOutfit}
-                  disabled={loading}
-                  className="btn-primary text-xl px-10 py-4 mt-6"
-                >
-                  <Sparkles size={20} /> Generate
-                </button>
-              </div>
-
-              {/* Labels + locks column */}
-              <div className="flex flex-col gap-3">
-                {[
-                  {
-                    item: top,
-                    label: 'Top',
-                    locked: lockedTop,
-                    toggle: () => setLockedTop(!lockedTop),
-                  },
-                  {
-                    item: bottom,
-                    label: 'Bottom',
-                    locked: lockedBottom,
-                    toggle: () => setLockedBottom(!lockedBottom),
-                  },
-                  {
-                    item: shoes,
-                    label: 'Shoes',
-                    locked: lockedShoes,
-                    toggle: () => setLockedShoes(!lockedShoes),
-                  },
-                ].map(({ item, label, locked, toggle }) => (
-                  <div
-                    key={label}
-                    className="flex flex-col items-start gap-1 h-32 sm:h-36 justify-center"
-                  >
-                    <span className="text-sm font-medium text-[var(--text)]">{label}</span>
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      {item ? item.type : '\u00A0'}
+                    {tempLabel}
+                  </p>
+                  <label className="mt-3 flex items-center justify-between gap-3 min-h-[44px] cursor-pointer">
+                    <span className="text-sm font-semibold flex items-center gap-2">
+                      {ignoreWeather ? (
+                        <CloudOff size={16} aria-hidden="true" />
+                      ) : (
+                        <CloudSun size={16} aria-hidden="true" />
+                      )}
+                      Dress for the weather
                     </span>
-                    <button
-                      onClick={toggle}
-                      className={`p-1.5 rounded-md border transition-colors ${locked ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]'}`}
-                      title={locked ? `Unlock ${label}` : `Lock ${label}`}
-                    >
-                      {locked ? <Lock size={12} /> : <Unlock size={12} />}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={!ignoreWeather}
+                      onChange={() => setIgnoreWeather(!ignoreWeather)}
+                      className="w-5 h-5 accent-[var(--carbon)]"
+                    />
+                  </label>
+                </div>
+              )}
 
-          {/* ====== RIGHT PANEL — Actions ====== */}
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-[var(--text)] text-center">Actions</h3>
+              {!weather && !weatherLoading && (
+                <div className="card p-4 text-sm text-[var(--text-secondary)] flex items-start gap-2">
+                  <CloudSun size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>Add your ZIP code in Settings to get outfits picked for the weather.</span>
+                </div>
+              )}
+            </section>
 
-            <button
-              onClick={openSaveModal}
-              disabled={!hasOutfit}
-              className="btn-secondary w-full disabled:opacity-50"
-            >
-              <Save size={16} /> Save Outfit
-            </button>
-
-            <button
-              onClick={wearToday}
-              disabled={!hasOutfit}
-              className="btn-secondary w-full disabled:opacity-50"
-            >
-              <CalendarPlus size={16} /> Wear Today
-            </button>
-
-            <div className="border-t border-[var(--border)] my-2" />
-
-            <button onClick={onNavigateToCalendar} className="btn-ghost w-full">
-              <Calendar size={16} /> View Calendar
+            <button onClick={onNavigateToCalendar} className="btn-ghost w-full justify-start">
+              <Calendar size={16} aria-hidden="true" /> See what you&apos;ve worn
             </button>
           </div>
         </div>
       )}
 
-      {/* Saved outfits tab */}
+      {/* Saved outfits */}
       {activeTab === 'saved' && (
         <div>
           {savedOutfits.length === 0 ? (
-            <div className="text-center py-12 text-[var(--text-secondary)] text-sm">
-              No saved outfits yet. Generate and save some outfits!
+            <div className="card p-8 text-center">
+              <p className="text-lg font-semibold mb-1">No saved outfits yet</p>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">
+                Generate an outfit you like and tap Save outfit to keep it here.
+              </p>
+              <button onClick={() => setActiveTab('generator')} className="btn-primary">
+                <Sparkles size={16} aria-hidden="true" /> Generate an outfit
+              </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {savedOutfits.map((outfit, idx) => {
-                const topItem = items.find((i) => i.id === outfit.outfit_items.top_id);
-                const bottomItem = items.find((i) => i.id === outfit.outfit_items.bottom_id);
-                const shoesItem = items.find((i) => i.id === outfit.outfit_items.shoes_id);
+                const pieces = savedOutfitPieces(outfit);
+                const name = outfit.name || `Outfit ${idx + 1}`;
                 return (
-                  <div key={outfit.id ?? idx} className="card p-3 flex flex-col items-center gap-2">
-                    <div className="text-xs font-medium text-[var(--text)] truncate w-full text-center">
-                      {outfit.name || `Outfit #${idx + 1}`}
+                  <li key={outfit.id ?? idx} className="panel px-5 pt-7 pb-5 flex flex-col">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-semibold text-lg font-bold truncate">{name}</span>
+                      <span className="tabular text-xs text-[var(--text-secondary)] shrink-0">
+                        {outfit.created_at
+                          ? new Date(outfit.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })
+                          : ''}
+                      </span>
                     </div>
-                    <div className="text-[10px] text-[var(--text-secondary)]">
-                      {outfit.created_at ? new Date(outfit.created_at).toLocaleDateString() : ''}
+                    <div className="grid grid-cols-3 gap-2 my-4">
+                      {pieces.map((item, i) =>
+                        item ? (
+                          <div
+                            key={i}
+                            className="relative aspect-square rounded-md border border-[var(--border)] bg-white overflow-hidden"
+                          >
+                            <ClothingImage
+                              src={item.image_url}
+                              alt={describeItem(item)}
+                              className="w-full h-full object-contain p-1"
+                            />
+                            {item.is_dirty && (
+                              <span className="badge-dirty absolute bottom-1 right-1 bg-white/80">
+                                Dirty
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div
+                            key={i}
+                            className="aspect-square rounded-md border border-dashed border-[var(--line-strong)] flex items-center justify-center text-xs text-center text-[var(--text-secondary)] p-1"
+                          >
+                            Deleted item
+                          </div>
+                        ),
+                      )}
                     </div>
-                    {[topItem, bottomItem, shoesItem].map((item, i) =>
-                      item ? (
-                        <div
-                          key={i}
-                          className="w-20 h-20 rounded-lg border border-[var(--border)] bg-white overflow-hidden"
-                        >
-                          <img
-                            src={item.image_url}
-                            alt={item.type}
-                            className="w-full h-full object-contain p-1"
-                          />
-                        </div>
-                      ) : (
-                        <div key={i} className="w-20 h-20 rounded-lg bg-[var(--muted)]" />
-                      ),
-                    )}
-                    <div className="flex gap-2 mt-1">
+                    <div className="divider pt-3 mt-auto flex gap-2">
                       <button
                         onClick={() => loadSavedOutfit(outfit)}
-                        className="btn-primary text-xs py-1 px-2"
+                        className="btn-secondary flex-1"
+                        aria-label={`Wear ${name} again`}
                       >
-                        Load
+                        Open
                       </button>
                       <button
                         onClick={() => requestDeleteOutfit(outfit.id!)}
-                        className="btn-danger text-xs py-1 px-2"
+                        className="btn-ghost text-[var(--danger)] hover:text-[var(--danger)]"
+                        aria-label={`Delete ${name}`}
                       >
-                        Delete
+                        <Trash2 size={16} aria-hidden="true" />
                       </button>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </div>
       )}
 
       {/* Save name modal */}
       {showSaveModal && (
-        <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
-          <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-[var(--text)] mb-4">Save Outfit</h3>
-            <label className="text-xs font-medium text-[var(--text)] mb-1 block">Outfit Name</label>
-            <input
-              type="text"
-              value={pendingSaveName}
-              onChange={(e) => setPendingSaveName(e.target.value)}
-              placeholder="e.g. Casual Friday"
-              className="w-full mb-4"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') confirmSaveOutfit();
-              }}
-            />
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowSaveModal(false)} className="btn-secondary text-xs">
-                Cancel
-              </button>
-              <button onClick={confirmSaveOutfit} className="btn-primary text-xs">
-                Save
-              </button>
-            </div>
+        <Modal label="Save outfit" onClose={() => setShowSaveModal(false)} className="max-w-sm">
+          <h3 className="text-xl mb-4">Save outfit</h3>
+          <label htmlFor="save-outfit-name" className="text-sm font-semibold mb-1.5 block">
+            Name
+          </label>
+          <input
+            id="save-outfit-name"
+            type="text"
+            value={pendingSaveName}
+            onChange={(e) => setPendingSaveName(e.target.value)}
+            placeholder="e.g. Casual Friday"
+            className="w-full mb-4"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') confirmSaveOutfit();
+            }}
+          />
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setShowSaveModal(false)} className="btn-secondary">
+              Cancel
+            </button>
+            <button onClick={confirmSaveOutfit} className="btn-primary">
+              Save outfit
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Item picker modal */}
       {pickerSlot && (
-        <div className="modal-overlay" onClick={() => setPickerSlot(null)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-[var(--text)]">
-                Choose {pickerSlot.charAt(0).toUpperCase() + pickerSlot.slice(1)}
-              </h3>
-              <button
-                onClick={() => setPickerSlot(null)}
-                className="p-1 rounded-md hover:bg-gray-100"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {pickerItems.length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)] text-center py-6">
-                No items in this category.
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
-                {pickerItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handlePickItem(item)}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
-                  >
-                    <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
-                      <img
-                        src={item.image_url}
-                        alt={item.type}
-                        className="w-full h-full object-contain p-1"
-                      />
-                    </div>
-                    <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-center">
-                      {item.type}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+        <Modal
+          label={`Choose a ${pickerSlot}`}
+          onClose={() => setPickerSlot(null)}
+          className="max-w-md"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl">Choose a {pickerSlot}</h3>
+            <button
+              onClick={() => setPickerSlot(null)}
+              className="btn-ghost px-2"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
           </div>
-        </div>
+          {pickerItems.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)] text-center py-6">
+              No clean {pickerSlot === 'shoes' ? 'shoes' : `${pickerSlot}s`} in your closet. Add
+              some in the Closet, or mark a few clean.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
+              {pickerItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handlePickItem(item)}
+                  aria-label={describeItem(item)}
+                  className="flex flex-col items-center gap-1 p-2 rounded-md border border-[var(--border)] hover:border-[var(--line-strong)] bg-white transition-colors"
+                >
+                  <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
+                    <ClothingImage
+                      src={item.image_url}
+                      alt=""
+                      className="w-full h-full object-contain p-1"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--text-secondary)] truncate w-full text-center">
+                    {item.type}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Modal>
       )}
 
       {/* Confirm delete dialog */}

@@ -21,7 +21,7 @@ describe('ColorCombinationModal', () => {
         onDelete={vi.fn()}
       />,
     );
-    expect(screen.queryByText('Edit Combination')).toBeNull();
+    expect(screen.queryByText('Edit color combination')).toBeNull();
   });
 
   it('renders when isOpen is true', () => {
@@ -35,7 +35,7 @@ describe('ColorCombinationModal', () => {
         onDelete={vi.fn()}
       />,
     );
-    expect(screen.getByText('Edit Combination')).toBeTruthy();
+    expect(screen.getByText('Edit color combination')).toBeTruthy();
   });
 
   it('clicking Delete button opens ConfirmDialog', () => {
@@ -104,7 +104,7 @@ describe('ColorCombinationModal', () => {
         onDelete={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByText('Update'));
+    fireEvent.click(screen.getByText('Save combination'));
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ topColor: 'blue', bottomColor: 'navy blue' }),
@@ -130,7 +130,7 @@ describe('ColorCombinationModal', () => {
     // Reset
     fireEvent.click(screen.getByText('Reset'));
     // Click Update
-    fireEvent.click(screen.getByText('Update'));
+    fireEvent.click(screen.getByText('Save combination'));
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ topColor: 'blue' }));
     });
