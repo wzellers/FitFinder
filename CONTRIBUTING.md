@@ -49,11 +49,15 @@ The app runs at http://localhost:3000.
    npm run lint:fix       # apply ESLint autofixes
    ```
 
-   For UI-affecting changes, also run the end-to-end suite:
+   For UI-affecting changes, also run the end-to-end suite (setup in the
+   README under "End-to-end tests"):
 
    ```bash
    npm run test:e2e
    ```
+
+   CI runs all of these, end-to-end included, on every pull request, and `main`
+   only accepts a merge when they pass.
 
 4. **Open a pull request** against `main`. Fill in the PR template describing what
    changed and why, and note anything a reviewer should watch out for (e.g. a new
@@ -84,8 +88,24 @@ truth for the schema. If your change needs a schema update:
   `src/lib/constants.ts` — the single source of truth. Don't duplicate them.
 - **Tests** live in `src/__tests__/`, mirroring the source tree
   (`lib/`, `components/`, `hooks/`, `api/`, with `e2e/` for Playwright specs).
-  Add or update tests alongside your change. New `src/lib` logic should ship with
-  unit tests.
+  See the testing policy below.
+
+## Testing policy
+
+Every feature and fix ships with tests in the same pull request:
+
+| You changed…                                     | Add or update…                                  |
+| ------------------------------------------------ | ----------------------------------------------- |
+| Logic in `src/lib` or an API route               | Vitest unit tests (`src/__tests__/lib`, `api`)  |
+| A component                                      | A component test (`src/__tests__/components`)   |
+| Anything a user can do (screen, button, setting) | An end-to-end test (`src/__tests__/e2e`)        |
+| A bug                                            | A test that fails without the fix, then the fix |
+
+End-to-end tests describe what the user sees: find things with `getByRole` /
+`getByLabel`, use the shared `test` from `helpers/test.ts` (it reseeds the test
+account and fails on any page error), and check the result survives a reload or
+is in the database. If a change breaks an existing test because the behaviour
+changed on purpose, update the test in the same PR rather than deleting it.
 
 ## Tests and coverage
 

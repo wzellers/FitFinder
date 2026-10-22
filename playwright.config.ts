@@ -53,7 +53,9 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `npx next dev -p ${PORT}`,
+        // CI tests the production build (built in an earlier step), like Vercel
+        // serves it; locally, the dev server.
+        command: process.env.CI ? `npx next start -p ${PORT}` : `npx next dev -p ${PORT}`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

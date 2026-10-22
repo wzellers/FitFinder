@@ -12,9 +12,10 @@
 
 <!-- How did you verify this? Check what applies. -->
 
-- [ ] `npm run typecheck` passes
-- [ ] `npm run test` passes
-- [ ] `npm run test:e2e` passes (for UI-affecting changes)
+- [ ] Added or updated tests for this change: unit for logic, component for UI,
+      end-to-end for anything a user can do, a failing-first test for a bug fix
+      (see CONTRIBUTING → Testing policy)
+- [ ] `npm run test:e2e` passes locally (for UI-affecting changes; CI runs it too)
 - [ ] Manually tested in the browser
 
 ## Database
