@@ -16,6 +16,9 @@
  * ---------------------------------------------------------------------------
  * 1. Start the dev server (needs ANTHROPIC_API_KEY set in your env / .env.local):
  *        npm run dev
+ *    The route only serves signed-in users, so the script signs in with the
+ *    account in .env.e2e (E2E_TEST_EMAIL / E2E_TEST_PASSWORD; see README →
+ *    End-to-end tests). It only signs in; nothing in the account changes.
  * 2. Put clothing photos (.png/.jpg/.jpeg/.webp) in a folder, e.g. ./bench-images/
  * 3. (Optional, for accuracy) create ./bench-images/labels.json mapping filename ->
  *    { "type": "...", "color": "..." } using the exact type/color strings the app
@@ -36,6 +39,11 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
+
+dotenv.config({ path: '.env.local', quiet: true });
+dotenv.config({ path: '.env.e2e', quiet: true });
 
 const IMAGE_DIR = process.argv[2] || './bench-images';
 const BASE_URL = (process.argv[3] || 'http://localhost:3000').replace(/\/$/, '');
@@ -65,6 +73,23 @@ const norm = (s) =>
     .trim()
     .toLowerCase();
 
+/** Sign in as the .env.e2e account and return its access token. */
+async function accessToken() {
+  const { NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_ANON_KEY: key } = process.env;
+  const { E2E_TEST_EMAIL: email, E2E_TEST_PASSWORD: password } = process.env;
+  if (!url || !key || !email || !password) {
+    console.error('Needs NEXT_PUBLIC_SUPABASE_* in .env.local and E2E_TEST_* in .env.e2e.');
+    process.exit(1);
+  }
+  const supabase = createClient(url, key, { auth: { persistSession: false } });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    console.error(`Sign-in failed: ${error.message}`);
+    process.exit(1);
+  }
+  return data.session.access_token;
+}
+
 async function main() {
   if (!existsSync(IMAGE_DIR)) {
     console.error(`Image dir not found: ${IMAGE_DIR}`);
@@ -90,6 +115,7 @@ async function main() {
     process.exit(1);
   }
 
+  const token = await accessToken();
   console.log(`\nMeasuring ${files.length} image(s) against ${ENDPOINT}\n`);
 
   const latencies = [];
@@ -110,7 +136,7 @@ async function main() {
     try {
       resp = await fetch(ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ image: dataUrl }),
       });
       body = await resp.json();
