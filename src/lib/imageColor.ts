@@ -8,7 +8,7 @@
 import { colorPalette, colorMap } from '@/lib/constants';
 
 // Secondary color must cover at least this fraction of counted pixels to be kept.
-export const SECONDARY_COVERAGE_THRESHOLD = 0.15;
+const SECONDARY_COVERAGE_THRESHOLD = 0.15;
 
 const SAMPLE_SIZE = 64; // downsample for speed
 
