@@ -22,16 +22,6 @@ function baseCtx(overrides: Partial<ScoringContext> = {}): ScoringContext {
   };
 }
 
-// featureVector helper that wires the default weather/occasion rule loaders.
-function featuresFor(outfit: Parameters<typeof featureVector>[0], ctx: ScoringContext) {
-  return featureVector(
-    outfit,
-    ctx,
-    getUserClothingWeatherRules(ctx.weatherRules ?? null),
-    getUserOccasionRules(ctx.occasionRules ?? null),
-  );
-}
-
 function baseItems() {
   return [makeTop(), makeBottom(), makeShoes()];
 }
