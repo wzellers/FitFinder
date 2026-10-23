@@ -41,6 +41,9 @@ export interface ScoringContext {
   occasionRules?: OccasionRules;
   /** Past wears that carry an explicit rating — boosts similar outfits. */
   ratedOutfits?: OutfitWear[];
+  /** Score as of this date (YYYY-MM-DD) instead of now, e.g. for a past day's
+   * wear. Only affects how recent `recentWears` count as. */
+  asOf?: string;
 }
 
 // ============================================================================
@@ -74,10 +77,11 @@ function pairMatchesLiked(
   );
 }
 
-function daysSince(dateStr: string): number {
+function daysSince(dateStr: string, asOf?: string): number {
   const then = new Date(dateStr).getTime();
   if (Number.isNaN(then)) return Infinity;
-  return (Date.now() - then) / (1000 * 60 * 60 * 24);
+  const now = asOf ? new Date(asOf).getTime() : Date.now();
+  return (now - then) / (1000 * 60 * 60 * 24);
 }
 
 // ============================================================================
@@ -121,13 +125,14 @@ function weatherFeature(
 function varietyFeature(
   outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
   recentWears: OutfitWear[],
+  asOf?: string,
 ): number {
   if (recentWears.length === 0) return 1;
   const ids = new Set([outfit.top.id, outfit.bottom.id, outfit.shoes.id]);
   let penalty = 0;
   for (const w of recentWears) {
-    const age = daysSince(w.worn_date);
-    if (age > RECENCY_WINDOW_DAYS) continue;
+    const age = daysSince(w.worn_date, asOf);
+    if (age < 0 || age > RECENCY_WINDOW_DAYS) continue;
     const recencyWeight = 1 - age / RECENCY_WINDOW_DAYS; // 1 (today) → 0 (window edge)
     const overlap = [w.top_id, w.bottom_id, w.shoes_id].filter((id) => id && ids.has(id)).length;
     penalty += (overlap / 3) * recencyWeight;
@@ -205,7 +210,7 @@ export function featureVector(
   return {
     color: colorFeature(outfit.top, outfit.bottom, ctx.likedCombinations),
     weather: weatherFeature(outfit, ctx.weather, rules),
-    variety: varietyFeature(outfit, ctx.recentWears ?? []),
+    variety: varietyFeature(outfit, ctx.recentWears ?? [], ctx.asOf),
     occasion: occasionFeature(outfit, ctx.occasion, occasionRules),
     rating: ratingFeature(outfit, ctx.ratedOutfits ?? []),
   };

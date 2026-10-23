@@ -107,11 +107,15 @@ test("logs today's outfit once, and it shows in the calendar", async ({ page }) 
   await expect(toast(page, "Logged as today's outfit.")).toBeVisible();
 
   const wears = ok(
-    await db.from('outfit_wears').select('worn_date, top_id').eq('user_id', userId),
+    await db.from('outfit_wears').select('worn_date, top_id, features').eq('user_id', userId),
     'wears',
   );
   expect(wears).toHaveLength(1);
   expect(wears![0].worn_date).toBe(localDate());
+  // The outfit's features as worn are stored, so a later rating learns from them.
+  const features = wears![0].features as { items: string[]; values: Record<string, number> };
+  expect(features.items[0]).toBe(wears![0].top_id);
+  expect(features.values.variety).toBe(1); // nothing worn recently
 
   // A second log for today is refused.
   await page.getByRole('button', { name: 'Wear today' }).click();

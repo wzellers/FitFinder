@@ -32,16 +32,34 @@ test("asks for a rating of yesterday's outfit, and the model learns from it", as
     'wear',
   );
   expect(wear.rating).toBe(9);
-  // The rating nudges the user's learned weights (saved in the background).
+  // The model learns the rating (in the background). This wear was logged
+  // without features, so they are rebuilt as of its date and stored with it.
   await expect
-    .poll(async () => {
-      const rows = ok(
-        await db.from('outfit_model_weights').select('user_id').eq('user_id', userId),
-        'weights',
-      );
-      return rows?.length;
-    })
-    .toBe(1);
+    .poll(
+      async () =>
+        ok(
+          await db.from('outfit_wears').select('learned_rating').eq('user_id', userId).single(),
+          'wear',
+        ).learned_rating,
+    )
+    .toBe(9);
+  const learned = ok(
+    await db.from('outfit_wears').select('features').eq('user_id', userId).single(),
+    'wear',
+  ).features as { items: string[]; values: Record<string, number> };
+  expect(learned.items).toEqual([seeded.navyShirt, seeded.denimJeans, seeded.whiteShoes]);
+  expect(Object.keys(learned.values).sort()).toEqual([
+    'color',
+    'occasion',
+    'rating',
+    'variety',
+    'weather',
+  ]);
+  const model = ok(
+    await db.from('outfit_model_weights').select('feature_meta').eq('user_id', userId).single(),
+    'model',
+  );
+  expect((model.feature_meta as { updates: number }).updates).toBe(1);
 
   // Rated, so no prompt next time.
   await page.reload();

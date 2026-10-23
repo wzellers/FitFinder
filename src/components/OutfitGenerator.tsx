@@ -46,6 +46,7 @@ import {
   updateWeights,
   SAVED_OUTFIT_REWARD,
   type BanditModel,
+  type FeatureVector,
 } from '@/lib/banditModel';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { SkeletonOutfitSlots } from '@/components/ui/Skeleton';
@@ -265,6 +266,27 @@ export default function OutfitGenerator({
     }));
   };
 
+  // The outfit's features in today's context (weather, wear history, occasion).
+  const currentFeatures = (outfit: {
+    top: ClothingItem;
+    bottom: ClothingItem;
+    shoes: ClothingItem;
+  }): FeatureVector =>
+    featureVector(
+      outfit,
+      {
+        likedCombinations: liked,
+        weather: ignoreWeather ? null : tempCategory,
+        weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
+        recentWears,
+        ratedOutfits,
+        occasion,
+        occasionRules: userOccasionRules ?? undefined,
+      },
+      getUserClothingWeatherRules(userWeatherPrefs?.clothingRules ?? undefined),
+      getUserOccasionRules(userOccasionRules),
+    );
+
   // Apply an online learning update for a given outfit + reward, then persist the
   // new weights. Features are recomputed from the current context (weather and
   // occasion default to neutral, matching the rating-time path).
@@ -277,21 +299,7 @@ export default function OutfitGenerator({
     reward: number,
   ) => {
     if (!user) return;
-    const rules = getUserClothingWeatherRules(userWeatherPrefs?.clothingRules ?? undefined);
-    const features = featureVector(
-      outfit,
-      {
-        likedCombinations: liked,
-        weather: ignoreWeather ? null : tempCategory,
-        weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
-        recentWears,
-        ratedOutfits,
-        occasion,
-        occasionRules: userOccasionRules ?? undefined,
-      },
-      rules,
-      getUserOccasionRules(userOccasionRules),
-    );
+    const features = currentFeatures(outfit);
     const updated = updateWeights(model ?? deserializeModel(null), features, reward);
     setModel(updated);
     const serialized = serializeModel(updated);
@@ -373,6 +381,11 @@ export default function OutfitGenerator({
         bottom_id: bottom.id,
         shoes_id: shoes.id,
         occasion,
+        // The outfit as it is today, so a later rating trains on exactly this.
+        features: {
+          items: [top.id, bottom.id, shoes.id],
+          values: currentFeatures({ top, bottom, shoes }),
+        },
       });
       if (isUniqueViolation(insertError)) {
         showToast("You've already logged today's outfit. Edit it in Calendar.", 'warning');

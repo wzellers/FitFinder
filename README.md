@@ -34,7 +34,8 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   - **Occasion** (15%) — matches clothing types to Casual, Work, Date, or Active
   - **Rating** (10%) — favors pieces from your higher-rated past outfits
 - **Learns from your feedback**: a per-user Bayesian contextual bandit learns
-  your weights from your ratings and saved outfits, and picks outfits by
+  your weights from your ratings (the daily prompt or the Calendar, using the
+  outfit as it was the day you wore it) and saved outfits, and picks outfits by
   Thompson sampling, exploring only where it is still unsure. It runs in the
   browser and persists per user in Supabase; before any rating it reproduces
   the fixed-weight scorer (cold start).

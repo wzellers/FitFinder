@@ -128,7 +128,16 @@ user, behind the same interface:
   rating to `[0, 1]` and `updateWeights()` does an exact Bayesian update
   (`A += xxᵀ/σ²`, `b += x·reward/σ²`, assumed rating noise σ = 0.1). Saving an
   outfit contributes a mild positive reward. Updates are immutable (they return
-  a new model).
+  a new model), and `forgetReward()` undoes one exactly.
+- **What it learns from** (`src/lib/outfitLearning.ts`). "Wear today" stores the
+  outfit's feature vector on its `outfit_wears` row (`features`, with the item
+  ids it describes), so a later rating trains on the outfit as it was that day,
+  weather included. Wears logged in the Calendar get features rebuilt as of
+  their date from the wear history (weather unknown, so neutral).
+  `syncWearLearning` runs after the rating prompt and every Calendar save: it
+  undoes what the row's `learned_rating` taught the model and learns the
+  current rating, so edits never double-count; `forgetWearLearning` runs before
+  a Calendar delete.
 - **Selection (Thompson sampling).** `selectOutfits()` samples one set of
   weights from the belief and ranks every candidate by it; the generator shows
   the top pick. While the model is unsure, samples vary and it explores; as
@@ -171,16 +180,16 @@ part of the normal Vitest suite.
 Schema lives in [`supabase/migrations/`](../supabase/migrations) as numbered SQL
 files applied in order. Each is immutable; changes are made by adding a new file.
 
-| Table                  | Purpose                                                                       |
-| ---------------------- | ----------------------------------------------------------------------------- |
-| `clothing_items`       | Wardrobe items: type, colors (primary at index 0), photo path, laundry status |
-| `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                 |
-| `outfit_wears`         | Daily wear log (one per day) with rating (1–10) and occasion                  |
-| `color_preferences`    | Liked color combinations                                                      |
-| `weather_preferences`  | The user's temperature ranges and per-type weather rules                      |
-| `occasion_preferences` | Which clothing types suit each occasion                                       |
-| `profiles`             | ZIP code, onboarding state, and daily email settings                          |
-| `outfit_model_weights` | Per-user learned bandit weights + metadata                                    |
+| Table                  | Purpose                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `clothing_items`       | Wardrobe items: type, colors (primary at index 0), photo path, laundry status                                    |
+| `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                                                    |
+| `outfit_wears`         | Daily wear log (one per day): rating (1–10), occasion, and what the model learned (`features`, `learned_rating`) |
+| `color_preferences`    | Liked color combinations                                                                                         |
+| `weather_preferences`  | The user's temperature ranges and per-type weather rules                                                         |
+| `occasion_preferences` | Which clothing types suit each occasion                                                                          |
+| `profiles`             | ZIP code, onboarding state, and daily email settings                                                             |
+| `outfit_model_weights` | Per-user learned bandit weights + metadata                                                                       |
 
 Photos live in the private `clothing-images` Storage bucket, one folder per
 user, readable only by their owner.

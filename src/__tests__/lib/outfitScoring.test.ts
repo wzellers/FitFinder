@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { generateScoredOutfits, FEATURE_WEIGHTS, type ScoringContext } from '@/lib/outfitScoring';
+import {
+  generateScoredOutfits,
+  featureVector,
+  FEATURE_WEIGHTS,
+  type ScoringContext,
+} from '@/lib/outfitScoring';
+import { getUserClothingWeatherRules } from '@/lib/weatherApi';
+import { getUserOccasionRules } from '@/lib/occasionRules';
 import { makeTop, makeBottom, makeShoes } from '../factories/clothingItem';
 
 const WEIGHT_SUM = Object.values(FEATURE_WEIGHTS).reduce((a, b) => a + b, 0);
@@ -154,6 +161,45 @@ describe('generateScoredOutfits', () => {
       if (recentResults.length > 0 && freshResults.length > 0) {
         expect(recentResults[0].score).toBeLessThanOrEqual(freshResults[0].score + 0.5);
       }
+    });
+  });
+
+  describe('variety as of a date', () => {
+    const top = makeTop({ id: 'top-a' });
+    const bottom = makeBottom({ id: 'bottom-a' });
+    const shoes = makeShoes({ id: 'shoes-a' });
+    const wornOn = (worn_date: string) => ({
+      id: `w-${worn_date}`,
+      user_id: 'u1',
+      worn_date,
+      top_id: top.id,
+      bottom_id: bottom.id,
+      shoes_id: shoes.id,
+    });
+    const variety = (ctx: Partial<ScoringContext>) =>
+      featureVector(
+        { top, bottom, shoes },
+        baseCtx(ctx),
+        getUserClothingWeatherRules(null),
+        getUserOccasionRules(null),
+      ).variety;
+
+    it('measures recency from asOf, not from now', () => {
+      // Worn 7 days before 2026-03-10: half-way through the 14-day window.
+      expect(variety({ recentWears: [wornOn('2026-03-03')], asOf: '2026-03-10' })).toBeCloseTo(
+        0.5,
+        6,
+      );
+      // Worn the same day: full penalty.
+      expect(variety({ recentWears: [wornOn('2026-03-10')], asOf: '2026-03-10' })).toBeCloseTo(
+        0,
+        6,
+      );
+    });
+
+    it('ignores wears after asOf and older than the window', () => {
+      expect(variety({ recentWears: [wornOn('2026-03-12')], asOf: '2026-03-10' })).toBe(1);
+      expect(variety({ recentWears: [wornOn('2026-02-01')], asOf: '2026-03-10' })).toBe(1);
     });
   });
 
