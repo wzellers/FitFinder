@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-22 (migration 019 pending)
+**Last updated:** 2026-10-23 (migration 019 applied)
 
 ## What's live
 
@@ -33,7 +33,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`018` are all applied. Vault holds the two daily-email secrets.
+  `001`–`019` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -64,6 +64,10 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 - Database changes (migrations, data, settings) only with the user's explicit
   OK.
+- Claude's permission settings currently block database writes through the
+  Supabase tools (even inside a rolled-back transaction). The user runs
+  migrations in the Supabase SQL Editor; Claude prepares the file and verifies
+  the result with read-only queries afterwards.
 - Ignore two Supabase warnings that need a paid plan: leaked password
   protection, and the Postgres upgrade.
 - Expected advisor warnings: `unsubscribe_daily_email` is callable by
@@ -74,9 +78,6 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
-- Migration `019_drop_unused_columns.sql` (approved) drops six unused columns
-  and trims the color-preferences trigger. It is **not applied yet**: apply it
-  once the app version that stops writing `disliked_combinations` is deployed.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
