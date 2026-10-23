@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-23 (Thompson-sampling bandit)
+**Last updated:** 2026-10-23 (bandit step 3)
 
 ## What's live
 
@@ -33,7 +33,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`019` are all applied. Vault holds the two daily-email secrets.
+  `001`–`020` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -78,11 +78,13 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
-- **Bandit upgrade (in progress).** Steps 1 (benchmark,
-  `docs/BANDIT_BENCHMARK.md`) and 2 (Thompson sampling, `MODEL_VERSION` 2) are
-  done. Next, step 3: train on the worn outfit's real features (ratings
-  currently rebuild them without weather or wear history) and let Calendar
-  ratings train the model too.
+- **Bandit upgrade:** steps 1 (benchmark, `docs/BANDIT_BENCHMARK.md`), 2
+  (Thompson sampling, `MODEL_VERSION` 2) and 3 (learning from the worn outfit's
+  real features, Calendar ratings included, via `outfitLearning.ts`) are done.
+  Ratings given before step 3 aren't retro-trained (prompt ratings were
+  already learned; old Calendar ratings start counting if edited). Possible
+  next steps: learn from more signals (e.g. "Try another" as a mild negative),
+  and re-run `npm run bench:bandit` after changes to the model.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
