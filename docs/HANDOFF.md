@@ -74,6 +74,12 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
+- Unused database columns (needs a migration and the user's OK):
+  `outfit_wears.outerwear_id`, `outfit_wears.layer_id`,
+  `color_preferences.outerwear_combinations`,
+  `color_preferences.disliked_combinations` (only ever written as `[]`),
+  `profiles.preferences`, `profiles.profile_picture_url`. A few old rows still
+  hold values in three of them.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
