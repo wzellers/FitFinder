@@ -247,16 +247,13 @@ export default function OutfitGenerator({
       return;
     }
 
-    const params = (model ?? deserializeModel(null)).params;
-    const selected = selectOutfits(
+    // Thompson sampling: each call samples the user's weights afresh, so its top
+    // pick is the outfit to show and repeated clicks still vary.
+    const [{ candidate: pick }] = selectOutfits(
       candidates.map((c) => ({ candidate: c, features: c.features })),
-      params,
-      { count: 5 },
+      model ?? deserializeModel(null),
+      { count: 1 },
     );
-
-    // selectOutfits already explores/exploits; sample among its returned best so
-    // repeated clicks stay fresh.
-    const pick = selected[Math.floor(Math.random() * selected.length)].candidate;
     if (!lockedTop) setTop(pick.top);
     if (!lockedBottom) setBottom(pick.bottom);
     if (!lockedShoes) setShoes(pick.shoes);

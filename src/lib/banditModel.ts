@@ -1,13 +1,17 @@
-// Contextual bandit — online linear model over the five outfit features.
+// Contextual bandit: per-user Bayesian linear model over the five outfit
+// features, choosing outfits by Thompson sampling.
 //
-// This is the learning layer on top of Phase 3's deterministic scorer. It learns
-// one weight per feature in `FEATURE_NAMES` (plus a bias) via online linear
-// regression, and selects outfits with ε-greedy explore/exploit. The fixed
-// `FEATURE_WEIGHTS` from `outfitScoring.ts` serve as the cold-start weights, so
-// before any rating the bandit reproduces the deterministic scorer's behavior.
+// Each user's model is a Gaussian belief about their weights (one per feature
+// in `FEATURE_NAMES`, plus a bias). It starts centred on the fixed
+// `FEATURE_WEIGHTS` from `outfitScoring.ts`, so before any rating the expected
+// score equals the deterministic scorer's. Every rating narrows the belief
+// (Bayesian linear regression), and every outfit choice samples weights from
+// it (Thompson sampling): the model explores only as much as it is still
+// unsure, feature by feature. docs/BANDIT_BENCHMARK.md compares this with the
+// earlier gradient-step, ε-greedy learner.
 //
-// Pure logic only: no Supabase, no React. Persistence and UI wiring live with the
-// callers, which keeps this module trivially unit-testable.
+// Pure logic only: no Supabase, no React. Persistence and UI wiring live with
+// the callers.
 
 import { FEATURE_NAMES, FEATURE_WEIGHTS } from '@/lib/outfitScoring';
 import type { FeatureName } from '@/lib/outfitScoring';
@@ -26,53 +30,143 @@ export interface BanditWeights {
 }
 
 export interface ModelMeta {
-  /** Schema version, so stored weights can be migrated later. */
+  /** Schema version, so stored models can be migrated. */
   version: number;
-  /** Number of online updates applied — useful for diagnostics / decaying ε. */
+  /** Number of ratings (and saves) learned from. */
   updates: number;
 }
 
+/**
+ * The belief about a user's weights, in information form over
+ * [...FEATURE_NAMES, bias]: precision matrix A and vector b, with
+ * mean A⁻¹b and covariance A⁻¹.
+ */
+export interface Posterior {
+  precision: number[][];
+  target: number[];
+}
+
 export interface BanditModel {
+  /** Posterior mean: the model's best estimate of the weights. */
   params: BanditWeights;
+  posterior: Posterior;
   meta: ModelMeta;
 }
 
-export const MODEL_VERSION = 1;
+/** 2: Bayesian posterior added. 1: gradient-step weights only. */
+export const MODEL_VERSION = 2;
 
 /**
- * Default online learning rate for `updateWeights`. 0.1 roughly halves the
- * ratings needed to learn a user's taste versus 0.05 while staying stable with
- * noisy ratings; 0.2+ starts chasing noise (see banditConvergence.sim.test.ts).
+ * How firmly the prior holds the cold-start (or previously learned) weights:
+ * weights start with standard deviation 1/√3 ≈ 0.58. Tuned with the bandit
+ * benchmark, which found 3 the best balance of first-week and long-run picks.
  */
-export const DEFAULT_LEARNING_RATE = 0.1;
+export const PRIOR_PRECISION = 3;
 
-/** Default exploration rate for ε-greedy selection. */
-export const DEFAULT_EPSILON = 0.15;
+/** Assumed rating noise, in reward units (one rating point ≈ 0.11). */
+export const RATING_NOISE = 0.1;
+
+const D = FEATURE_NAMES.length + 1; // features + bias
+
+// ============================================================================
+// SMALL LINEAR ALGEBRA (6×6, so plain arrays are plenty)
+// ============================================================================
+
+const toX = (f: FeatureVector): number[] => [...FEATURE_NAMES.map((n) => f[n]), 1];
+
+/** Lower-triangular Cholesky factor L of a symmetric positive-definite matrix. */
+function cholesky(a: number[][]): number[][] {
+  const L = a.map(() => new Array<number>(D).fill(0));
+  for (let i = 0; i < D; i++) {
+    for (let j = 0; j <= i; j++) {
+      let s = a[i][j];
+      for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k];
+      L[i][j] = i === j ? Math.sqrt(Math.max(s, 1e-12)) : s / L[j][j];
+    }
+  }
+  return L;
+}
+
+/** Solve Lᵀx = y. */
+function backSolve(L: number[][], y: number[]): number[] {
+  const x = new Array<number>(D).fill(0);
+  for (let i = D - 1; i >= 0; i--) {
+    let s = y[i];
+    for (let k = i + 1; k < D; k++) s -= L[k][i] * x[k];
+    x[i] = s / L[i][i];
+  }
+  return x;
+}
+
+/** Solve (LLᵀ)x = b. */
+function solve(L: number[][], b: number[]): number[] {
+  const y = new Array<number>(D).fill(0);
+  for (let i = 0; i < D; i++) {
+    let s = b[i];
+    for (let k = 0; k < i; k++) s -= L[i][k] * y[k];
+    y[i] = s / L[i][i];
+  }
+  return backSolve(L, y);
+}
+
+function toVector(p: BanditWeights): number[] {
+  return [...FEATURE_NAMES.map((n) => p.weights[n]), p.bias];
+}
+
+function fromVector(v: number[]): BanditWeights {
+  const weights = {} as Record<FeatureName, number>;
+  FEATURE_NAMES.forEach((n, i) => (weights[n] = v[i]));
+  return { weights, bias: v[D - 1] };
+}
+
+/** A prior centred on `mean`, with `PRIOR_PRECISION` on every weight. */
+function priorAround(mean: BanditWeights): Posterior {
+  const m = toVector(mean);
+  return {
+    precision: m.map((_, i) => m.map((__, j) => (i === j ? PRIOR_PRECISION : 0))),
+    target: m.map((v) => PRIOR_PRECISION * v),
+  };
+}
+
+function isValidPosterior(p: unknown): p is Posterior {
+  if (!p || typeof p !== 'object') return false;
+  const { precision, target } = p as Posterior;
+  const finite = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
+  return (
+    Array.isArray(target) &&
+    target.length === D &&
+    target.every(finite) &&
+    Array.isArray(precision) &&
+    precision.length === D &&
+    precision.every((row) => Array.isArray(row) && row.length === D && row.every(finite)) &&
+    precision.every((row, i) => row[i] > 0)
+  );
+}
 
 // ============================================================================
 // COLD START
 // ============================================================================
 
 /**
- * Cold-start model: feature weights seeded from the deterministic scorer's fixed
- * `FEATURE_WEIGHTS` and zero bias. With these weights, `predict` equals the
- * Phase 3 score, so behavior is identical until the first rating arrives.
+ * Cold-start model: centred on the deterministic scorer's `FEATURE_WEIGHTS`
+ * with zero bias, so the expected score equals the fixed scorer's.
  */
 export function defaultModel(): BanditModel {
   const weights = {} as Record<FeatureName, number>;
   for (const name of FEATURE_NAMES) weights[name] = FEATURE_WEIGHTS[name];
-  return {
-    params: { weights, bias: 0 },
-    meta: { version: MODEL_VERSION, updates: 0 },
-  };
+  const params = { weights, bias: 0 };
+  return { params, posterior: priorAround(params), meta: { version: MODEL_VERSION, updates: 0 } };
 }
 
 /**
- * Normalize a loaded/persisted model: fills in any missing feature weights from
- * the cold-start defaults and tolerates an absent meta block. Used when reading
- * weights that may predate a feature being added.
+ * Normalize a loaded model: missing or invalid weights fall back to the
+ * cold-start defaults, and a model without a (valid) posterior gets a prior
+ * centred on its weights. That is how version-1 models, which only stored
+ * gradient-step weights, carry what they learned into the Bayesian model.
  */
-export function normalizeModel(loaded: Partial<BanditModel> | null | undefined): BanditModel {
+export function normalizeModel(
+  loaded: (Partial<Omit<BanditModel, 'posterior'>> & { posterior?: unknown }) | null | undefined,
+): BanditModel {
   const base = defaultModel();
   if (!loaded || !loaded.params) return base;
   const weights = { ...base.params.weights };
@@ -84,37 +178,38 @@ export function normalizeModel(loaded: Partial<BanditModel> | null | undefined):
     typeof loaded.params.bias === 'number' && Number.isFinite(loaded.params.bias)
       ? loaded.params.bias
       : base.params.bias;
+  const params = { weights, bias };
   return {
-    params: { weights, bias },
-    meta: {
-      version: loaded.meta?.version ?? MODEL_VERSION,
-      updates: loaded.meta?.updates ?? 0,
-    },
+    params,
+    posterior: isValidPosterior(loaded.posterior) ? loaded.posterior : priorAround(params),
+    meta: { version: MODEL_VERSION, updates: loaded.meta?.updates ?? 0 },
   };
 }
 
 // ============================================================================
-// PERSISTENCE (pure (de)serialization — Supabase calls live in the callers)
+// PERSISTENCE (pure (de)serialization; Supabase calls live in the callers)
 // ============================================================================
 
 /** Shape of the `outfit_model_weights` row's JSON columns. */
 export interface SerializedModel {
-  /** Feature weights plus the bias term (under `__bias`), flattened into one object. */
+  /** Posterior-mean weights plus the bias (under `__bias`). Readers that only
+   * need the best estimate (e.g. the daily email) use just this. */
   weights: Record<string, number>;
-  feature_meta: ModelMeta;
+  feature_meta: ModelMeta & { posterior?: Posterior };
 }
 
 /** Convert a model to the JSON stored in `outfit_model_weights`. */
 export function serializeModel(model: BanditModel): SerializedModel {
   return {
     weights: { ...model.params.weights, __bias: model.params.bias },
-    feature_meta: { ...model.meta },
+    feature_meta: { ...model.meta, posterior: model.posterior },
   };
 }
 
 /**
- * Rebuild a model from a stored row (or partial/legacy data). Missing or invalid
- * fields fall back to cold-start defaults via `normalizeModel`.
+ * Rebuild a model from a stored row. Missing or invalid fields fall back to
+ * cold-start defaults; a version-1 row (no posterior) becomes a prior centred
+ * on its learned weights.
  */
 export function deserializeModel(row: Partial<SerializedModel> | null | undefined): BanditModel {
   if (!row || !row.weights) return defaultModel();
@@ -124,6 +219,7 @@ export function deserializeModel(row: Partial<SerializedModel> | null | undefine
       weights: featureWeights as Record<FeatureName, number>,
       bias: typeof __bias === 'number' ? __bias : 0,
     },
+    posterior: row.feature_meta?.posterior,
     meta: row.feature_meta,
   });
 }
@@ -141,7 +237,7 @@ export function rawScore(params: BanditWeights, features: FeatureVector): number
   return sum;
 }
 
-/** Predicted reward in [0, 1] for an outfit's feature vector. */
+/** Expected reward in [0, 1] for an outfit's feature vector. */
 export function predict(params: BanditWeights, features: FeatureVector): number {
   return clamp01(rawScore(params, features));
 }
@@ -160,80 +256,83 @@ export function computeReward(rating: number): number {
 export const SAVED_OUTFIT_REWARD = 0.7;
 
 // ============================================================================
-// ONLINE UPDATE
+// LEARNING (Bayesian linear regression)
 // ============================================================================
 
 /**
- * One online linear-regression step toward `reward`:
- *   error = reward − predict(features)
- *   w_i  += lr · error · feature_i
- *   bias += lr · error
- * Returns a NEW model (does not mutate the input) with `meta.updates` incremented.
+ * Learn from one observed reward for an outfit:
+ *   A ← A + xxᵀ/σ²,  b ← b + x·reward/σ²,  weights ← A⁻¹b.
+ * Returns a NEW model (does not mutate the input) with `meta.updates`
+ * incremented. Features with value 0 leave their weights' certainty unchanged.
  */
 export function updateWeights(
   model: BanditModel,
   features: FeatureVector,
   reward: number,
-  learningRate: number = DEFAULT_LEARNING_RATE,
 ): BanditModel {
-  const error = reward - predict(model.params, features);
-  const weights = { ...model.params.weights };
-  for (const name of FEATURE_NAMES) {
-    weights[name] = model.params.weights[name] + learningRate * error * features[name];
-  }
-  const bias = model.params.bias + learningRate * error;
+  const x = toX(features);
+  const s2 = RATING_NOISE * RATING_NOISE;
+  const precision = model.posterior.precision.map((row, i) =>
+    row.map((v, j) => v + (x[i] * x[j]) / s2),
+  );
+  const target = model.posterior.target.map((v, i) => v + (x[i] * reward) / s2);
+  const mean = solve(cholesky(precision), target);
   return {
-    params: { weights, bias },
-    meta: { version: model.meta.version, updates: model.meta.updates + 1 },
+    params: fromVector(mean),
+    posterior: { precision, target },
+    meta: { version: MODEL_VERSION, updates: model.meta.updates + 1 },
   };
 }
 
 // ============================================================================
-// ε-GREEDY SELECTION
+// SELECTION (Thompson sampling)
 // ============================================================================
 
 export interface ScoredCandidate<T> {
   candidate: T;
   features: FeatureVector;
+  /** Expected reward under the posterior mean, in [0, 1]. */
   score: number;
 }
 
+/** Standard normal sample (Box–Muller). */
+function gaussian(rng: () => number): number {
+  const u = Math.max(rng(), 1e-12);
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng());
+}
+
 /**
- * ε-greedy selection over featurized candidates.
+ * Thompson sampling: draw one set of weights from the user's posterior and
+ * rank every candidate by it. The first result is the outfit to show; the rest
+ * are runners-up. Each call draws afresh, so repeated calls offer different
+ * good outfits, more varied while the model is unsure and settling as it
+ * learns.
  *
- * With probability ε the model "explores" by shuffling all candidates randomly;
- * otherwise it "exploits" by sorting on predicted reward. Either way the top
- * `count` distinct candidates are returned, each tagged with its predicted score.
- *
- * `rng` is injectable (defaults to `Math.random`) so tests can make selection
- * deterministic.
+ * `rng` is injectable (defaults to `Math.random`) so tests are deterministic.
  */
 export function selectOutfits<T>(
   candidates: { candidate: T; features: FeatureVector }[],
-  params: BanditWeights,
-  options: { epsilon?: number; count?: number; rng?: () => number } = {},
+  model: BanditModel,
+  options: { count?: number; rng?: () => number } = {},
 ): ScoredCandidate<T>[] {
-  const { epsilon = DEFAULT_EPSILON, count = 5, rng = Math.random } = options;
+  const { count = 5, rng = Math.random } = options;
+  // w = mean + L⁻ᵀz has covariance A⁻¹ when A = LLᵀ.
+  const L = cholesky(model.posterior.precision);
+  const noise = backSolve(
+    L,
+    Array.from({ length: D }, () => gaussian(rng)),
+  );
+  const mean = toVector(model.params);
+  const sampled = fromVector(mean.map((m, i) => m + noise[i]));
 
-  const scored: ScoredCandidate<T>[] = candidates.map((c) => ({
-    candidate: c.candidate,
-    features: c.features,
-    score: predict(params, c.features),
-  }));
-
-  const explore = rng() < epsilon;
-  if (explore) {
-    // Fisher–Yates shuffle using the injected RNG.
-    const a = [...scored];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a.slice(0, count);
-  }
-
-  // Exploit: highest predicted reward first; jittered ties so equal-score
-  // outfits don't always come back in the same order.
-  scored.sort((x, y) => (y.score !== x.score ? y.score - x.score : rng() - 0.5));
-  return scored.slice(0, count);
+  return candidates
+    .map((c) => ({
+      candidate: c.candidate,
+      features: c.features,
+      score: predict(model.params, c.features),
+      sampledScore: rawScore(sampled, c.features),
+    }))
+    .sort((a, b) => b.sampledScore - a.sampledScore)
+    .slice(0, count)
+    .map(({ sampledScore: _sampledScore, ...rest }) => rest);
 }

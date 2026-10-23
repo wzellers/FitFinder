@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-23 (bandit benchmark)
+**Last updated:** 2026-10-23 (Thompson-sampling bandit)
 
 ## What's live
 
@@ -15,7 +15,7 @@ Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.1
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 - **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
-  outfits). Closet, outfit generator (contextual bandit, learning rate 0.1),
+  outfits). Closet, outfit generator (per-user Bayesian bandit, Thompson sampling),
   calendar, stats, settings (weather, occasions, colors, email), onboarding,
   rating prompt.
 - **Clothing detection:** Claude Haiku 4.5 through the Anthropic API
@@ -78,12 +78,11 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
-- **Bandit upgrade (in progress).** Step 1, the benchmark, is done
-  (`docs/BANDIT_BENCHMARK.md`): today's learner barely beats not learning;
-  Thompson sampling cuts regret roughly in half. Next: step 2, replace the
-  gradient learner with Thompson sampling (λ 3, σ 0.1), migrating stored
-  weights as the prior; step 3, train on the worn outfit's real features and
-  let Calendar ratings train the model too.
+- **Bandit upgrade (in progress).** Steps 1 (benchmark,
+  `docs/BANDIT_BENCHMARK.md`) and 2 (Thompson sampling, `MODEL_VERSION` 2) are
+  done. Next, step 3: train on the worn outfit's real features (ratings
+  currently rebuild them without weather or wear history) and let Calendar
+  ratings train the model too.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in

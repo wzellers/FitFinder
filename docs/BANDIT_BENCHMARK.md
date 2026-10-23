@@ -8,47 +8,46 @@ scoring code. Code: `src/__tests__/bandit/`. Full numbers:
 
 ## Findings
 
-From the run of 2026-10-23 (200 users per scenario, 90 days). Regret: 0 =
-the day's best outfit, 1 = no better than a random pick.
+From the run of 2026-10-23 (200 users per scenario, 90 days), after the app
+switched to Thompson sampling (`MODEL_VERSION` 2). Regret: 0 = the day's best
+outfit, 1 = no better than a random pick.
 
-| Typical users                    | Ratings 1–7 | 8–30 | 31–90 | Top-10% picks (31–90) |
-| -------------------------------- | ----------- | ---- | ----- | --------------------- |
-| Random pick                      | 1.00        | 1.00 | 1.00  | 11%                   |
-| No learning (cold-start weights) | 0.73        | 0.69 | 0.67  | 35%                   |
-| **Production**                   | 0.73        | 0.68 | 0.61  | 38%                   |
-| Production model, show the best  | 0.68        | 0.56 | 0.50  | 49%                   |
-| …and let ε decay                 | 0.66        | 0.51 | 0.43  | 55%                   |
-| Thompson sampling                | 0.72        | 0.51 | 0.35  | 62%                   |
-| LinUCB                           | 0.67        | 0.48 | 0.34  | 61%                   |
+| Typical users                                  | Ratings 1–7 | 8–30 | 31–90 | Top-10% picks (31–90) |
+| ---------------------------------------------- | ----------- | ---- | ----- | --------------------- |
+| Random pick                                    | 1.00        | 1.00 | 1.00  | 11%                   |
+| No learning (cold-start weights)               | 0.74        | 0.68 | 0.66  | 35%                   |
+| Legacy gradient (the app before v2)            | 0.73        | 0.66 | 0.61  | 38%                   |
+| Legacy gradient, show the best, ε decays       | 0.67        | 0.52 | 0.42  | 54%                   |
+| **Production: Thompson sampling (λ 3, σ 0.1)** | 0.74        | 0.48 | 0.33  | 64%                   |
+| LinUCB (α 0.5)                                 | 0.70        | 0.50 | 0.37  | 58%                   |
 
-1. **Production barely learns.** After 1–3 months of ratings it is only slightly
-   better than not learning (0.61 vs 0.67). Showing a random one of the top 5
-   and ε-greedy exploration both hold it back: in the exploration sweep ε 0 did
-   best (0.41) and ε 0.3 worst (0.58). Daily changes in weather and occasion
-   already vary what the user sees.
-2. **Cheap fix:** show the best guess and decay ε. That takes production's model
-   from 0.61 to 0.43 with no new math.
-3. **Bayesian learners are the real upgrade.** Thompson sampling and LinUCB
-   reach 0.34–0.35 (62% of picks in the user's true top 10%, vs 38%). The gap
-   is widest for item-driven users (0.34 vs 0.69). With very noisy raters they
-   only match the cheap fix (≈0.52); with drifting taste they still lead (0.39).
-4. **The first week is hard for every learner** (0.64–0.73); gains start in
-   week two.
+Regret after a month (ratings 31–90), legacy → production: typical **0.61 →
+0.33**, item-driven **0.69 → 0.36**, drifting **0.63 → 0.38**, noisy **0.66 →
+0.54**.
+
+1. **The legacy learner barely learned:** 0.61 vs 0.67 with no learning at all.
+   Showing a random one of its top 5, and ε-greedy exploration, held it back. In
+   the exploration sweep ε 0 did best and ε 0.3 worst; daily changes in weather
+   and occasion already vary what the user sees.
+2. **Thompson sampling roughly halves regret** from the second week on, and is
+   strongest for users who love specific pieces. It is why the app switched.
+3. **The first week is hard for every learner** (0.67–0.74). Thompson sampling
+   explores most at first, so it isn't better there; gains start in week two.
+4. **Very noisy raters** (±3 points) are the one case where a tuned gradient
+   learner (show the best, decaying ε) edges it (0.50 vs 0.54).
 5. **Feature importance:** the **rating** feature (the app's memory of
-   well-rated items) carries almost all the learnable signal: hiding it takes
-   Thompson sampling from 0.35 to 0.66, the same as not learning. Color and
-   variety are worth about 0.05 each. Weather adds nothing once
-   weather-blocked items are filtered out, and **occasion has no effect at all**
-   (it is constant within a day by design).
-6. **Cold-start weights barely matter for Bayesian learners**, which adapt within
-   a couple of weeks. For production they matter: a rating-heavy start goes
-   from 0.62 to 0.49.
+   well-rated items) carries most of the learnable signal: hiding it takes
+   production from 0.33 to 0.64, almost no learning. Color and variety are
+   worth about 0.08 each, weather ≈0.01 once weather-blocked items are filtered
+   out, and **occasion nothing** (it is constant within a day by design).
+6. **Cold-start weights barely matter for Thompson sampling**, which adapts within
+   a couple of weeks; they mattered for the legacy learner (a rating-heavy start
+   helped most).
 
-**Recommendation:** replace the gradient learner with Thompson sampling
-(prior strength λ 3, assumed noise σ 0.1). It matches LinUCB, and its sampling
-keeps "Try another outfit" fresh where LinUCB would repeat the same top pick.
-Also train on the features of the outfit actually worn (the rating feature is
-what matters most).
+**Next:** the rating feature matters most, but ratings from the prompt are
+learned from features rebuilt without weather or wear history, and Calendar
+ratings aren't learned from at all. Fixing that (step 3) feeds the model
+better data.
 
 ## Method
 

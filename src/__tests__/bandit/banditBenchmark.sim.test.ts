@@ -13,6 +13,7 @@ import path from 'path';
 import { describe, it, expect } from 'vitest';
 import { FEATURE_NAMES, FEATURE_WEIGHTS, type FeatureName } from '@/lib/outfitScoring';
 import {
+  legacyGradient,
   linUcb,
   production,
   randomPick,
@@ -28,15 +29,17 @@ const FULL = process.env.BANDIT_BENCH === '1';
 /** The main comparison: today's app, simple fixes to it, and Bayesian learners. */
 const MAIN: LearnerSpec[] = [
   { name: 'random pick (floor)', make: randomPick },
-  { name: 'no learning (cold-start weights)', make: () => production({ frozen: true }) },
-  { name: '**production** (ε 0.15, lr 0.1, random of top 5)', make: () => production() },
-  { name: 'production, but show the best', make: () => production({ showAmongTop: 1 }) },
+  { name: 'no learning (cold-start weights)', make: () => legacyGradient({ frozen: true }) },
   {
-    name: 'production, show the best, ε decays',
-    make: () => production({ showAmongTop: 1, decayEpsilon: true }),
+    name: 'legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2)',
+    make: () => legacyGradient(),
   },
-  { name: 'Thompson sampling', make: () => thompson() },
-  { name: 'LinUCB (α 1)', make: () => linUcb() },
+  {
+    name: 'legacy gradient, show the best, ε decays',
+    make: () => legacyGradient({ showAmongTop: 1, decayEpsilon: true }),
+  },
+  { name: '**production** (Thompson sampling, λ 3, σ 0.1)', make: () => production() },
+  { name: 'LinUCB (α 0.5)', make: () => linUcb({ priorPrecision: 3, noise: 0.1, alpha: 0.5 }) },
 ];
 
 function sweeps(): Array<{ title: string; note: string; learners: LearnerSpec[] }> {
@@ -51,19 +54,19 @@ function sweeps(): Array<{ title: string; note: string; learners: LearnerSpec[] 
   ];
   return [
     {
-      title: 'Learning rate (gradient learner, show the best, ε decays)',
+      title: 'Learning rate (legacy gradient, show the best, ε decays)',
       note: 'How big a step each rating takes.',
       learners: [0.05, 0.1, 0.2, 0.4].map((lr) => ({
         name: `lr ${lr}`,
-        make: () => production({ showAmongTop: 1, decayEpsilon: true, learningRate: lr }),
+        make: () => legacyGradient({ showAmongTop: 1, decayEpsilon: true, learningRate: lr }),
       })),
     },
     {
-      title: 'Exploration rate (gradient learner, show the best, lr 0.1)',
+      title: 'Exploration rate (legacy gradient, show the best, lr 0.1)',
       note: 'How often a random outfit is shown instead of the best guess.',
       learners: [0, 0.05, 0.15, 0.3].map((eps) => ({
         name: `ε ${eps}`,
-        make: () => production({ showAmongTop: 1, epsilon: eps }),
+        make: () => legacyGradient({ showAmongTop: 1, epsilon: eps }),
       })),
     },
     {
@@ -90,18 +93,18 @@ function sweeps(): Array<{ title: string; note: string; learners: LearnerSpec[] 
       learners: starts.map(([name, start]) => ({ name, make: () => thompson({ start }) })),
     },
     {
-      title: 'Cold-start weights (production learner)',
-      note: 'The same, for the current learner.',
-      learners: starts.map(([name, start]) => ({ name, make: () => production({ start }) })),
+      title: 'Cold-start weights (legacy gradient)',
+      note: 'The same, for the learner the app used before.',
+      learners: starts.map(([name, start]) => ({ name, make: () => legacyGradient({ start }) })),
     },
     {
-      title: 'Feature importance (Thompson sampling, one feature hidden)',
+      title: 'Feature importance (production, one feature hidden)',
       note: 'Regret rises most when a useful feature is removed.',
       learners: [
-        { name: 'all features', make: () => thompson() },
+        { name: 'all features', make: () => production() },
         ...FEATURE_NAMES.map((f) => ({
           name: `without ${f}`,
-          make: () => thompson({ ignore: [f] }),
+          make: () => production({ ignore: [f] }),
         })),
       ],
     },
