@@ -117,22 +117,34 @@ Locked slots constrain the candidate pool before scoring.
 `src/lib/banditModel.ts` replaces the fixed weights with **learned** ones, per
 user, behind the same interface:
 
-- **Model.** A linear model — one weight per feature plus a bias:
-  `score = w · features + bias`, clamped to `[0, 1]`.
-- **Cold start.** `defaultModel()` seeds the weights from the same fixed
-  `FEATURE_WEIGHTS`, so before any rating the bandit's `predict` exactly reproduces
-  the fixed scorer. New users get sensible behavior immediately.
-- **Selection.** `selectOutfits()` uses **ε-greedy** explore/exploit (default
-  ε = 0.15): usually surface the highest-scoring outfits, occasionally explore.
-  The RNG is injectable so tests are deterministic.
+- **Model.** A linear model (one weight per feature plus a bias:
+  `score = w · features + bias`, clamped to `[0, 1]`), held as a **Bayesian
+  belief**: a Gaussian over the six weights, stored as a precision matrix `A`
+  and vector `b` (mean `A⁻¹b`, covariance `A⁻¹`).
+- **Cold start.** `defaultModel()` centres the belief on the fixed
+  `FEATURE_WEIGHTS` with prior precision 3, so before any rating the expected
+  score reproduces the fixed scorer. New users get sensible behavior immediately.
 - **Learning.** When the user rates an outfit, `computeReward()` maps the 1–10
-  rating to `[0, 1]` and `updateWeights()` applies one online gradient step
-  (`w += lr · (reward − predicted) · feature`, default lr = 0.1). Saving an
-  outfit contributes a mild positive reward. Updates are immutable (they return a
-  new model) and increment an update counter for diagnostics.
-- **Persistence.** The model serializes to a compact JSON blob (six numbers plus
-  metadata) stored in `outfit_model_weights`, one row per user. Legacy or empty
-  rows fall back to cold start.
+  rating to `[0, 1]` and `updateWeights()` does an exact Bayesian update
+  (`A += xxᵀ/σ²`, `b += x·reward/σ²`, assumed rating noise σ = 0.1). Saving an
+  outfit contributes a mild positive reward. Updates are immutable (they return
+  a new model).
+- **Selection (Thompson sampling).** `selectOutfits()` samples one set of
+  weights from the belief and ranks every candidate by it; the generator shows
+  the top pick. While the model is unsure, samples vary and it explores; as
+  ratings narrow the belief, it settles on the user's best outfits. Each
+  "Try another" draws a new sample. The RNG is injectable so tests are
+  deterministic.
+- **Persistence.** `outfit_model_weights` holds one row per user: `weights` is
+  the posterior mean (enough for readers like the daily email, which takes the
+  best expected outfit) and `feature_meta` carries the posterior and version.
+  Rows from the earlier gradient-step learner (version 1) become a prior centred
+  on their learned weights, so nobody's learning resets.
+
+The settings (prior precision 3, noise 0.1) and the choice of Thompson
+sampling over ε-greedy come from the bandit benchmark
+([`BANDIT_BENCHMARK.md`](BANDIT_BENCHMARK.md)), which simulates users with
+realistic closets and weather through the app's real scoring code.
 
 Why linear? It trains on tiny amounts of data, runs instantly in the browser, and
 is interpretable — you can point at exactly why an outfit scored well. A richer
@@ -141,10 +153,10 @@ model could later slot in behind the same `predict` / `updateWeights` interface.
 ### The learning loop, end to end
 
 ```
-generate ──▶ selectOutfits (ε-greedy) ──▶ user wears & rates (1–10)
+generate ──▶ selectOutfits (Thompson) ──▶ user wears & rates (1–10)
    ▲                                              │
    │                                              ▼
-   └──── load weights ◀── outfit_model_weights ◀── updateWeights(reward)
+   └──── load belief ◀── outfit_model_weights ◀── updateWeights(reward)
 ```
 
 **Measuring convergence.** `src/__tests__/banditConvergence.sim.test.ts` simulates
