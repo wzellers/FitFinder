@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  generateScoredOutfits,
-  featureVector,
-  FEATURE_WEIGHTS,
-  type ScoringContext,
-} from '@/lib/outfitScoring';
-import { getUserClothingWeatherRules } from '@/lib/weatherApi';
-import { getUserOccasionRules } from '@/lib/occasionRules';
+import { generateScoredOutfits, FEATURE_WEIGHTS, type ScoringContext } from '@/lib/outfitScoring';
 import { makeTop, makeBottom, makeShoes } from '../factories/clothingItem';
 
 const WEIGHT_SUM = Object.values(FEATURE_WEIGHTS).reduce((a, b) => a + b, 0);
