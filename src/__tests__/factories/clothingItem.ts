@@ -32,7 +32,3 @@ export function makeOuterwear(overrides: Partial<ClothingItem> = {}): ClothingIt
 export function makeShoes(overrides: Partial<ClothingItem> = {}): ClothingItem {
   return makeItem({ type: 'Shoes', colors: ['white'], ...overrides });
 }
-
-export function makeLayer(overrides: Partial<ClothingItem> = {}): ClothingItem {
-  return makeItem({ type: 'Long Sleeve Shirt', colors: ['gray'], ...overrides });
-}

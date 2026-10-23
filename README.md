@@ -37,9 +37,8 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   feature weights online from your ratings and wear history using ε-greedy
   explore/exploit. Learned weights persist per user in Supabase; before any
   rating it reproduces the fixed-weight scorer (cold start).
-- Lock individual pieces and regenerate around them
-- Cycle through the top scored results
-- Save outfits for later or log them as today's wear
+- Keep individual pieces and regenerate around them, or pick a piece by hand
+- Save outfits for later or log one as today's wear
 
 ### Outfit Calendar
 
@@ -49,18 +48,18 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 
 ### Wardrobe Stats
 
-- Overview of total items, wear count, clean/dirty breakdown
-- Category distribution bars
-- Most worn and neglected items
-- Color distribution across your wardrobe
-- Average outfit rating and top-rated outfits
-- Filter stats by week, month, or all time
+- Item counts by category, clean vs. in the wash, outfits logged, share of the
+  closet worn, days between repeats, and average rating
+- Most worn and least worn items, color distribution, and best-rated outfits
+- Filter by week, month, or all time
 
-### Color Preferences
+### Settings
 
-- Set your zip code for weather-aware outfit suggestions
-- Build a library of liked color combinations
-- Visual color pairing interface with your actual wardrobe colors
+- **Weather:** your ZIP code, temperature ranges, and which clothing types
+  suit each range
+- **Occasions:** which clothing types count for Casual, Work, Date and Active
+- **Colors:** a library of liked top/bottom color combinations
+- **Email:** the daily outfit email (below)
 
 ### Daily Outfit Email
 
@@ -75,8 +74,8 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 
 ### Onboarding
 
-- Guided 3-step setup for new users (zip code, first items, finish)
-- Rating prompt for yesterday's outfit on each visit
+- Guided 3-step setup for new users (ZIP code, first items, finish)
+- A prompt to rate yesterday's outfit, which feeds the learning model
 
 ## Tech Stack
 
@@ -128,16 +127,17 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
    order (001, 002, …) using the Supabase SQL Editor. They create and evolve the
    full schema:
 
-   - `clothing_items` — wardrobe items (type, colors, image, laundry status)
+   - `clothing_items` — wardrobe items (type, colors, photo path, laundry status)
    - `saved_outfits` — saved outfit combinations
-   - `color_preferences` — liked color combinations per user
    - `outfit_wears` — daily wear log with ratings and occasion
-   - `profiles` — zip code and onboarding state
+   - `color_preferences` — liked color combinations
+   - `weather_preferences`, `occasion_preferences` — per-user rule overrides
+   - `profiles` — ZIP code, onboarding state, daily email settings
    - `outfit_model_weights` — persisted per-user contextual-bandit weights
 
-   Then create a private `clothing-images` storage bucket in Supabase; the
-   migrations add its per-user access policies, and the app loads photos
-   through short-lived signed URLs.
+   Before running them, create a `clothing-images` storage bucket in Supabase.
+   The migrations make it private and add per-user access policies; the app
+   loads photos through short-lived signed URLs.
 
 5. Run the dev server
 
@@ -192,48 +192,55 @@ Recent runs are in `cron.job_run_details`, and the route's responses (a
 ```
 src/
   app/
-    api/detect-clothing/route.ts # Server route: Claude Vision type/color detection
-    api/email/send-due/route.ts # Send due daily emails (called by pg_cron)
-    api/email/unsubscribe/route.ts # Unsubscribe from the daily email (no sign-in)
-    layout.tsx          # Root layout with custom fonts and ToastProvider
-    page.tsx            # Main page with tab navigation and modal management
+    page.tsx              # The whole signed-in app: tabs, modals, rating prompt
+    layout.tsx            # Root layout: fonts, ToastProvider
+    icon.svg              # Favicon
+    api/
+      detect-clothing/    # Claude Vision type/color detection (signed-in users)
+      weather/            # OpenWeatherMap proxy, keeps the key server-side
+      email/send-due/     # Sends due daily emails (called by pg_cron)
+      email/unsubscribe/  # Unsubscribe link target (no sign-in)
   components/
-    AuthForm.tsx        # Login / signup form
-    Closet.tsx          # Wardrobe grid with section filters
-    ColorPreferences.tsx # Color combo builder + zip code settings
-    ColorCombinationModal.tsx # Modal for editing color pairings
-    DailyEmailSettings.tsx # Settings → Email: opt-in, send time, time zone
-    EditItem.tsx        # Edit item type, colors, and laundry status
-    ImageUpload.tsx     # Upload new items (detect, crop, background removal)
-    Onboarding.tsx      # New user guided setup
-    OutfitCalendar.tsx  # Monthly calendar with outfit logging
-    OutfitGenerator.tsx # Outfit generation + saved outfits
-    RatingPrompt.tsx    # Rate yesterday's outfit modal
-    ToastProvider.tsx   # Toast notification system
-    WardrobeStats.tsx   # Wardrobe analytics dashboard
-    ui/ConfirmDialog.tsx # Reusable confirm/cancel dialog
-    ui/ImageCropper.tsx  # Crop UI used during upload review
-    ui/Skeleton.tsx      # Loading skeleton components
-  hooks/
-    useAuth.ts          # Supabase auth state hook
+    AuthForm.tsx          # Log in / create account
+    Closet.tsx            # Wardrobe by section, filters, laundry
+    ImageUpload.tsx       # Add items: detect, crop, remove background, upload
+    EditItem.tsx          # Edit or delete an item
+    OutfitGenerator.tsx   # Generate, keep, pick, save and wear outfits
+    OutfitCalendar.tsx    # Monthly wear log
+    WardrobeStats.tsx     # Stats by week / month / all time
+    ColorPreferences.tsx  # Settings: weather, occasions, colors, email
+    ColorCombinationModal.tsx
+    DailyEmailSettings.tsx
+    Onboarding.tsx        # First-run setup
+    RatingPrompt.tsx      # Rate yesterday's outfit
+    OutfitTheme.tsx       # Restyles the app from today's outfit colors
+    ToastProvider.tsx
+    ui/                   # Primitives: Modal, ConfirmDialog, PillNav,
+                          # PosterHeader, ClothingImage, SlotReel, Skeleton, ...
+  hooks/useAuth.ts        # Supabase auth state
   lib/
-    banditModel.ts      # Contextual-bandit online learning model
-    colorUtils.ts       # Color display helpers
-    constants.ts        # Shared constants (types, palettes, occasion rules)
-    dailyEmail/         # Daily email: schedule, digest, render, sender, Resend
-    imageColor.ts       # Local dominant-color detection
-    imageCrop.ts        # Crop an image region to a PNG blob
-    occasionRules.ts    # Per-occasion clothing-type rules
-    outfitScoring.ts    # Weighted outfit scoring engine (bandit cold-start priors)
-    supabaseClient.ts   # Supabase client instance
-    types.ts            # TypeScript interfaces and weather rules
-    uploadPipeline.ts   # Detect + background-removal + upload orchestration
-    weatherApi.ts       # OpenWeatherMap integration with caching
-    weatherProvider.ts  # Server-side OpenWeatherMap calls (incl. daily forecast)
-  styles/
-    globals.css         # Tailwind directives + CSS custom properties + component classes
-  __tests__/            # Vitest unit/component tests and Playwright e2e specs
-supabase/migrations/    # Ordered SQL migrations (schema source of truth)
+    outfitScoring.ts      # Feature vector and fixed-weight scorer
+    banditModel.ts        # Contextual-bandit learning model
+    uploadPipeline.ts     # Detection, image prep and upload orchestration
+    imageColor.ts         # Local dominant-color detection
+    imageCrop.ts          # Crop to a PNG blob
+    clothingImages.ts     # Storage paths and batched signed URLs
+    weatherApi.ts         # Client weather fetch, caching, weather rules
+    weatherProvider.ts    # Server-side OpenWeatherMap calls
+    occasionRules.ts      # Per-occasion clothing-type rules
+    dailyEmail/           # Daily email: schedule, digest, render, sender, Resend
+    serverAuth.ts         # Verify the signed-in user in API routes
+    supabaseClient.ts     # Lazy browser Supabase client
+    supabaseResult.ts     # Throw on Supabase errors
+    colorUtils.ts, itemLabels.ts, outfitTheme.ts, dates.ts
+    constants.ts          # Clothing types, palette, occasions (single source)
+    types.ts              # Shared interfaces
+  styles/globals.css      # Tailwind layers, CSS variables, component classes
+  __tests__/              # Mirrors src/: lib, components, api, hooks, app, plus
+                          # e2e/ (Playwright specs, fixtures, helpers)
+supabase/migrations/      # Numbered SQL migrations (schema source of truth)
+scripts/measureVision.mjs # Detection latency/accuracy measurement
+docs/                     # HANDOFF.md (current state), ARCHITECTURE.md
 ```
 
 ## Scripts
@@ -293,7 +300,8 @@ Reproducible experiments used during development:
   It prints a convergence histogram and runs as part of `npm run test`; run it
   alone with `npx vitest run src/__tests__/banditConvergence.sim.test.ts`.
 - `scripts/measureVision.mjs` — measures the Claude Vision clothing-detection
-  route against sample images.
+  route on your own photos (latency, plus accuracy if you add labels). It
+  signs in with the `.env.e2e` account; see the file's header.
 
 ## Documentation
 

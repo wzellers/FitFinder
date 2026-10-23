@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-22 (sign-out fix)
+**Last updated:** 2026-10-22 (dead-code and docs clean-up)
 
 ## What's live
 
@@ -74,13 +74,17 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
+- Unused database columns (needs a migration and the user's OK):
+  `outfit_wears.outerwear_id`, `outfit_wears.layer_id`,
+  `color_preferences.outerwear_combinations`,
+  `color_preferences.disliked_combinations` (only ever written as `[]`),
+  `profiles.preferences`, `profiles.profile_picture_url`. A few old rows still
+  hold values in three of them.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
   `CLAUDE.md` and `CONTRIBUTING.md`.
 - An orphaned photo from deleted test data remains in storage (harmless,
   private).
-- Old remote branches not yet reviewed: `theme-refresh`,
-  `claude/supabase-security-audit-00b9fc`.
 - Next.js warns about multiple lockfiles when run from a git worktree.
   Harmless.

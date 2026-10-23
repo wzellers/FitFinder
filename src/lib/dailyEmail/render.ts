@@ -48,7 +48,7 @@ function escapeHtml(value: string): string {
 }
 
 /** "Tuesday, October 13" for a `YYYY-MM-DD` date. */
-export function formatEmailDate(date: string): string {
+function formatEmailDate(date: string): string {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'UTC',
     weekday: 'long',

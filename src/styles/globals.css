@@ -224,15 +224,6 @@
     @apply bg-[var(--poster-accent)] text-[var(--poster-accent-ink)];
   }
 
-  .nav-tab {
-    @apply flex items-center gap-2 px-3 min-h-[44px] rounded-md text-sm font-semibold
-           text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors;
-  }
-  .nav-tab-active {
-    @apply nav-tab text-[var(--text)];
-    box-shadow: inset 0 -2px 0 var(--text);
-  }
-
   .modal-overlay {
     @apply fixed inset-0 flex items-end sm:items-center justify-center z-50 bg-black/30 backdrop-blur-[2px];
   }
@@ -247,9 +238,5 @@
 
   .logo {
     @apply font-poster uppercase tracking-[0.02em] text-[var(--burgundy)];
-  }
-
-  .retro-cell {
-    @apply bg-white overflow-hidden relative rounded-md border border-[var(--border)];
   }
 }

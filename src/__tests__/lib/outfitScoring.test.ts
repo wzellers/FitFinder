@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  generateScoredOutfits,
-  featureVector,
-  FEATURE_WEIGHTS,
-  type ScoringContext,
-} from '@/lib/outfitScoring';
-import { getUserClothingWeatherRules } from '@/lib/weatherApi';
-import { getUserOccasionRules } from '@/lib/occasionRules';
+import { generateScoredOutfits, FEATURE_WEIGHTS, type ScoringContext } from '@/lib/outfitScoring';
 import { makeTop, makeBottom, makeShoes } from '../factories/clothingItem';
 
 const WEIGHT_SUM = Object.values(FEATURE_WEIGHTS).reduce((a, b) => a + b, 0);
@@ -20,16 +13,6 @@ function baseCtx(overrides: Partial<ScoringContext> = {}): ScoringContext {
     ratedOutfits: [],
     ...overrides,
   };
-}
-
-// featureVector helper that wires the default weather/occasion rule loaders.
-function featuresFor(outfit: Parameters<typeof featureVector>[0], ctx: ScoringContext) {
-  return featureVector(
-    outfit,
-    ctx,
-    getUserClothingWeatherRules(ctx.weatherRules ?? null),
-    getUserOccasionRules(ctx.occasionRules ?? null),
-  );
 }
 
 function baseItems() {

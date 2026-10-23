@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 // Mock all the heavy child components
@@ -7,9 +7,7 @@ vi.mock('@/components/Closet', () => ({
   default: vi.fn(() => <div data-testid="closet">Closet Content</div>),
 }));
 vi.mock('@/components/OutfitGenerator', () => ({
-  default: vi.fn(({ onNavigateToCalendar }: { onNavigateToCalendar?: () => void }) => (
-    <div data-testid="generator">Generator Content</div>
-  )),
+  default: vi.fn(() => <div data-testid="generator">Generator Content</div>),
 }));
 vi.mock('@/components/OutfitCalendar', () => ({
   default: vi.fn(() => <div data-testid="calendar">Calendar Content</div>),

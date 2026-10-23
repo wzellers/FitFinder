@@ -5,7 +5,7 @@ function hexOf(color: string): string {
 }
 
 /** WCAG relative luminance of a palette colour name or hex. */
-export function luminance(color: string): number {
+function luminance(color: string): number {
   const hex = hexOf(color);
   if (!/^[0-9a-f]{6}$/i.test(hex)) return 0;
   const channel = (i: number) => {

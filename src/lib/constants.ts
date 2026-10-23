@@ -83,17 +83,6 @@ export const colorNameMap: Record<string, string> = {
   purple: 'Purple',
 };
 
-/** Colors that should use dark text for readability */
-export const lightColors = [
-  '#fafaf7',
-  '#ddd0b5',
-  '#9fc9e6',
-  '#a9d3a0',
-  '#f2cf4a',
-  '#f1b5c4',
-  '#8e8e8c',
-];
-
 // ============================================================================
 // CLOTHING CATEGORIES
 // ============================================================================

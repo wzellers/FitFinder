@@ -103,7 +103,7 @@ const seedPath = (userId: string, file: string) => `${userId}/e2e-${file}`;
  * Make sure every seed photo is in storage, and remove any other file in the
  * test user's folder (e.g. photos uploaded by a previous run's tests).
  */
-export async function syncSeedPhotos(): Promise<void> {
+async function syncSeedPhotos(): Promise<void> {
   const { db, userId } = await testDb();
   const listed = ok(await db.storage.from(BUCKET).list(userId, { limit: 1000 }), 'list photos');
   const existing = new Set((listed ?? []).map((f) => `${userId}/${f.name}`));
