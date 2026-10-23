@@ -270,17 +270,39 @@ export function updateWeights(
   features: FeatureVector,
   reward: number,
 ): BanditModel {
+  return applyObservation(model, features, reward, +1);
+}
+
+/**
+ * Undo an earlier `updateWeights(model, features, reward)` exactly, e.g. when
+ * a rating is changed or its wear deleted. Only call it with features and a
+ * reward the model really learned from.
+ */
+export function forgetReward(
+  model: BanditModel,
+  features: FeatureVector,
+  reward: number,
+): BanditModel {
+  return applyObservation(model, features, reward, -1);
+}
+
+function applyObservation(
+  model: BanditModel,
+  features: FeatureVector,
+  reward: number,
+  sign: 1 | -1,
+): BanditModel {
   const x = toX(features);
   const s2 = RATING_NOISE * RATING_NOISE;
   const precision = model.posterior.precision.map((row, i) =>
-    row.map((v, j) => v + (x[i] * x[j]) / s2),
+    row.map((v, j) => v + (sign * x[i] * x[j]) / s2),
   );
-  const target = model.posterior.target.map((v, i) => v + (x[i] * reward) / s2);
+  const target = model.posterior.target.map((v, i) => v + (sign * x[i] * reward) / s2);
   const mean = solve(cholesky(precision), target);
   return {
     params: fromVector(mean),
     posterior: { precision, target },
-    meta: { version: MODEL_VERSION, updates: model.meta.updates + 1 },
+    meta: { version: MODEL_VERSION, updates: Math.max(0, model.meta.updates + sign) },
   };
 }
 

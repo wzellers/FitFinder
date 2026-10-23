@@ -61,6 +61,9 @@ export interface OutfitWear {
   rating?: number;
   occasion?: string | null;
   created_at?: string;
+  /** What the outfit model learned from (see lib/outfitLearning.ts). */
+  features?: unknown;
+  learned_rating?: number | null;
 }
 
 export interface PendingRating {

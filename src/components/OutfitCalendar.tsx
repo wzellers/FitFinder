@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import PosterHeader from '@/components/ui/PosterHeader';
 import { supabase } from '@/lib/supabaseClient';
+import { forgetWearLearning, syncWearLearning } from '@/lib/outfitLearning';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { describeItem } from '@/lib/itemLabels';
@@ -189,11 +190,18 @@ export default function OutfitCalendar() {
         notes: notes || null,
         rating: rating > 0 ? rating : null,
       };
-      const { error } = selectedOutfitWear
-        ? await supabase.from('outfit_wears').update(payload).eq('id', selectedOutfitWear.id)
+      const { data: saved, error } = selectedOutfitWear
+        ? await supabase
+            .from('outfit_wears')
+            .update(payload)
+            .eq('id', selectedOutfitWear.id)
+            .select('id')
+            .single()
         : await supabase
             .from('outfit_wears')
-            .insert({ user_id: user.id, worn_date: dateStr, ...payload });
+            .insert({ user_id: user.id, worn_date: dateStr, ...payload })
+            .select('id')
+            .single();
       if (isUniqueViolation(error)) {
         showToast('This day already has an outfit. Reopen the day to edit it.', 'warning');
         loadData();
@@ -201,7 +209,14 @@ export default function OutfitCalendar() {
       }
       if (error) throw error;
       setShowLogModal(false);
-      loadData();
+      // Ratings set or changed here train the outfit model too (best-effort).
+      if (saved) {
+        void syncWearLearning(user.id, saved.id)
+          .catch((err) => console.warn('Could not update outfit model', err))
+          .finally(loadData);
+      } else {
+        loadData();
+      }
     } catch {
       showToast("Couldn't save this day. Try again.", 'error');
     }
@@ -213,8 +228,12 @@ export default function OutfitCalendar() {
   };
 
   const confirmDelete = async () => {
-    if (!selectedOutfitWear) return;
+    if (!selectedOutfitWear || !user) return;
     setConfirmOpen(false);
+    // Undo what the model learned from this day before it disappears.
+    await forgetWearLearning(user.id, selectedOutfitWear.id).catch((err) =>
+      console.warn('Could not update outfit model', err),
+    );
     const { error } = await supabase.from('outfit_wears').delete().eq('id', selectedOutfitWear.id);
     if (error) {
       showToast("Couldn't delete this entry. Try again.", 'error');

@@ -57,6 +57,22 @@ test('moves between months and back to today', async ({ page }) => {
 
 test('logs a past day by picking items, edits it, and deletes it', async ({ page, seeded }) => {
   const { db, userId } = await testDb();
+  // What the outfit model has learned: its update count and this day's
+  // learned rating. Learning runs in the background, so poll for it.
+  const modelUpdates = async () => {
+    const row = ok(
+      await db
+        .from('outfit_model_weights')
+        .select('feature_meta')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      'model',
+    );
+    return (row?.feature_meta as { updates?: number } | undefined)?.updates ?? 0;
+  };
+  const learnedRating = async () =>
+    ok(await db.from('outfit_wears').select('learned_rating').eq('user_id', userId), 'wears')[0]
+      ?.learned_rating ?? null;
   await openApp(page, 'Calendar');
 
   await showMonthOf(page, 3);
@@ -91,6 +107,9 @@ test('logs a past day by picking items, edits it, and deletes it', async ({ page
   expect(rows).toEqual([
     { worn_date: localDate(-3), top_id: seeded.whiteTee, rating: 7, notes: 'E2E: comfy' },
   ]);
+  // A Calendar rating trains the model.
+  await expect.poll(learnedRating).toBe(7);
+  await expect.poll(modelUpdates).toBe(1);
 
   // Edit the rating.
   await logged.click();
@@ -98,6 +117,9 @@ test('logs a past day by picking items, edits it, and deletes it', async ({ page
   await edit.getByRole('button', { name: '9 out of 10' }).click();
   await edit.getByRole('button', { name: 'Update' }).click();
   await expect(logged).toHaveAccessibleName(/rated 9 out of 10$/);
+  // The 7 is replaced by the 9, not added to it.
+  await expect.poll(learnedRating).toBe(9);
+  expect(await modelUpdates()).toBe(1);
 
   // Delete it.
   await logged.click();
@@ -111,6 +133,8 @@ test('logs a past day by picking items, edits it, and deletes it', async ({ page
     .click();
   await expect(logged).toHaveAccessibleName(/: nothing logged$/);
   expect(ok(await db.from('outfit_wears').select('id').eq('user_id', userId), 'wears')).toEqual([]);
+  // Deleting the day undoes what the model learned from it.
+  await expect.poll(modelUpdates).toBe(0);
 });
 
 test('logs a day from a saved outfit', async ({ page, seeded }) => {
