@@ -7,6 +7,7 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 
 const mockMaybeSingle = vi.hoisted(() => vi.fn());
+const mockUpsert = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/supabaseClient', () => ({
   supabase: {
@@ -30,11 +31,7 @@ vi.mock('@/lib/supabaseClient', () => ({
       delete: vi.fn(() => ({
         eq: vi.fn(() => Promise.resolve({ error: null })),
       })),
-      upsert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(() => Promise.resolve({ data: { id: 'pref' }, error: null })),
-        })),
-      })),
+      upsert: mockUpsert,
     })),
   },
 }));
@@ -43,6 +40,14 @@ import ColorPreferences from '@/components/ColorPreferences';
 
 beforeEach(() => {
   mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+  mockUpsert.mockReset();
+  mockUpsert.mockReturnValue(
+    Object.assign(Promise.resolve({ error: null }), {
+      select: vi.fn(() => ({
+        single: vi.fn(() => Promise.resolve({ data: { id: 'pref' }, error: null })),
+      })),
+    }),
+  );
 });
 
 describe('ColorPreferences', () => {
@@ -101,5 +106,23 @@ describe('ColorPreferences', () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  it('saves a liked combination with only the columns that exist', async () => {
+    renderWithProviders(<ColorPreferences />);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Colors' }))[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Top Color' }));
+    fireEvent.click(screen.getByRole('button', { name: 'navy blue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bottom Color' }));
+    fireEvent.click(screen.getByRole('button', { name: 'beige' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Liked' }));
+
+    await waitFor(() => expect(mockUpsert).toHaveBeenCalled());
+    // Exactly these keys: dropped columns (e.g. disliked_combinations) must not
+    // come back, or saving fails.
+    expect(mockUpsert.mock.calls[0][0]).toEqual({
+      user_id: 'u1',
+      liked_combinations: [{ topColor: 'navy blue', bottomColor: 'beige' }],
+    });
   });
 });
