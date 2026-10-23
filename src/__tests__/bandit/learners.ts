@@ -1,17 +1,11 @@
 // Learning strategies for the bandit benchmark, behind one interface.
 //
-// "production" uses the app's real code (defaultModel, selectOutfits,
-// updateWeights) and its real policy: show a random one of selectOutfits' top 5.
-// The Bayesian learners (Thompson sampling, LinUCB) are candidates for
-// replacing it; they live here until the benchmark says they are worth it.
+// "production" runs the app's real code (defaultModel, selectOutfits,
+// updateWeights). "legacyGradient" is the learner the app used before, kept for
+// comparison. The thompson/linUcb implementations here take tunable priors, for
+// the sweeps that chose production's settings.
 
-import {
-  defaultModel,
-  selectOutfits,
-  updateWeights,
-  type BanditModel,
-  type FeatureVector,
-} from '@/lib/banditModel';
+import { defaultModel, selectOutfits, updateWeights, type FeatureVector } from '@/lib/banditModel';
 import { FEATURE_NAMES, FEATURE_WEIGHTS, type FeatureName } from '@/lib/outfitScoring';
 import { gaussian, type Rng } from './world';
 
@@ -45,20 +39,43 @@ function mask(f: FeatureVector, ignore: FeatureName[] = []): FeatureVector {
   return out;
 }
 
-function modelFrom(start: Weights): BanditModel {
-  const m = defaultModel();
-  return { ...m, params: { ...m.params, weights: { ...start } } };
+// ---------------------------------------------------------------------------
+// Production: the app's current learner (banditModel.ts), unchanged
+// ---------------------------------------------------------------------------
+
+/** The app's real model and policy: Thompson sampling, show its top pick. */
+export function production(opts: { ignore?: FeatureName[] } = {}): Learner {
+  let model = defaultModel();
+  return {
+    choose(cands, rng) {
+      const indexed = cands.map((c, i) => ({
+        candidate: i,
+        features: mask(c.features, opts.ignore),
+      }));
+      return selectOutfits(indexed, model, { count: 1, rng })[0].candidate;
+    },
+    learn(features, reward) {
+      model = updateWeights(model, mask(features, opts.ignore), reward);
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Gradient-step learners (the app's model)
+// Legacy: the gradient-step, ε-greedy learner the app used before
+// (MODEL_VERSION 1), kept here for comparison
 // ---------------------------------------------------------------------------
 
-export function production(
+function predictWith(w: Weights, bias: number, f: FeatureVector): number {
+  let s = bias;
+  for (const n of FEATURE_NAMES) s += w[n] * f[n];
+  return Math.min(1, Math.max(0, s));
+}
+
+export function legacyGradient(
   opts: LearnerOptions & {
     learningRate?: number;
     epsilon?: number;
-    /** Show a random one of the top N (the app uses 5); 1 = always the best. */
+    /** Show a random one of the top N (the app used 5); 1 = always the best. */
     showAmongTop?: number;
     /** Divide ε by √(ratings + 1), exploring less as the model learns. */
     decayEpsilon?: boolean;
@@ -66,7 +83,8 @@ export function production(
     frozen?: boolean;
   } = {},
 ): Learner {
-  let model = modelFrom(opts.start ?? DEFAULT_START);
+  const w: Weights = { ...(opts.start ?? DEFAULT_START) };
+  let bias = 0;
   let n = 0;
   const lr = opts.learningRate ?? 0.1;
   const eps = opts.epsilon ?? 0.15;
@@ -74,16 +92,23 @@ export function production(
   return {
     choose(cands, rng) {
       const epsilon = opts.decayEpsilon ? eps / Math.sqrt(n + 1) : eps;
-      const indexed = cands.map((c, i) => ({
-        candidate: i,
-        features: mask(c.features, opts.ignore),
+      const order = cands.map((c, i) => ({
+        i,
+        s: predictWith(w, bias, mask(c.features, opts.ignore)),
+        r: rng(),
       }));
-      const top = selectOutfits(indexed, model.params, { epsilon, count: topN, rng });
-      return top[Math.floor(rng() * top.length)].candidate;
+      if (rng() < epsilon) order.sort((a, b) => a.r - b.r);
+      else order.sort((a, b) => b.s - a.s || a.r - b.r);
+      const top = order.slice(0, topN);
+      return top[Math.floor(rng() * top.length)].i;
     },
     learn(features, reward) {
       n++;
-      if (!opts.frozen) model = updateWeights(model, mask(features, opts.ignore), reward, lr);
+      if (opts.frozen) return;
+      const f = mask(features, opts.ignore);
+      const error = reward - predictWith(w, bias, f);
+      for (const name of FEATURE_NAMES) w[name] += lr * error * f[name];
+      bias += lr * error;
     },
   };
 }
