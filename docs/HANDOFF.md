@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-22 (dead-code and docs clean-up)
+**Last updated:** 2026-10-22 (migration 019 pending)
 
 ## What's live
 
@@ -74,12 +74,9 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
-- Unused database columns (needs a migration and the user's OK):
-  `outfit_wears.outerwear_id`, `outfit_wears.layer_id`,
-  `color_preferences.outerwear_combinations`,
-  `color_preferences.disliked_combinations` (only ever written as `[]`),
-  `profiles.preferences`, `profiles.profile_picture_url`. A few old rows still
-  hold values in three of them.
+- Migration `019_drop_unused_columns.sql` (approved) drops six unused columns
+  and trims the color-preferences trigger. It is **not applied yet**: apply it
+  once the app version that stops writing `disliked_combinations` is deployed.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
