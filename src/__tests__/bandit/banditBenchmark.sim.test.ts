@@ -10,7 +10,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { FEATURE_NAMES, FEATURE_WEIGHTS, type FeatureName } from '@/lib/outfitScoring';
 import {
   legacyGradient,
@@ -124,6 +124,21 @@ describe('bandit benchmark (smoke)', () => {
     // Normalization check: picking at random scores about 1.
     expect(results[0].regret[1].mean).toBeGreaterThan(0.8);
     expect(results[0].regret[1].mean).toBeLessThan(1.2);
+  });
+});
+
+describe('bandit benchmark (reproducibility)', () => {
+  it('gives the same results whatever time it runs', () => {
+    const run = (at: string) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(at));
+      try {
+        return runBenchmark(POPULATIONS[0], MAIN.slice(1, 4), { users: 6, days: 30, seed: 3 });
+      } finally {
+        vi.useRealTimers();
+      }
+    };
+    expect(run('2026-03-01T01:00:00Z')).toEqual(run('2026-09-17T22:30:00Z'));
   });
 });
 

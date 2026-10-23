@@ -245,17 +245,21 @@ export interface WearRecord {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Simulated day 0. A fixed calendar (scored "as of" each day) keeps runs
+ * reproducible; dating wears from the real clock made variety, and so the
+ * results, depend on when the benchmark ran. */
+const SIM_START = Date.UTC(2026, 0, 1);
+const simDate = (day: number) => new Date(SIM_START + day * DAY_MS).toISOString().slice(0, 10);
 
-/** Convert the simulation's history into the app's OutfitWear rows, dated
- * relative to today so the variety window works as in the app. */
-function toWears(history: WearRecord[], today: number, withRating: boolean): OutfitWear[] {
+/** Convert the simulation's history into the app's OutfitWear rows. */
+function toWears(history: WearRecord[], withRating: boolean): OutfitWear[] {
   return history.map((h, i) => ({
     id: `w${i}`,
     user_id: 'sim',
     top_id: h.top,
     bottom_id: h.bottom,
     shoes_id: h.shoes,
-    worn_date: new Date(Date.now() - (today - h.day) * DAY_MS).toISOString().slice(0, 10),
+    worn_date: simDate(h.day),
     rating: withRating ? h.rating : undefined,
   }));
 }
@@ -272,8 +276,9 @@ export function candidatesFor(
     likedCombinations: liked,
     weather: day.weather,
     occasion: day.occasion,
-    recentWears: toWears(recent, today, false),
-    ratedOutfits: toWears(history.slice(-100), today, true),
+    recentWears: toWears(recent, false),
+    ratedOutfits: toWears(history.slice(-100), true),
+    asOf: simDate(today),
   };
   let cands = buildCandidates(closet, ctx);
   // An occasion the closet can't dress for falls back to "any", as a user would.

@@ -14,10 +14,10 @@ Random tastes over color/weather/variety, item favourites, ±1-point rating nois
 |---|---|---|---|---|
 | random pick (floor) | 1.01 ± 0.03 | 1.00 ± 0.01 | 1.00 ± 0.01 | 11% |
 | no learning (cold-start weights) | 0.74 ± 0.03 | 0.68 ± 0.03 | 0.66 ± 0.03 | 35% |
-| legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.73 ± 0.03 | 0.66 ± 0.03 | 0.61 ± 0.02 | 38% |
-| legacy gradient, show the best, ε decays | 0.67 ± 0.03 | 0.52 ± 0.04 | 0.42 ± 0.03 | 54% |
+| legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.73 ± 0.03 | 0.66 ± 0.03 | 0.61 ± 0.02 | 39% |
+| legacy gradient, show the best, ε decays | 0.66 ± 0.03 | 0.51 ± 0.03 | 0.42 ± 0.03 | 55% |
 | **production** (Thompson sampling, λ 3, σ 0.1) | 0.74 ± 0.03 | 0.48 ± 0.03 | 0.33 ± 0.03 | 64% |
-| LinUCB (α 0.5) | 0.70 ± 0.03 | 0.50 ± 0.03 | 0.37 ± 0.03 | 58% |
+| LinUCB (α 0.5) | 0.70 ± 0.03 | 0.49 ± 0.03 | 0.37 ± 0.03 | 59% |
 
 ### Scenario: item-driven
 
@@ -26,11 +26,11 @@ Likes specific pieces far more than any general rule.
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
 | random pick (floor) | 1.01 ± 0.03 | 1.00 ± 0.01 | 1.00 ± 0.01 | 11% |
-| no learning (cold-start weights) | 0.89 ± 0.03 | 0.83 ± 0.03 | 0.81 ± 0.02 | 21% |
+| no learning (cold-start weights) | 0.90 ± 0.03 | 0.83 ± 0.03 | 0.80 ± 0.03 | 22% |
 | legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.89 ± 0.03 | 0.79 ± 0.03 | 0.69 ± 0.02 | 29% |
-| legacy gradient, show the best, ε decays | 0.85 ± 0.03 | 0.64 ± 0.04 | 0.53 ± 0.04 | 41% |
-| **production** (Thompson sampling, λ 3, σ 0.1) | 0.93 ± 0.03 | 0.56 ± 0.04 | 0.36 ± 0.03 | 62% |
-| LinUCB (α 0.5) | 0.91 ± 0.03 | 0.60 ± 0.05 | 0.39 ± 0.04 | 59% |
+| legacy gradient, show the best, ε decays | 0.85 ± 0.03 | 0.64 ± 0.04 | 0.54 ± 0.04 | 40% |
+| **production** (Thompson sampling, λ 3, σ 0.1) | 0.93 ± 0.03 | 0.56 ± 0.04 | 0.36 ± 0.03 | 61% |
+| LinUCB (α 0.5) | 0.91 ± 0.03 | 0.60 ± 0.05 | 0.40 ± 0.04 | 59% |
 
 ### Scenario: noisy
 
@@ -39,10 +39,10 @@ Typical tastes, inconsistent ratings (±3 points).
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
 | random pick (floor) | 1.01 ± 0.03 | 1.00 ± 0.01 | 1.00 ± 0.01 | 11% |
-| no learning (cold-start weights) | 0.75 ± 0.03 | 0.71 ± 0.03 | 0.68 ± 0.03 | 33% |
-| legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.75 ± 0.03 | 0.70 ± 0.03 | 0.66 ± 0.02 | 34% |
+| no learning (cold-start weights) | 0.75 ± 0.03 | 0.71 ± 0.03 | 0.68 ± 0.03 | 32% |
+| legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.75 ± 0.03 | 0.69 ± 0.03 | 0.66 ± 0.02 | 34% |
 | legacy gradient, show the best, ε decays | 0.68 ± 0.04 | 0.57 ± 0.04 | 0.50 ± 0.03 | 47% |
-| **production** (Thompson sampling, λ 3, σ 0.1) | 0.78 ± 0.03 | 0.69 ± 0.04 | 0.54 ± 0.04 | 44% |
+| **production** (Thompson sampling, λ 3, σ 0.1) | 0.78 ± 0.03 | 0.69 ± 0.04 | 0.54 ± 0.03 | 44% |
 | LinUCB (α 0.5) | 0.77 ± 0.04 | 0.71 ± 0.04 | 0.59 ± 0.04 | 41% |
 
 ### Scenario: drifting
@@ -53,10 +53,10 @@ Taste changes completely halfway through.
 |---|---|---|---|---|
 | random pick (floor) | 1.01 ± 0.03 | 1.00 ± 0.01 | 1.00 ± 0.01 | 11% |
 | no learning (cold-start weights) | 0.74 ± 0.03 | 0.68 ± 0.03 | 0.66 ± 0.02 | 34% |
-| legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.73 ± 0.03 | 0.66 ± 0.03 | 0.63 ± 0.02 | 37% |
-| legacy gradient, show the best, ε decays | 0.67 ± 0.03 | 0.52 ± 0.03 | 0.44 ± 0.03 | 52% |
-| **production** (Thompson sampling, λ 3, σ 0.1) | 0.74 ± 0.03 | 0.48 ± 0.03 | 0.38 ± 0.03 | 57% |
-| LinUCB (α 0.5) | 0.70 ± 0.03 | 0.50 ± 0.03 | 0.43 ± 0.03 | 52% |
+| legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.73 ± 0.03 | 0.66 ± 0.03 | 0.62 ± 0.02 | 37% |
+| legacy gradient, show the best, ε decays | 0.66 ± 0.03 | 0.51 ± 0.03 | 0.43 ± 0.03 | 53% |
+| **production** (Thompson sampling, λ 3, σ 0.1) | 0.74 ± 0.03 | 0.48 ± 0.03 | 0.39 ± 0.03 | 58% |
+| LinUCB (α 0.5) | 0.70 ± 0.03 | 0.49 ± 0.03 | 0.43 ± 0.03 | 52% |
 
 ## Sweeps (scenario: typical)
 
@@ -66,10 +66,10 @@ How big a step each rating takes.
 
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
-| lr 0.05 | 0.67 ± 0.04 | 0.53 ± 0.04 | 0.47 ± 0.03 | 51% |
-| lr 0.1 | 0.67 ± 0.03 | 0.52 ± 0.04 | 0.43 ± 0.03 | 54% |
+| lr 0.05 | 0.67 ± 0.04 | 0.52 ± 0.03 | 0.46 ± 0.03 | 52% |
+| lr 0.1 | 0.66 ± 0.03 | 0.51 ± 0.03 | 0.42 ± 0.03 | 55% |
 | lr 0.2 | 0.67 ± 0.03 | 0.50 ± 0.03 | 0.40 ± 0.03 | 56% |
-| lr 0.4 | 0.71 ± 0.04 | 0.58 ± 0.04 | 0.49 ± 0.03 | 51% |
+| lr 0.4 | 0.71 ± 0.04 | 0.59 ± 0.03 | 0.48 ± 0.03 | 50% |
 
 ### Exploration rate (legacy gradient, show the best, lr 0.1)
 
@@ -78,8 +78,8 @@ How often a random outfit is shown instead of the best guess.
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
 | ε 0 | 0.64 ± 0.04 | 0.50 ± 0.04 | 0.42 ± 0.03 | 55% |
-| ε 0.05 | 0.66 ± 0.04 | 0.52 ± 0.04 | 0.45 ± 0.03 | 52% |
-| ε 0.15 | 0.69 ± 0.03 | 0.56 ± 0.03 | 0.50 ± 0.03 | 49% |
+| ε 0.05 | 0.65 ± 0.04 | 0.52 ± 0.04 | 0.44 ± 0.03 | 53% |
+| ε 0.15 | 0.69 ± 0.03 | 0.56 ± 0.03 | 0.49 ± 0.03 | 49% |
 | ε 0.3 | 0.75 ± 0.03 | 0.63 ± 0.03 | 0.57 ± 0.02 | 44% |
 
 ### Thompson sampling: prior strength λ and assumed rating noise σ
@@ -88,14 +88,14 @@ How often a random outfit is shown instead of the best guess.
 
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
-| λ 1, σ 0.1 | 0.80 ± 0.03 | 0.49 ± 0.03 | 0.35 ± 0.03 | 61% |
-| λ 1, σ 0.2 | 0.81 ± 0.03 | 0.52 ± 0.03 | 0.34 ± 0.03 | 65% |
-| λ 3, σ 0.1 | 0.75 ± 0.03 | 0.47 ± 0.03 | 0.33 ± 0.03 | 65% |
-| λ 3, σ 0.2 | 0.76 ± 0.03 | 0.52 ± 0.03 | 0.34 ± 0.03 | 64% |
+| λ 1, σ 0.1 | 0.80 ± 0.03 | 0.49 ± 0.03 | 0.34 ± 0.03 | 62% |
+| λ 1, σ 0.2 | 0.81 ± 0.03 | 0.53 ± 0.03 | 0.34 ± 0.02 | 65% |
+| λ 3, σ 0.1 | 0.76 ± 0.03 | 0.47 ± 0.03 | 0.32 ± 0.03 | 65% |
+| λ 3, σ 0.2 | 0.75 ± 0.03 | 0.52 ± 0.03 | 0.34 ± 0.03 | 63% |
 | λ 10, σ 0.1 | 0.73 ± 0.03 | 0.48 ± 0.03 | 0.33 ± 0.03 | 64% |
-| λ 10, σ 0.2 | 0.72 ± 0.03 | 0.53 ± 0.03 | 0.37 ± 0.03 | 62% |
-| λ 30, σ 0.1 | 0.70 ± 0.03 | 0.49 ± 0.03 | 0.35 ± 0.03 | 62% |
-| λ 30, σ 0.2 | 0.69 ± 0.03 | 0.52 ± 0.03 | 0.37 ± 0.03 | 60% |
+| λ 10, σ 0.2 | 0.72 ± 0.03 | 0.53 ± 0.03 | 0.36 ± 0.03 | 62% |
+| λ 30, σ 0.1 | 0.70 ± 0.03 | 0.49 ± 0.03 | 0.34 ± 0.03 | 62% |
+| λ 30, σ 0.2 | 0.69 ± 0.03 | 0.52 ± 0.03 | 0.37 ± 0.03 | 61% |
 
 ### LinUCB optimism α
 
@@ -103,10 +103,10 @@ How strongly it favours outfits it is unsure about.
 
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
-| α 0.25 | 0.64 ± 0.03 | 0.46 ± 0.04 | 0.35 ± 0.03 | 62% |
-| α 0.5 | 0.64 ± 0.03 | 0.46 ± 0.03 | 0.34 ± 0.03 | 61% |
-| α 1 | 0.67 ± 0.03 | 0.49 ± 0.03 | 0.35 ± 0.03 | 60% |
-| α 2 | 0.69 ± 0.03 | 0.49 ± 0.03 | 0.33 ± 0.03 | 64% |
+| α 0.25 | 0.64 ± 0.03 | 0.46 ± 0.04 | 0.34 ± 0.03 | 62% |
+| α 0.5 | 0.64 ± 0.03 | 0.47 ± 0.03 | 0.33 ± 0.03 | 62% |
+| α 1 | 0.66 ± 0.03 | 0.48 ± 0.03 | 0.34 ± 0.03 | 61% |
+| α 2 | 0.70 ± 0.03 | 0.49 ± 0.03 | 0.33 ± 0.03 | 64% |
 
 ### Cold-start weights (Thompson sampling)
 
@@ -114,14 +114,14 @@ Which starting weights give the best first weeks.
 
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
-| current defaults (0.30/0.25/0.20/0.15/0.10) | 0.72 ± 0.03 | 0.51 ± 0.03 | 0.35 ± 0.03 | 61% |
-| uniform 0.2 | 0.71 ± 0.03 | 0.48 ± 0.03 | 0.32 ± 0.02 | 65% |
-| color-heavy (0.6) | 0.71 ± 0.04 | 0.50 ± 0.03 | 0.34 ± 0.03 | 64% |
-| weather-heavy (0.6) | 0.76 ± 0.03 | 0.52 ± 0.03 | 0.34 ± 0.03 | 64% |
-| variety-heavy (0.6) | 0.73 ± 0.03 | 0.51 ± 0.03 | 0.33 ± 0.03 | 65% |
-| occasion-heavy (0.6) | 0.78 ± 0.03 | 0.50 ± 0.03 | 0.34 ± 0.03 | 63% |
-| rating-heavy (0.6) | 0.70 ± 0.03 | 0.44 ± 0.03 | 0.32 ± 0.02 | 65% |
-| all zero | 0.77 ± 0.03 | 0.50 ± 0.03 | 0.34 ± 0.03 | 64% |
+| current defaults (0.30/0.25/0.20/0.15/0.10) | 0.73 ± 0.03 | 0.50 ± 0.03 | 0.35 ± 0.03 | 63% |
+| uniform 0.2 | 0.71 ± 0.03 | 0.48 ± 0.03 | 0.33 ± 0.02 | 64% |
+| color-heavy (0.6) | 0.72 ± 0.04 | 0.50 ± 0.03 | 0.34 ± 0.03 | 64% |
+| weather-heavy (0.6) | 0.76 ± 0.03 | 0.51 ± 0.03 | 0.34 ± 0.03 | 63% |
+| variety-heavy (0.6) | 0.73 ± 0.03 | 0.50 ± 0.03 | 0.32 ± 0.03 | 66% |
+| occasion-heavy (0.6) | 0.78 ± 0.03 | 0.50 ± 0.03 | 0.34 ± 0.03 | 64% |
+| rating-heavy (0.6) | 0.70 ± 0.03 | 0.44 ± 0.03 | 0.31 ± 0.02 | 66% |
+| all zero | 0.77 ± 0.03 | 0.50 ± 0.03 | 0.33 ± 0.03 | 65% |
 
 ### Cold-start weights (legacy gradient)
 
@@ -129,13 +129,13 @@ The same, for the learner the app used before.
 
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
-| current defaults (0.30/0.25/0.20/0.15/0.10) | 0.73 ± 0.03 | 0.66 ± 0.03 | 0.61 ± 0.02 | 38% |
-| uniform 0.2 | 0.71 ± 0.03 | 0.64 ± 0.02 | 0.58 ± 0.02 | 40% |
-| color-heavy (0.6) | 0.73 ± 0.03 | 0.68 ± 0.03 | 0.62 ± 0.03 | 38% |
-| weather-heavy (0.6) | 0.73 ± 0.03 | 0.66 ± 0.03 | 0.59 ± 0.02 | 41% |
-| variety-heavy (0.6) | 0.79 ± 0.02 | 0.72 ± 0.02 | 0.66 ± 0.02 | 35% |
-| occasion-heavy (0.6) | 0.71 ± 0.03 | 0.66 ± 0.03 | 0.58 ± 0.02 | 40% |
-| rating-heavy (0.6) | 0.73 ± 0.03 | 0.55 ± 0.02 | 0.48 ± 0.02 | 50% |
+| current defaults (0.30/0.25/0.20/0.15/0.10) | 0.73 ± 0.03 | 0.66 ± 0.03 | 0.61 ± 0.02 | 39% |
+| uniform 0.2 | 0.71 ± 0.03 | 0.63 ± 0.02 | 0.59 ± 0.02 | 40% |
+| color-heavy (0.6) | 0.73 ± 0.03 | 0.67 ± 0.03 | 0.62 ± 0.03 | 38% |
+| weather-heavy (0.6) | 0.73 ± 0.03 | 0.65 ± 0.03 | 0.59 ± 0.02 | 41% |
+| variety-heavy (0.6) | 0.79 ± 0.02 | 0.71 ± 0.02 | 0.65 ± 0.02 | 35% |
+| occasion-heavy (0.6) | 0.71 ± 0.03 | 0.65 ± 0.03 | 0.58 ± 0.02 | 41% |
+| rating-heavy (0.6) | 0.73 ± 0.03 | 0.55 ± 0.02 | 0.48 ± 0.01 | 50% |
 | all zero | 0.75 ± 0.02 | 0.63 ± 0.02 | 0.57 ± 0.02 | 41% |
 
 ### Feature importance (production, one feature hidden)
@@ -144,11 +144,11 @@ Regret rises most when a useful feature is removed.
 
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
-| all features | 0.74 ± 0.03 | 0.48 ± 0.03 | 0.33 ± 0.03 | 65% |
-| without color | 0.86 ± 0.03 | 0.62 ± 0.03 | 0.41 ± 0.03 | 57% |
-| without weather | 0.76 ± 0.03 | 0.52 ± 0.04 | 0.34 ± 0.03 | 61% |
+| all features | 0.74 ± 0.03 | 0.48 ± 0.03 | 0.33 ± 0.03 | 64% |
+| without color | 0.86 ± 0.03 | 0.63 ± 0.03 | 0.42 ± 0.03 | 56% |
+| without weather | 0.76 ± 0.03 | 0.52 ± 0.04 | 0.34 ± 0.03 | 62% |
 | without variety | 0.82 ± 0.04 | 0.53 ± 0.04 | 0.42 ± 0.04 | 52% |
-| without occasion | 0.75 ± 0.03 | 0.49 ± 0.03 | 0.35 ± 0.03 | 63% |
-| without rating | 0.74 ± 0.03 | 0.65 ± 0.04 | 0.64 ± 0.04 | 33% |
+| without occasion | 0.74 ± 0.03 | 0.50 ± 0.03 | 0.34 ± 0.03 | 64% |
+| without rating | 0.74 ± 0.03 | 0.65 ± 0.04 | 0.64 ± 0.04 | 32% |
 
 Windows: ratings 1–7 = ratings 1–7; 8–30 = ratings 8–30; 31–90 = ratings 31–90.
