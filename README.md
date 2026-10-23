@@ -257,6 +257,8 @@ docs/                     # HANDOFF.md (current state), ARCHITECTURE.md
 - `npm run test:watch` — run Vitest in watch mode
 - `npm run test:coverage` — run tests with a coverage report
 - `npm run test:e2e` — run end-to-end tests (Playwright)
+- `npm run bench:bandit` — run the full bandit benchmark (~10 min); see
+  `docs/BANDIT_BENCHMARK.md`
 - `npm run test:e2e:ui` — run Playwright tests in UI mode
 
 ### End-to-end tests
@@ -299,6 +301,9 @@ Reproducible experiments used during development:
   measure how quickly the learning model converges to a user's true preferences.
   It prints a convergence histogram and runs as part of `npm run test`; run it
   alone with `npx vitest run src/__tests__/banditConvergence.sim.test.ts`.
+- `src/__tests__/bandit/` — the bandit benchmark: simulated users with realistic
+  closets and weather compare ways of learning taste (`npm run bench:bandit`).
+  Method and findings in [`docs/BANDIT_BENCHMARK.md`](docs/BANDIT_BENCHMARK.md).
 - `scripts/measureVision.mjs` — measures the Claude Vision clothing-detection
   route on your own photos (latency, plus accuracy if you add labels). It
   signs in with the `.env.e2e` account; see the file's header.

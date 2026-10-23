@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-23 (migration 019 applied)
+**Last updated:** 2026-10-23 (bandit benchmark)
 
 ## What's live
 
@@ -78,6 +78,12 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
+- **Bandit upgrade (in progress).** Step 1, the benchmark, is done
+  (`docs/BANDIT_BENCHMARK.md`): today's learner barely beats not learning;
+  Thompson sampling cuts regret roughly in half. Next: step 2, replace the
+  gradient learner with Thompson sampling (λ 3, σ 0.1), migrating stored
+  weights as the prior; step 3, train on the worn outfit's real features and
+  let Calendar ratings train the model too.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
