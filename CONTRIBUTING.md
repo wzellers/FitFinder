@@ -7,7 +7,7 @@ conventions the codebase follows.
 ## Getting set up
 
 See the [Getting Started](README.md#getting-started) section of the README for
-the full setup (Node.js 18+, environment variables, Supabase migrations, and a
+the full setup (Node.js 22, environment variables, Supabase migrations, and a
 `clothing-images` storage bucket). In short:
 
 ```bash
@@ -69,7 +69,7 @@ The SQL files in [`supabase/migrations/`](supabase/migrations/) are the source o
 truth for the schema. If your change needs a schema update:
 
 - Add a **new** migration file with the next number in sequence
-  (e.g. `012_add_something.sql`). Never edit an existing migration — they are
+  (e.g. `019_add_something.sql`). Never edit an existing migration — they are
   treated as immutable history.
 - Follow the existing per-user Row-Level-Security pattern (see
   `001_outfit_wears.sql`).
@@ -109,8 +109,9 @@ changed on purpose, update the test in the same PR rather than deleting it.
 
 ## Tests and coverage
 
-- Unit/component tests run on `jsdom` via Vitest; Supabase and hooks are mocked
-  (`src/__tests__/mocks/`), and fixtures live in `src/__tests__/factories/`.
+- Unit/component tests run on `jsdom` via Vitest. Each test mocks Supabase and
+  hooks inline with `vi.mock`; shared fixtures live in `src/__tests__/factories/`
+  and `renderWithProviders` in `src/__tests__/utils/`.
 - Coverage thresholds are enforced in `vitest.config.ts`. If you add logic to a
   module with a high threshold (e.g. `outfitScoring.ts`, `weatherApi.ts`), keep it
   covered.

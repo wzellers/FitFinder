@@ -14,31 +14,34 @@ Storage), and there is **no separate ML backend** — the learning model is a fe
 numbers that live in a Supabase row and are updated client-side.
 
 ```
-Browser (React 19)                         Supabase
-┌───────────────────────────┐              ┌─────────────────────┐
-│ app/page.tsx (dashboard)  │◀── auth ────▶│ Auth                │
-│  ├─ Closet                │              │                     │
-│  ├─ OutfitGenerator ──────┼── read ─────▶│ Postgres            │
-│  ├─ OutfitCalendar        │── write ────▶│  clothing_items     │
-│  ├─ WardrobeStats         │              │  saved_outfits      │
-│  └─ ColorPreferences      │              │  outfit_wears       │
-│                           │              │  color_preferences  │
-│ lib/ (pure logic)         │              │  profiles           │
-│  outfitScoring, banditModel│              │  outfit_model_weights│
-│  weatherApi, uploadPipeline│              │ Storage             │
-└───────────┬───────────────┘              │  clothing-images    │
-            │                              └─────────────────────┘
-            │ POST /api/detect-clothing
-            ▼
-   app/api/detect-clothing (server) ──▶ Claude Haiku 4.5 vision
+Browser (React 19)                           Supabase
+┌─────────────────────────────┐              ┌──────────────────────────┐
+│ app/page.tsx (tabbed app)   │◀── auth ────▶│ Auth                     │
+│  ├─ Closet                  │              │ Postgres (RLS per user)  │
+│  ├─ OutfitGenerator ────────┼── read ─────▶│  clothing_items          │
+│  ├─ OutfitCalendar          │── write ────▶│  saved_outfits           │
+│  ├─ WardrobeStats           │              │  outfit_wears            │
+│  └─ Settings                │              │  *_preferences, profiles │
+│     (ColorPreferences.tsx)  │              │  outfit_model_weights    │
+│ lib/ (pure logic)           │── signed ───▶│ Storage (private)        │
+│  outfitScoring, banditModel │    URLs      │  clothing-images         │
+│  uploadPipeline, weatherApi │              └──────────────────────────┘
+└──────────────┬──────────────┘
+               │ fetch (Bearer: user's access token)
+               ▼
+   app/api/detect-clothing ──▶ Claude Haiku 4.5 vision
+   app/api/weather         ──▶ OpenWeatherMap
 ```
+
+The daily email runs separately, server to server; see
+[Daily outfit email](#daily-outfit-email).
 
 ### Layout at a glance
 
 | Directory             | Responsibility                                                                                       |
 | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `src/app`             | Routes and the single API route. `page.tsx` is the whole dashboard (tabbed, no client routing).      |
-| `src/components`      | React UI. `components/ui/` holds reusable primitives (dialogs, cropper, skeletons).                  |
+| `src/app`             | `page.tsx` is the whole app (tabbed, no client routing); `api/` holds the four server routes.        |
+| `src/components`      | React UI. `components/ui/` holds primitives (modal, dialogs, nav, image, skeletons).                 |
 | `src/hooks`           | React hooks — currently `useAuth` around Supabase auth state.                                        |
 | `src/lib`             | Framework-free business logic: scoring, the bandit, weather, upload orchestration, constants, types. |
 | `src/styles`          | Tailwind directives, CSS variables, and component classes.                                           |
@@ -71,8 +74,12 @@ Adding an item should feel like "pick a photo, glance, confirm." The pipeline in
    **untouched** — no thresholding or reframing — which keeps the soft,
    anti-aliased edge clean. (An earlier auto-framing approach was dropped because
    thresholding roughened edges.)
-5. **Upload** (`uploadItem`). The final blob goes to the `clothing-images` Storage
-   bucket and a row is written to `clothing_items`. Batches upload with the same
+5. **Upload** (`uploadItem`). `prepareImageForUpload` keeps small PNGs (cropped
+   or background-removed) as they are and scales everything else down to WebP,
+   which also converts formats Storage would reject. The file goes to the
+   private `clothing-images` bucket under `<userId>/`, and a row with that path
+   is written to `clothing_items`. Photos are shown through short-lived signed
+   URLs, batched per render (`clothingImages.ts`). Batches upload with the same
    concurrency helper and report per-item success/failure so partial failures can
    be retried.
 
@@ -152,14 +159,19 @@ part of the normal Vitest suite.
 Schema lives in [`supabase/migrations/`](../supabase/migrations) as numbered SQL
 files applied in order. Each is immutable; changes are made by adding a new file.
 
-| Table                  | Purpose                                                                      |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `clothing_items`       | Wardrobe items: type, colors (primary at index 0), image URL, laundry status |
-| `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                |
-| `outfit_wears`         | Daily wear log with rating (1–10) and occasion                               |
-| `color_preferences`    | Liked color combinations and the user's zip code                             |
-| `profiles`             | Onboarding state, user metadata, and daily email settings                    |
-| `outfit_model_weights` | Per-user learned bandit weights + metadata                                   |
+| Table                  | Purpose                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `clothing_items`       | Wardrobe items: type, colors (primary at index 0), photo path, laundry status |
+| `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                 |
+| `outfit_wears`         | Daily wear log (one per day) with rating (1–10) and occasion                  |
+| `color_preferences`    | Liked color combinations                                                      |
+| `weather_preferences`  | The user's temperature ranges and per-type weather rules                      |
+| `occasion_preferences` | Which clothing types suit each occasion                                       |
+| `profiles`             | ZIP code, onboarding state, and daily email settings                          |
+| `outfit_model_weights` | Per-user learned bandit weights + metadata                                    |
+
+Photos live in the private `clothing-images` Storage bucket, one folder per
+user, readable only by their owner.
 
 All per-user tables use the same Row-Level-Security pattern established in
 `001_outfit_wears.sql`, so a user can only read and write their own rows.
@@ -216,9 +228,9 @@ are in the README under "Daily outfit email setup".
 
 ## External services
 
-| Service                 | Used for                                     | Where                                      |
-| ----------------------- | -------------------------------------------- | ------------------------------------------ |
-| Supabase                | Auth, Postgres, Storage                      | `lib/supabaseClient.ts`, hooks, components |
-| Anthropic Claude Vision | Clothing type/color detection                | `app/api/detect-clothing/route.ts`         |
-| OpenWeatherMap          | Temperature forecast for the weather feature | `lib/weatherApi.ts`                        |
-| Resend                  | Delivering the daily email                   | `lib/dailyEmail/resend.ts`                 |
+| Service                 | Used for                               | Where                                       |
+| ----------------------- | -------------------------------------- | ------------------------------------------- |
+| Supabase                | Auth, Postgres, Storage                | `lib/supabaseClient.ts`, hooks, components  |
+| Anthropic Claude Vision | Clothing type/color detection          | `app/api/detect-clothing/route.ts`          |
+| OpenWeatherMap          | Current weather and the daily forecast | `app/api/weather`, `lib/weatherProvider.ts` |
+| Resend                  | Delivering the daily email             | `lib/dailyEmail/resend.ts`                  |
