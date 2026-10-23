@@ -4,7 +4,8 @@ How well does FitFinder learn what a user likes, and what would make it learn
 faster? This benchmark answers that with simulated users, using the app's real
 scoring code. Code: `src/__tests__/bandit/`. Full numbers:
 [`bandit-benchmark-results.md`](bandit-benchmark-results.md) (regenerate with
-`npm run bench:bandit`, about 5 minutes).
+`npm run bench:bandit`, about 10 minutes). Runs are reproducible: the same
+seed always gives the same numbers.
 
 ## Findings
 
@@ -19,10 +20,10 @@ outfit, 1 = no better than a random pick.
 | Legacy gradient (the app before v2)            | 0.73        | 0.66 | 0.61  | 38%                   |
 | Legacy gradient, show the best, ε decays       | 0.67        | 0.52 | 0.42  | 54%                   |
 | **Production: Thompson sampling (λ 3, σ 0.1)** | 0.74        | 0.48 | 0.33  | 64%                   |
-| LinUCB (α 0.5)                                 | 0.70        | 0.50 | 0.37  | 58%                   |
+| LinUCB (α 0.5)                                 | 0.70        | 0.49 | 0.37  | 59%                   |
 
 Regret after a month (ratings 31–90), legacy → production: typical **0.61 →
-0.33**, item-driven **0.69 → 0.36**, drifting **0.63 → 0.38**, noisy **0.66 →
+0.33**, item-driven **0.69 → 0.36**, drifting **0.62 → 0.39**, noisy **0.66 →
 0.54**.
 
 1. **The legacy learner barely learned:** 0.61 vs 0.67 with no learning at all.
