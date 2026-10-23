@@ -32,8 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const weatherKey =
-    process.env.OPENWEATHERMAP_API_KEY ?? process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
+  const weatherKey = process.env.OPENWEATHERMAP_API_KEY;
   const db = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
