@@ -129,7 +129,6 @@ export default function ColorPreferences() {
           topColor: c.topColor,
           bottomColor: c.bottomColor,
         })),
-        disliked_combinations: [],
       },
       { onConflict: 'user_id' },
     );
