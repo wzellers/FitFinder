@@ -19,9 +19,9 @@
  *   built from real closet items — and the reward is exactly linear, so the
  *   model class can represent every user (a best case for the learner).
  * - Every user starts from the production cold-start weights. Each round the
- *   bandit picks one of 12 fresh random candidates with ε-greedy `selectOutfits`
- *   (ε = 0.15), observes the noisy reward and applies one `updateWeights` step
- *   (lr = 0.1, the production default). Each round is one rating; every user
+ *   bandit picks one of 12 fresh random candidates with `selectOutfits`
+ *   (Thompson sampling), observes the noisy reward and applies one
+ *   `updateWeights` (Bayesian) update. Each round is one rating; every user
  *   gives 400 ratings.
  * - "Converged" = on a fixed 30-outfit held-out set, mean |predicted − true|
  *   reward <= 0.08 AND >= 4 of the model's top 5 are in the true top 5, held for
@@ -44,8 +44,8 @@ import {
   updateWeights,
   predict,
   selectOutfits,
-  DEFAULT_LEARNING_RATE,
-  DEFAULT_EPSILON,
+  PRIOR_PRECISION,
+  RATING_NOISE,
   type BanditModel,
   type FeatureVector,
 } from '@/lib/banditModel';
@@ -108,8 +108,6 @@ interface SimConfig {
   topK: number; // ranking overlap window
   minOverlap: number; // required overlap of top-K (out of topK)
   stableWindow: number; // consecutive rounds meeting both criteria
-  learningRate: number;
-  epsilon: number;
 }
 
 /** Count how many of the model's top-K held-out picks are in the true top-K. */
@@ -179,18 +177,14 @@ function simulateUser(seed: number, cfg: SimConfig): UserResult {
   let convergedAt: number | null = null;
 
   for (let round = 1; round <= cfg.maxRounds; round++) {
-    // Present a fresh pool; bandit selects one via ε-greedy (production selector).
+    // Present a fresh pool; the production selector (Thompson sampling) picks one.
     const pool = Array.from({ length: cfg.poolSize }, () => ({
       candidate: null,
       features: randomFeatureVector(rng),
     }));
-    const [chosen] = selectOutfits(pool, model.params, {
-      epsilon: cfg.epsilon,
-      count: 1,
-      rng,
-    });
+    const [chosen] = selectOutfits(pool, model, { count: 1, rng });
     const reward = trueReward(pref, chosen.features, cfg.noise, rng);
-    model = updateWeights(model, chosen.features, reward, cfg.learningRate);
+    model = updateWeights(model, chosen.features, reward);
 
     const snap = snapshot(model);
     if ((CHECKPOINTS as readonly number[]).includes(round)) checkpoints.set(round, snap);
@@ -264,8 +258,6 @@ describe('bandit convergence simulation', () => {
     topK: 5,
     minOverlap: 4, // >= 4 of the true top-5 present in the model's top-5
     stableWindow: 10,
-    learningRate: DEFAULT_LEARNING_RATE, // 0.1 (production)
-    epsilon: DEFAULT_EPSILON, // 0.15 (production)
   };
   const NUM_USERS = 500;
 
@@ -279,8 +271,8 @@ describe('bandit convergence simulation', () => {
     const out = [
       '',
       '================ BANDIT CONVERGENCE SIMULATION ================',
-      `Model: online linear contextual bandit (src/lib/banditModel.ts)`,
-      `Params: lr=${cfg.learningRate}, epsilon=${cfg.epsilon}, ${FEATURE_NAMES.length} features, ${cfg.maxRounds} ratings per user`,
+      `Model: Bayesian linear contextual bandit, Thompson sampling (src/lib/banditModel.ts)`,
+      `Params: prior precision ${PRIOR_PRECISION}, rating noise ${RATING_NOISE}, ${FEATURE_NAMES.length} features, ${cfg.maxRounds} ratings per user`,
       `Converged: mean |pred-true| <= ${cfg.tolerance} AND >= ${cfg.minOverlap}/${cfg.topK} top-${cfg.topK} overlap,`,
       `           held for ${cfg.stableWindow} consecutive ratings on a ${cfg.evalSize}-outfit held-out set`,
       `Reward noise: +/-${cfg.noise}   Users: ${NUM_USERS} synthetic (seeds 1000-${1000 + NUM_USERS - 1})`,
@@ -319,7 +311,7 @@ describe('bandit convergence simulation', () => {
       expect(end.gap).toBeLessThan(start.gap * 0.5);
       expect(end.top5).toBeGreaterThanOrEqual(0.9);
     }
-    // The learning rate must stay stable when ratings are noisy.
+    // Learning must stay stable when ratings are noisy.
     expect(noisy.allConverged / noisy.users).toBeGreaterThanOrEqual(0.9);
     expect(noisy.curve.get(cfg.maxRounds)!.top5).toBeGreaterThanOrEqual(0.9);
   });
