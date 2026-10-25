@@ -12,6 +12,7 @@ import { isDue, shiftDate } from '@/lib/dailyEmail/schedule';
 import { CLOTHING_BUCKET, imagePathFromUrl } from '@/lib/clothingImages';
 import { throwIfAnyError } from '@/lib/supabaseResult';
 import type { ClothingItem, OutfitWear } from '@/lib/types';
+import { loadRatedOutfits } from '@/lib/ratedOutfits';
 
 /** Image links in the email stay valid this long. */
 const IMAGE_URL_TTL_S = 7 * 24 * 60 * 60;
@@ -96,13 +97,7 @@ async function sendOne(
     await Promise.all([
       db.from('clothing_items').select('*').eq('user_id', profile.id),
       db.from('outfit_wears').select('*').eq('user_id', profile.id).gte('worn_date', since),
-      db
-        .from('outfit_wears')
-        .select('*')
-        .eq('user_id', profile.id)
-        .not('rating', 'is', null)
-        .order('worn_date', { ascending: false })
-        .limit(100),
+      loadRatedOutfits(db, profile.id).then((data) => ({ data, error: null })),
       db
         .from('color_preferences')
         .select('liked_combinations')

@@ -2,8 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
+// A stable user object, as the real useAuth keeps it: a new object on every
+// render would re-run the component's data load forever.
+const mockUser = vi.hoisted(() => ({ id: 'u1' }));
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({ user: { id: 'u1' } })),
+  useAuth: vi.fn(() => ({ user: mockUser })),
 }));
 
 // Mock fetchWeather to avoid real network calls
@@ -15,36 +18,38 @@ vi.mock('@/lib/weatherApi', async (importOriginal) => {
   };
 });
 
-// All parallel supabase calls return empty arrays
-const mockFrom = vi.hoisted(() =>
-  vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
-        order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-        gte: vi.fn(() => Promise.resolve({ data: [], error: null })),
-        not: vi.fn(() => ({
-          is: vi.fn(() => ({
-            order: vi.fn(() => ({
-              limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
-            })),
-          })),
-        })),
-        maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
-      })),
-      maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
-    })),
-    insert: vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn(() => Promise.resolve({ data: { id: 'new-outfit' }, error: null })),
-      })),
-    })),
-    delete: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null })),
-    })),
-    upsert: vi.fn(() => Promise.resolve({ error: null })),
-  })),
-);
+// Every query resolves empty: a chainable builder where any filter or
+// modifier returns the builder, awaiting it gives no rows, and
+// maybeSingle/single give null.
+const mockFrom = vi.hoisted(() => {
+  const builder = (): Record<string, unknown> => {
+    const b: Record<string, unknown> = {};
+    for (const m of [
+      'select',
+      'eq',
+      'neq',
+      'gte',
+      'lt',
+      'lte',
+      'in',
+      'not',
+      'is',
+      'order',
+      'limit',
+    ]) {
+      b[m] = () => b;
+    }
+    b.maybeSingle = () => Promise.resolve({ data: null, error: null });
+    b.single = () => Promise.resolve({ data: { id: 'new-outfit' }, error: null });
+    b.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
+    b.insert = () => b;
+    b.update = () => b;
+    b.delete = () => b;
+    b.upsert = () => Promise.resolve({ error: null });
+    return b;
+  };
+  return vi.fn(() => builder());
+});
 
 vi.mock('@/lib/supabaseClient', () => ({
   supabase: {

@@ -132,3 +132,47 @@ test("logs today's outfit once, and it shows in the calendar", async ({ page }) 
     page.getByRole('dialog').getByRole('button', { name: top, exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('rates an outfit without wearing it, learns from it, and shows the next', async ({ page }) => {
+  const { db, userId } = await testDb();
+  await openApp(page, 'Outfits');
+  await generate(page);
+  const shown = {
+    top: await slot(page, 'top').getAttribute('aria-label'),
+    bottom: await slot(page, 'bottom').getAttribute('aria-label'),
+  };
+
+  const rating = page.getByRole('group', { name: /Rate this outfit/ });
+  await rating.getByRole('button', { name: '8 out of 10' }).click();
+  await expect(toast(page, "Rated 8/10. Here's another.")).toBeVisible();
+
+  // Saved for exactly the shown outfit, with the features it was learned from.
+  const rows = ok(
+    await db
+      .from('outfit_ratings')
+      .select('rating, top_id, features, rated_on')
+      .eq('user_id', userId),
+    'ratings',
+  );
+  expect(rows).toHaveLength(1);
+  expect(rows![0].rating).toBe(8);
+  const features = rows![0].features as { items: string[]; values: Record<string, number> };
+  expect(features.items[0]).toBe(rows![0].top_id);
+  expect(Object.keys(features.values).sort()).toEqual(['color', 'rating', 'variety']);
+
+  // The model learned from it, and nothing was logged as worn.
+  const model = ok(
+    await db.from('outfit_model_weights').select('feature_meta').eq('user_id', userId).single(),
+    'model',
+  );
+  expect((model.feature_meta as { updates: number }).updates).toBe(1);
+  expect(
+    ok(await db.from('outfit_wears').select('id').eq('user_id', userId), 'wears'),
+  ).toHaveLength(0);
+
+  // A next outfit is shown (the reels spin again; with a small closet it may
+  // repeat), and rating stays available.
+  await expect(slot(page, 'top')).toBeVisible();
+  expect(shown.top).toBeTruthy();
+  await expect(rating.getByRole('button', { name: '8 out of 10' })).toBeEnabled();
+});
