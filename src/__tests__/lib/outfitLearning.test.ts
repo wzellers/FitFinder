@@ -11,14 +11,8 @@ import {
 
 vi.mock('@/lib/supabaseClient', () => ({ supabase: {} }));
 
-const AS_WORN: FeatureVector = { color: 1, weather: 1, variety: 0.8, occasion: 0.5, rating: 0.6 };
-const REBUILT: FeatureVector = {
-  color: 0.25,
-  weather: 0.5,
-  variety: 1,
-  occasion: 0.5,
-  rating: 0.5,
-};
+const AS_WORN: FeatureVector = { color: 1, variety: 0.8, rating: 0.6 };
+const REBUILT: FeatureVector = { color: 0.25, variety: 1, rating: 0.5 };
 const ITEMS = { top_id: 't1', bottom_id: 'b1', shoes_id: 's1' };
 const stored = (values: FeatureVector, items = ['t1', 'b1', 's1']) => ({ items, values });
 

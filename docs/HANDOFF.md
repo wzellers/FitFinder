@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-23 (bandit step 3)
+**Last updated:** 2026-10-25 (weather/occasion as filters)
 
 ## What's live
 
@@ -15,7 +15,7 @@ Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.1
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 - **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
-  outfits). Closet, outfit generator (per-user Bayesian bandit, Thompson sampling),
+  outfits). Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
   calendar, stats, settings (weather, occasions, colors, email), onboarding,
   rating prompt.
 - **Clothing detection:** Claude Haiku 4.5 through the Anthropic API
@@ -78,13 +78,12 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Open items
 
-- **Bandit upgrade:** steps 1 (benchmark, `docs/BANDIT_BENCHMARK.md`), 2
-  (Thompson sampling, `MODEL_VERSION` 2) and 3 (learning from the worn outfit's
-  real features, Calendar ratings included, via `outfitLearning.ts`) are done.
-  Ratings given before step 3 aren't retro-trained (prompt ratings were
-  already learned; old Calendar ratings start counting if edited). Possible
-  next steps: learn from more signals (e.g. "Try another" as a mild negative),
-  and re-run `npm run bench:bandit` after changes to the model.
+- **Bandit upgrade:** steps 1–3 are done (benchmark, Thompson sampling,
+  learning from the worn outfit's real features and Calendar ratings), and
+  weather and occasion are now filters only (`MODEL_VERSION` 3). In progress,
+  in this order: fade old ratings gently (half-life tuned with the benchmark),
+  then rating outfits without wearing them (1–10, counted like worn ratings,
+  needs migration 021). Ratings from before step 3 aren't retro-trained.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in

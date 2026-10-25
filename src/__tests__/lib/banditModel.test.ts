@@ -18,7 +18,7 @@ import {
 import { FEATURE_NAMES, FEATURE_WEIGHTS } from '@/lib/outfitScoring';
 
 function feats(overrides: Partial<FeatureVector> = {}): FeatureVector {
-  return { color: 0.5, weather: 0.5, variety: 0.5, occasion: 0.5, rating: 0.5, ...overrides };
+  return { color: 0.5, variety: 0.5, rating: 0.5, ...overrides };
 }
 
 /** Deterministic PRNG (mulberry32). */
@@ -32,7 +32,7 @@ function rng(seed: number): () => number {
   };
 }
 
-const COLOR_ONLY = feats({ color: 1, weather: 0, variety: 0, occasion: 0, rating: 0 });
+const COLOR_ONLY = feats({ color: 1, variety: 0, rating: 0 });
 const D = FEATURE_NAMES.length + 1;
 
 describe('banditModel', () => {
@@ -52,13 +52,9 @@ describe('banditModel', () => {
     });
 
     it('expected score equals the deterministic weighted score', () => {
-      const f = feats({ color: 1, weather: 0.5, variety: 1, occasion: 0, rating: 0.5 });
+      const f = feats({ color: 1, variety: 1, rating: 0.5 });
       const expected =
-        FEATURE_WEIGHTS.color * 1 +
-        FEATURE_WEIGHTS.weather * 0.5 +
-        FEATURE_WEIGHTS.variety * 1 +
-        FEATURE_WEIGHTS.occasion * 0 +
-        FEATURE_WEIGHTS.rating * 0.5;
+        FEATURE_WEIGHTS.color * 1 + FEATURE_WEIGHTS.variety * 1 + FEATURE_WEIGHTS.rating * 0.5;
       expect(predict(defaultModel().params, f)).toBeCloseTo(expected, 6);
     });
   });
@@ -71,10 +67,10 @@ describe('banditModel', () => {
 
     it('fills missing weights from defaults and ignores non-finite values', () => {
       const m = normalizeModel({
-        params: { weights: { color: 0.9, weather: NaN } as never, bias: Infinity },
+        params: { weights: { color: 0.9 } as never, bias: Infinity },
       });
       expect(m.params.weights.color).toBe(0.9);
-      expect(m.params.weights.weather).toBe(FEATURE_WEIGHTS.weather);
+      expect(m.params.weights.variety).toBe(FEATURE_WEIGHTS.variety);
       expect(m.params.bias).toBe(0);
     });
 
@@ -91,13 +87,13 @@ describe('banditModel', () => {
 
   describe('predict / rawScore', () => {
     it('predict clamps to [0, 1]', () => {
-      const all = feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 });
+      const all = feats({ color: 1, variety: 1, rating: 1 });
       const big = {
-        weights: { color: 5, weather: 5, variety: 5, occasion: 5, rating: 5 },
+        weights: { color: 5, variety: 5, rating: 5 },
         bias: 5,
       };
       const small = {
-        weights: { color: -5, weather: -5, variety: -5, occasion: -5, rating: -5 },
+        weights: { color: -5, variety: -5, rating: -5 },
         bias: -5,
       };
       expect(predict(big, all)).toBe(1);
@@ -106,7 +102,7 @@ describe('banditModel', () => {
 
     it('rawScore is unclamped and includes bias', () => {
       const params = {
-        weights: { color: 1, weather: 0, variety: 0, occasion: 0, rating: 0 },
+        weights: { color: 1, variety: 0, rating: 0 },
         bias: 0.3,
       };
       expect(rawScore(params, feats({ color: 2 }))).toBeCloseTo(2.3, 6);
@@ -154,7 +150,7 @@ describe('banditModel', () => {
     });
 
     it('repeated rewards converge to the reward', () => {
-      const f = feats({ color: 1, weather: 1, variety: 1, occasion: 1, rating: 1 });
+      const f = feats({ color: 1, variety: 1, rating: 1 });
       let m = defaultModel();
       for (let i = 0; i < 20; i++) m = updateWeights(m, f, 0.9);
       expect(Math.abs(predict(m.params, f) - 0.9)).toBeLessThan(0.01);
@@ -163,10 +159,10 @@ describe('banditModel', () => {
     it('grows certainty only for features that were present', () => {
       const m = updateWeights(defaultModel(), COLOR_ONLY, 1);
       const colorIdx = FEATURE_NAMES.indexOf('color');
-      const weatherIdx = FEATURE_NAMES.indexOf('weather');
+      const varietyIdx = FEATURE_NAMES.indexOf('variety');
       expect(m.posterior.precision[colorIdx][colorIdx]).toBeGreaterThan(PRIOR_PRECISION);
-      expect(m.posterior.precision[weatherIdx][weatherIdx]).toBe(PRIOR_PRECISION);
-      expect(m.params.weights.weather).toBeCloseTo(FEATURE_WEIGHTS.weather, 10);
+      expect(m.posterior.precision[varietyIdx][varietyIdx]).toBe(PRIOR_PRECISION);
+      expect(m.params.weights.variety).toBeCloseTo(FEATURE_WEIGHTS.variety, 10);
     });
 
     it('learns which feature a user cares about from mixed outfits', () => {
@@ -174,11 +170,11 @@ describe('banditModel', () => {
       const r = rng(1);
       let m = defaultModel();
       for (let i = 0; i < 40; i++) {
-        const f = feats({ color: r() < 0.5 ? 1 : 0.25, weather: r(), variety: r(), rating: r() });
+        const f = feats({ color: r() < 0.5 ? 1 : 0.25, variety: r(), rating: r() });
         m = updateWeights(m, f, computeReward(f.color === 1 ? 9 : 3));
       }
       expect(m.params.weights.color).toBeGreaterThan(0.6);
-      for (const name of ['weather', 'variety', 'rating'] as const) {
+      for (const name of ['variety', 'rating'] as const) {
         expect(Math.abs(m.params.weights[name])).toBeLessThan(0.15);
       }
     });
@@ -186,9 +182,9 @@ describe('banditModel', () => {
 
   describe('selectOutfits (Thompson sampling)', () => {
     const candidates = [
-      { candidate: 'low', features: feats({ color: 0, weather: 0, variety: 0, rating: 0 }) },
+      { candidate: 'low', features: feats({ color: 0, variety: 0, rating: 0 }) },
       { candidate: 'mid', features: feats() },
-      { candidate: 'high', features: feats({ color: 1, weather: 1, variety: 1, rating: 1 }) },
+      { candidate: 'high', features: feats({ color: 1, variety: 1, rating: 1 }) },
     ];
 
     it('returns up to `count` distinct candidates, tagged with the expected score', () => {
@@ -237,7 +233,7 @@ describe('banditModel', () => {
     it('round-trips weights, posterior and meta', () => {
       let m = defaultModel();
       m = updateWeights(m, feats({ color: 1 }), 1);
-      m = updateWeights(m, feats({ weather: 1 }), 0);
+      m = updateWeights(m, feats({ variety: 1 }), 0);
       const restored = deserializeModel(serializeModel(m));
       expect(restored.params.weights).toEqual(m.params.weights);
       expect(restored.params.bias).toBeCloseTo(m.params.bias, 10);
@@ -258,6 +254,54 @@ describe('banditModel', () => {
       expect(deserializeModel({})).toEqual(defaultModel());
     });
 
+    it('converts a version-2 posterior by dropping weather and occasion', () => {
+      // A v2 belief over [color, weather, variety, occasion, rating, bias] with
+      // correlations, so marginalizing differs from just slicing the matrix.
+      const precision = [
+        [8, 1, 0.5, 0, 0.2, 1],
+        [1, 6, 0.3, 0.4, 0, 0.5],
+        [0.5, 0.3, 7, 0, 0.6, 0.8],
+        [0, 0.4, 0, 5, 0.1, 0.3],
+        [0.2, 0, 0.6, 0.1, 9, 0.7],
+        [1, 0.5, 0.8, 0.3, 0.7, 10],
+      ];
+      const target = [3, 1, 2, 0.5, 1.5, 2];
+      const m = deserializeModel({
+        weights: { color: 0.4, variety: 0.2, rating: 0.1, __bias: 0.05 },
+        feature_meta: { version: 2, updates: 12, posterior: { precision, target } },
+      });
+      expect(m.meta).toEqual({ version: MODEL_VERSION, updates: 12 });
+      expect(m.posterior.precision).toHaveLength(D);
+
+      // The kept weights' mean and covariance are unchanged by the conversion.
+      const inv = (a: number[][]) => {
+        // Gauss–Jordan, fine for a test.
+        const n = a.length;
+        const m2 = a.map((row, i) => [...row, ...row.map((_, j) => (i === j ? 1 : 0))]);
+        for (let c = 0; c < n; c++) {
+          const piv = m2[c][c];
+          for (let j = 0; j < 2 * n; j++) m2[c][j] /= piv;
+          for (let r = 0; r < n; r++) {
+            if (r === c) continue;
+            const f = m2[r][c];
+            for (let j = 0; j < 2 * n; j++) m2[r][j] -= f * m2[c][j];
+          }
+        }
+        return m2.map((row) => row.slice(n));
+      };
+      const fullCov = inv(precision);
+      const fullMean = fullCov.map((row) => row.reduce((s, v, i) => s + v * target[i], 0));
+      const keep = [0, 2, 4, 5]; // color, variety, rating, bias
+      const newCov = inv(m.posterior.precision);
+      const newMean = newCov.map((row) =>
+        row.reduce((s, v, i) => s + v * m.posterior.target[i], 0),
+      );
+      keep.forEach((k, i) => {
+        expect(newMean[i]).toBeCloseTo(fullMean[k], 8);
+        keep.forEach((l, j) => expect(newCov[i][j]).toBeCloseTo(fullCov[k][l], 8));
+      });
+    });
+
     it('carries a version-1 row’s learned weights into the prior', () => {
       const legacy = {
         weights: { color: 0.8, __bias: 0.1 },
@@ -265,7 +309,7 @@ describe('banditModel', () => {
       };
       const m = deserializeModel(legacy);
       expect(m.params.weights.color).toBe(0.8);
-      expect(m.params.weights.weather).toBe(FEATURE_WEIGHTS.weather);
+      expect(m.params.weights.variety).toBe(FEATURE_WEIGHTS.variety);
       expect(m.params.bias).toBe(0.1);
       expect(m.meta).toEqual({ version: MODEL_VERSION, updates: 30 });
       // Prior centred on the learned weights: its mean reproduces them.

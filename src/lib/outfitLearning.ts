@@ -10,9 +10,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { throwIfAnyError } from '@/lib/supabaseResult';
-import { FEATURE_NAMES, featureVector, type OccasionRules } from '@/lib/outfitScoring';
-import { getUserClothingWeatherRules } from '@/lib/weatherApi';
-import { getUserOccasionRules } from '@/lib/occasionRules';
+import { FEATURE_NAMES, featureVector } from '@/lib/outfitScoring';
 import {
   computeReward,
   deserializeModel,
@@ -22,7 +20,7 @@ import {
   type BanditModel,
   type FeatureVector,
 } from '@/lib/banditModel';
-import type { ClothingItem, ColorCombination, ClothingWeatherRules, OutfitWear } from '@/lib/types';
+import type { ClothingItem, ColorCombination, OutfitWear } from '@/lib/types';
 
 // ============================================================================
 // Stored features
@@ -136,14 +134,7 @@ async function rebuildFeatures(userId: string, wear: OutfitWear): Promise<Featur
   const since = new Date(new Date(wear.worn_date).getTime() - 14 * 86_400_000)
     .toISOString()
     .slice(0, 10);
-  const [
-    { data: items },
-    { data: recent },
-    { data: rated },
-    { data: color },
-    { data: weather },
-    { data: occ },
-  ] = throwIfAnyError(
+  const [{ data: items }, { data: recent }, { data: rated }, { data: color }] = throwIfAnyError(
     await Promise.all([
       supabase.from('clothing_items').select('*').in('id', ids),
       supabase
@@ -165,12 +156,6 @@ async function rebuildFeatures(userId: string, wear: OutfitWear): Promise<Featur
         .select('liked_combinations')
         .eq('user_id', userId)
         .maybeSingle(),
-      supabase
-        .from('weather_preferences')
-        .select('clothing_rules')
-        .eq('user_id', userId)
-        .maybeSingle(),
-      supabase.from('occasion_preferences').select('rules').eq('user_id', userId).maybeSingle(),
     ]),
   );
   const byId = new Map(((items ?? []) as ClothingItem[]).map((i) => [i.id, i]));
@@ -179,23 +164,14 @@ async function rebuildFeatures(userId: string, wear: OutfitWear): Promise<Featur
   const shoes = byId.get(wear.shoes_id ?? '');
   if (!top || !bottom || !shoes) return null;
 
-  const weatherRules = (weather?.clothing_rules ?? undefined) as
-    Record<string, ClothingWeatherRules> | undefined;
-  const occasionRules = (occ?.rules ?? null) as OccasionRules | null;
   return featureVector(
     { top, bottom, shoes },
     {
       likedCombinations: (color?.liked_combinations ?? []) as ColorCombination[],
-      weather: null, // a past day's weather isn't recorded
-      weatherRules,
       recentWears: (recent ?? []) as OutfitWear[],
       ratedOutfits: (rated ?? []) as OutfitWear[],
-      occasion: wear.occasion ?? null,
-      occasionRules: occasionRules ?? undefined,
       asOf: wear.worn_date,
     },
-    getUserClothingWeatherRules(weatherRules),
-    getUserOccasionRules(occasionRules),
   );
 }
 

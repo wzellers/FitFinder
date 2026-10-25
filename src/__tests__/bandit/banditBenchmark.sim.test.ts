@@ -47,7 +47,7 @@ function sweeps(): Array<{ title: string; note: string; learners: LearnerSpec[] 
   const heavy = (f: FeatureName): Weights =>
     Object.fromEntries(FEATURE_NAMES.map((n) => [n, n === f ? 0.6 : 0.1])) as Weights;
   const starts: Array<[string, Weights]> = [
-    ['current defaults (0.30/0.25/0.20/0.15/0.10)', { ...FEATURE_WEIGHTS }],
+    ['current defaults (0.50/0.33/0.17)', { ...FEATURE_WEIGHTS }],
     ['uniform 0.2', uniform],
     ...FEATURE_NAMES.map((f): [string, Weights] => [`${f}-heavy (0.6)`, heavy(f)]),
     ['all zero', Object.fromEntries(FEATURE_NAMES.map((n) => [n, 0])) as Weights],

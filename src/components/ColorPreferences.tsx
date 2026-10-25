@@ -279,7 +279,7 @@ export default function ColorPreferences() {
 
   const toggleClothingRule = (clothingType: string, category: TemperatureCategory) => {
     setClothingRulesState((prev) => {
-      const defaults = clothingWeatherRules[clothingType] || { blockedIn: [], suggestedIn: [] };
+      const defaults = clothingWeatherRules[clothingType] || { blockedIn: [] };
       const current = prev[clothingType] || { ...defaults };
       const isBlocked = current.blockedIn.includes(category);
       return {
@@ -301,7 +301,7 @@ export default function ColorPreferences() {
 
   // Add a clothing type to the custom rules
   const addClothingTypeRule = (clothingType: string) => {
-    const defaults = clothingWeatherRules[clothingType] || { blockedIn: [], suggestedIn: [] };
+    const defaults = clothingWeatherRules[clothingType] || { blockedIn: [] };
     setClothingRulesState((prev) => ({
       ...prev,
       [clothingType]: { ...defaults },
@@ -531,7 +531,7 @@ export default function ColorPreferences() {
                 </thead>
                 <tbody>
                   {customizedTypes.map((type) => {
-                    const rules = clothingRulesState[type] || { blockedIn: [], suggestedIn: [] };
+                    const rules = clothingRulesState[type] || { blockedIn: [] };
                     return (
                       <tr key={type} className="border-t border-[var(--border)]">
                         <td className="py-1.5 pr-4 text-[var(--text)]">{type}</td>

@@ -26,13 +26,14 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
 
 ### Smart Outfit Generation
 
-- Candidates are filtered by weather, then scored by a linear model over five
-  features whose cold-start weights are:
-  - **Color harmony** (30%) — favors your liked color combinations
-  - **Weather** (25%) — filters by temperature using your local forecast
-  - **Variety** (20%) — avoids items worn in the last 14 days
-  - **Occasion** (15%) — matches clothing types to Casual, Work, Date, or Active
-  - **Rating** (10%) — favors pieces from your higher-rated past outfits
+- **Filters first:** only items allowed for today's weather (your local
+  forecast and your Settings) and the chosen occasion (Casual, Work, Date,
+  Active) are considered. Weather and occasion don't affect ranking.
+- **Then ranks** the remaining outfits on three features, with cold-start
+  weights:
+  - **Color harmony** (50%) — favors your liked color combinations
+  - **Variety** (33%) — avoids items worn in the last 14 days
+  - **Rating** (17%) — favors pieces from your higher-rated past outfits
 - **Learns from your feedback**: a per-user Bayesian contextual bandit learns
   your weights from your ratings (the daily prompt or the Calendar, using the
   outfit as it was the day you wore it) and saved outfits, and picks outfits by

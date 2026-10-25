@@ -1,10 +1,9 @@
-// Outfit generation — filter by weather, then score candidates with a
-// fixed-weight linear model and return them sorted by score (descending).
+// Outfit generation: filter by weather and occasion, then score candidates.
 //
-// The five feature components below double as the contextual-bandit feature
-// functions (Workstream B): their fixed weights are the cold-start priors that
-// a learned model will later replace. Each component returns a value in [0, 1]
-// and the weights sum to 1.0, so an outfit's score is also in [0, 1].
+// Weather and occasion are hard filters only: an item is either allowed or
+// not, and they play no part in ranking. Ranking uses three features (color,
+// variety, rating), each in [0, 1]. Their fixed weights sum to 1.0 and are the
+// cold-start prior of the learned model in banditModel.ts.
 
 import type { ClothingItem, ColorCombination, OutfitWear } from '@/lib/types';
 import type { TemperatureCategory } from '@/lib/weatherApi';
@@ -51,11 +50,9 @@ export interface ScoringContext {
 // ============================================================================
 
 export const FEATURE_WEIGHTS = {
-  color: 0.3,
-  weather: 0.25,
-  variety: 0.2,
-  occasion: 0.15,
-  rating: 0.1,
+  color: 0.5,
+  variety: 0.33,
+  rating: 0.17,
 } as const;
 
 // Number of recent days over which repetition is penalized.
@@ -98,27 +95,6 @@ function colorFeature(top: ClothingItem, bottom: ClothingItem, liked: ColorCombi
 }
 
 /**
- * Weather appropriateness: averages each item's fit for the current category.
- * suggestedIn → 1, neither suggested nor blocked → 0.5 (blocked items are
- * filtered out before scoring, so they never reach here).
- */
-function weatherFeature(
-  outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
-  weather: TemperatureCategory | null,
-  rules: Record<string, ClothingWeatherRules>,
-): number {
-  if (!weather) return 0.5; // neutral, still positive, when weather is ignored
-  const fit = (item: ClothingItem): number => {
-    const r = rules[item.type];
-    if (!r) return 0.5;
-    if (r.suggestedIn.includes(weather)) return 1;
-    if (r.blockedIn.includes(weather)) return 0; // defensive; normally pre-filtered
-    return 0.5;
-  };
-  return (fit(outfit.top) + fit(outfit.bottom) + fit(outfit.shoes)) / 3;
-}
-
-/**
  * Variety: 1 when none of the items were worn recently; lower as items appear
  * in more recent wears (linear decay over RECENCY_WINDOW_DAYS).
  */
@@ -138,27 +114,6 @@ function varietyFeature(
     penalty += (overlap / 3) * recencyWeight;
   }
   return Math.max(0, 1 - penalty);
-}
-
-/**
- * Occasion fit: averages whether each item's type is allowed for the occasion.
- * Returns neutral 0.5 when no occasion is set or the occasion is unknown.
- */
-function occasionFeature(
-  outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
-  occasion: string | null | undefined,
-  rules: OccasionRules,
-): number {
-  if (!occasion) return 0.5;
-  const rule = rules[occasion];
-  if (!rule) return 0.5;
-  const score = (allowed: string[], item: ClothingItem) => (allowed.includes(item.type) ? 1 : 0);
-  return (
-    (score(rule.tops, outfit.top) +
-      score(rule.bottoms, outfit.bottom) +
-      score(rule.shoes, outfit.shoes)) /
-    3
-  );
 }
 
 /**
@@ -189,13 +144,14 @@ function ratingFeature(
 // ============================================================================
 
 /** Ordered feature names — the index order of `featureVector`. */
-export const FEATURE_NAMES = ['color', 'weather', 'variety', 'occasion', 'rating'] as const;
+export const FEATURE_NAMES = ['color', 'variety', 'rating'] as const;
 export type FeatureName = (typeof FEATURE_NAMES)[number];
 
 /**
- * The five feature components as a vector, in `FEATURE_NAMES` order. This is the
+ * The ranking features as a vector, in `FEATURE_NAMES` order. This is the
  * single source of truth for featurization, shared by the fixed-weight scorer
- * (below) and the learned bandit model (`banditModel.ts`).
+ * (below) and the learned bandit model (`banditModel.ts`). Weather and occasion
+ * are not features: `buildCandidates` filters by them before this runs.
  */
 export function featureVector(
   outfit: {
@@ -203,15 +159,11 @@ export function featureVector(
     bottom: ClothingItem;
     shoes: ClothingItem;
   },
-  ctx: ScoringContext,
-  rules: Record<string, ClothingWeatherRules>,
-  occasionRules: OccasionRules,
+  ctx: Pick<ScoringContext, 'likedCombinations' | 'recentWears' | 'ratedOutfits' | 'asOf'>,
 ): Record<FeatureName, number> {
   return {
     color: colorFeature(outfit.top, outfit.bottom, ctx.likedCombinations),
-    weather: weatherFeature(outfit, ctx.weather, rules),
     variety: varietyFeature(outfit, ctx.recentWears ?? [], ctx.asOf),
-    occasion: occasionFeature(outfit, ctx.occasion, occasionRules),
     rating: ratingFeature(outfit, ctx.ratedOutfits ?? []),
   };
 }
@@ -278,7 +230,7 @@ export function buildCandidates(items: ClothingItem[], ctx: ScoringContext): Fea
         if (seen.has(key)) continue;
         seen.add(key);
         const outfit = { top, bottom, shoes };
-        candidates.push({ ...outfit, features: featureVector(outfit, ctx, rules, occasionRules) });
+        candidates.push({ ...outfit, features: featureVector(outfit, ctx) });
       }
     }
   }
@@ -296,9 +248,7 @@ export function generateScoredOutfits(
     shoes: c.shoes,
     score:
       FEATURE_WEIGHTS.color * c.features.color +
-      FEATURE_WEIGHTS.weather * c.features.weather +
       FEATURE_WEIGHTS.variety * c.features.variety +
-      FEATURE_WEIGHTS.occasion * c.features.occasion +
       FEATURE_WEIGHTS.rating * c.features.rating,
   }));
 

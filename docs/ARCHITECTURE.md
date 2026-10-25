@@ -90,24 +90,25 @@ definition, so the "learning" version is a drop-in replacement for the fixed one
 
 ### 1. The feature vector
 
-Every candidate outfit is `{ top, bottom, shoes }`. `src/lib/outfitScoring.ts`
-turns a candidate into five numbers, each in `[0, 1]`:
+Every candidate outfit is `{ top, bottom, shoes }`. `buildCandidates()` in
+`src/lib/outfitScoring.ts` first **filters**: items blocked in today's weather
+(from the user's weather rules) and, when an occasion is chosen, items whose
+type doesn't suit it are removed. Weather and occasion play no further part.
+Each remaining outfit becomes three numbers, each in `[0, 1]`:
 
-| Feature      | Meaning                                                               |
-| ------------ | --------------------------------------------------------------------- |
-| **color**    | How well the colors match the user's liked combinations               |
-| **weather**  | Fit with the local temperature forecast (via OpenWeatherMap)          |
-| **variety**  | Penalizes items worn in the last 14 days                              |
-| **occasion** | Match against per-occasion type rules (Casual / Work / Date / Active) |
-| **rating**   | Boost from the user's higher-rated past outfits                       |
+| Feature     | Meaning                                                 |
+| ----------- | ------------------------------------------------------- |
+| **color**   | How well the colors match the user's liked combinations |
+| **variety** | Penalizes items worn in the last 14 days                |
+| **rating**  | Boost from the user's higher-rated past outfits         |
 
-Candidates are first weather-filtered, then featurized. `buildCandidates()` is the
-shared entry point used by both the fixed scorer and the bandit.
+`buildCandidates()` is the shared entry point used by both the fixed scorer and
+the bandit.
 
 ### 2. Fixed scorer (cold start)
 
 The score is a weighted sum with fixed `FEATURE_WEIGHTS`
-(`0.30 / 0.25 / 0.20 / 0.15 / 0.10`, summing to 1.0). Generation scores every valid
+(`0.50 / 0.33 / 0.17`, summing to 1.0). Generation scores every valid
 `top × bottom × shoes` combination, sorts descending, and samples among the top
 results so repeated "generate" clicks stay fresh while favoring good outfits.
 Locked slots constrain the candidate pool before scoring.
@@ -119,7 +120,7 @@ user, behind the same interface:
 
 - **Model.** A linear model (one weight per feature plus a bias:
   `score = w · features + bias`, clamped to `[0, 1]`), held as a **Bayesian
-  belief**: a Gaussian over the six weights, stored as a precision matrix `A`
+  belief**: a Gaussian over the four weights, stored as a precision matrix `A`
   and vector `b` (mean `A⁻¹b`, covariance `A⁻¹`).
 - **Cold start.** `defaultModel()` centres the belief on the fixed
   `FEATURE_WEIGHTS` with prior precision 3, so before any rating the expected
@@ -131,9 +132,9 @@ user, behind the same interface:
   a new model), and `forgetReward()` undoes one exactly.
 - **What it learns from** (`src/lib/outfitLearning.ts`). "Wear today" stores the
   outfit's feature vector on its `outfit_wears` row (`features`, with the item
-  ids it describes), so a later rating trains on the outfit as it was that day,
-  weather included. Wears logged in the Calendar get features rebuilt as of
-  their date from the wear history (weather unknown, so neutral).
+  ids it describes), so a later rating trains on the outfit as it was that day.
+  Wears logged in the Calendar get features rebuilt as of their date from the
+  wear history.
   `syncWearLearning` runs after the rating prompt and every Calendar save: it
   undoes what the row's `learned_rating` taught the model and learns the
   current rating, so edits never double-count; `forgetWearLearning` runs before
@@ -147,8 +148,10 @@ user, behind the same interface:
 - **Persistence.** `outfit_model_weights` holds one row per user: `weights` is
   the posterior mean (enough for readers like the daily email, which takes the
   best expected outfit) and `feature_meta` carries the posterior and version.
-  Rows from the earlier gradient-step learner (version 1) become a prior centred
-  on their learned weights, so nobody's learning resets.
+  Older rows are converted on load, so nobody's learning resets: version-1
+  (gradient-step) weights become a prior centred on them, and version-2
+  beliefs, which also covered weather and occasion, have those two
+  marginalized out.
 
 The settings (prior precision 3, noise 0.1) and the choice of Thompson
 sampling over ε-greedy come from the bandit benchmark
