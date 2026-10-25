@@ -59,6 +59,8 @@ export function parseWearFeatures(raw: unknown): WearFeatures | null {
 // ============================================================================
 
 export interface LearningRow {
+  /** The day the outfit was worn: ratings fade from then (banditModel). */
+  worn_date?: string;
   top_id?: string | null;
   bottom_id?: string | null;
   shoes_id?: string | null;
@@ -82,7 +84,9 @@ export function relearn(
   model: BanditModel,
   row: LearningRow,
   rebuild: () => FeatureVector | null,
+  today?: string,
 ): Relearned | null {
+  const dates = { on: row.worn_date, today };
   const items = wearItems(row);
   const stored = parseWearFeatures(row.features);
   const learned =
@@ -96,13 +100,13 @@ export function relearn(
   if (!learned && rating === null) return null; // nothing learned, nothing to learn
 
   let next = model;
-  if (learned) next = forgetReward(next, learned.values, computeReward(learned.rating));
+  if (learned) next = forgetReward(next, learned.values, computeReward(learned.rating), dates);
 
   const complete = items.every((id) => id !== null);
   const values = storedFits ? stored.values : complete ? rebuild() : null;
   if (rating !== null && values && complete) {
     return {
-      model: updateWeights(next, values, computeReward(rating)),
+      model: updateWeights(next, values, computeReward(rating), dates),
       features: { items, values },
       learnedRating: rating,
     };
@@ -232,6 +236,7 @@ export async function forgetWearLearning(userId: string, wearId: string): Promis
     await loadModel(userId),
     stored.values,
     computeReward(wear.learned_rating),
+    { on: wear.worn_date },
   );
   await saveModel(userId, model);
 }

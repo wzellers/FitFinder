@@ -63,6 +63,24 @@ describe('relearn', () => {
     expectSamePosterior(out.model, updateWeights(base, AS_WORN, computeReward(9)));
   });
 
+  it('re-rates an old wear exactly, taking its fading into account', () => {
+    const worn = '2026-01-01';
+    const learned7 = updateWeights(base, AS_WORN, computeReward(7), { on: worn, today: worn });
+    const row: LearningRow = {
+      ...ITEMS,
+      worn_date: worn,
+      rating: 9,
+      features: stored(AS_WORN),
+      learned_rating: 7,
+    };
+    // Edited 90 days later.
+    const out = relearn(learned7, row, rebuild, '2026-04-01')!;
+    expectSamePosterior(
+      out.model,
+      updateWeights(base, AS_WORN, computeReward(9), { on: worn, today: '2026-04-01' }),
+    );
+  });
+
   it('forgets a rating that was cleared', () => {
     const learned = updateWeights(base, AS_WORN, computeReward(4));
     const row: LearningRow = {

@@ -44,6 +44,9 @@ export interface ModelMeta {
 export interface Posterior {
   precision: number[][];
   target: number[];
+  /** Date (YYYY-MM-DD) the belief is current as of; older ratings have
+   * faded by then. Missing on models saved before fading existed. */
+  asOf?: string;
 }
 
 export interface BanditModel {
@@ -72,6 +75,24 @@ export const PRIOR_PRECISION = 3;
 
 /** Assumed rating noise, in reward units (one rating point ≈ 0.11). */
 export const RATING_NOISE = 0.1;
+
+/**
+ * Old ratings fade: a rating's weight halves every HALF_LIFE_DAYS after the
+ * day the outfit was worn (or rated, for outfits rated without wearing), and
+ * the belief drifts back toward the cold start. Lets the model follow a
+ * changing taste. In the bandit benchmark (180 days), fading never hurt stable
+ * users and helped drifting and inconsistent ones; 30 days scored best there,
+ * but the simulation rates daily, so 60 keeps more memory for real users who
+ * rate less often.
+ */
+export const HALF_LIFE_DAYS = 60;
+
+const DAY_MS = 86_400_000;
+/** Today's date, YYYY-MM-DD (UTC; a day's offset doesn't matter at this scale). */
+export const todayDate = () => new Date().toISOString().slice(0, 10);
+const daysBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / DAY_MS;
+const fade = (days: number, halfLife = HALF_LIFE_DAYS) =>
+  Math.pow(0.5, Math.max(0, days) / halfLife);
 
 const D = FEATURE_NAMES.length + 1; // features + bias
 
@@ -328,25 +349,69 @@ export const SAVED_OUTFIT_REWARD = 0.7;
  * Returns a NEW model (does not mutate the input) with `meta.updates`
  * incremented. Features with value 0 leave their weights' certainty unchanged.
  */
+/** When an observation happened, and what "today" is (both YYYY-MM-DD). */
+export interface ObservationDates {
+  /** Day the outfit was worn (or rated, if not worn). Default: today. */
+  on?: string;
+  /** Default: the real date. Tests and the benchmark pass a simulated one. */
+  today?: string;
+  /** Override HALF_LIFE_DAYS (the benchmark uses this to tune it). */
+  halfLifeDays?: number;
+}
+
+/**
+ * Fade the belief to `today`: what earlier ratings contributed shrinks by
+ * one half per HALF_LIFE_DAYS since the belief's `asOf`, back toward the cold
+ * start. A belief without `asOf` is taken as current.
+ */
+export function fadeTo(
+  model: BanditModel,
+  today: string = todayDate(),
+  halfLifeDays: number = HALF_LIFE_DAYS,
+): BanditModel {
+  const { asOf } = model.posterior;
+  const days = asOf ? daysBetween(asOf, today) : 0;
+  if (days <= 0) return { ...model, posterior: { ...model.posterior, asOf: asOf ?? today } };
+  const g = fade(days, halfLifeDays);
+  const prior = defaultModel().posterior;
+  const precision = model.posterior.precision.map((row, i) =>
+    row.map((v, j) => prior.precision[i][j] + g * (v - prior.precision[i][j])),
+  );
+  const target = model.posterior.target.map((v, i) => prior.target[i] + g * (v - prior.target[i]));
+  return {
+    params: fromVector(solve(cholesky(precision), target)),
+    posterior: { precision, target, asOf: today },
+    meta: model.meta,
+  };
+}
+
+/**
+ * Learn from one observed reward for an outfit, faded by how long ago it was
+ * worn:  A ← A + w·xxᵀ/σ²,  b ← b + w·x·reward/σ²,  weights ← A⁻¹b,
+ * with w = ½^(age/HALF_LIFE_DAYS). Returns a NEW model with `meta.updates`
+ * incremented. Features with value 0 leave their weights' certainty unchanged.
+ */
 export function updateWeights(
   model: BanditModel,
   features: FeatureVector,
   reward: number,
+  dates: ObservationDates = {},
 ): BanditModel {
-  return applyObservation(model, features, reward, +1);
+  return applyObservation(model, features, reward, +1, dates);
 }
 
 /**
- * Undo an earlier `updateWeights(model, features, reward)` exactly, e.g. when
- * a rating is changed or its wear deleted. Only call it with features and a
- * reward the model really learned from.
+ * Undo an earlier `updateWeights(model, features, reward, { on })` exactly,
+ * whatever has faded since, e.g. when a rating is changed or its wear deleted.
+ * Only call it with features, a reward and a date the model really learned.
  */
 export function forgetReward(
   model: BanditModel,
   features: FeatureVector,
   reward: number,
+  dates: ObservationDates = {},
 ): BanditModel {
-  return applyObservation(model, features, reward, -1);
+  return applyObservation(model, features, reward, -1, dates);
 }
 
 function applyObservation(
@@ -354,17 +419,20 @@ function applyObservation(
   features: FeatureVector,
   reward: number,
   sign: 1 | -1,
+  { on, today = todayDate(), halfLifeDays = HALF_LIFE_DAYS }: ObservationDates,
 ): BanditModel {
+  const current = fadeTo(model, today, halfLifeDays);
+  const w = sign * fade(on ? daysBetween(on, today) : 0, halfLifeDays);
   const x = toX(features);
   const s2 = RATING_NOISE * RATING_NOISE;
-  const precision = model.posterior.precision.map((row, i) =>
-    row.map((v, j) => v + (sign * x[i] * x[j]) / s2),
+  const precision = current.posterior.precision.map((row, i) =>
+    row.map((v, j) => v + (w * x[i] * x[j]) / s2),
   );
-  const target = model.posterior.target.map((v, i) => v + (sign * x[i] * reward) / s2);
+  const target = current.posterior.target.map((v, i) => v + (w * x[i] * reward) / s2);
   const mean = solve(cholesky(precision), target);
   return {
     params: fromVector(mean),
-    posterior: { precision, target },
+    posterior: { precision, target, asOf: today },
     meta: { version: MODEL_VERSION, updates: Math.max(0, model.meta.updates + sign) },
   };
 }
@@ -398,9 +466,11 @@ function gaussian(rng: () => number): number {
 export function selectOutfits<T>(
   candidates: { candidate: T; features: FeatureVector }[],
   model: BanditModel,
-  options: { count?: number; rng?: () => number } = {},
+  options: { count?: number; rng?: () => number; today?: string; halfLifeDays?: number } = {},
 ): ScoredCandidate<T>[] {
   const { count = 5, rng = Math.random } = options;
+  // Fade to today first: a model that hasn't learned in a while is less sure.
+  model = fadeTo(model, options.today ?? todayDate(), options.halfLifeDays);
   // w = mean + L⁻ᵀz has covariance A⁻¹ when A = LLᵀ.
   const L = cholesky(model.posterior.precision);
   const noise = backSolve(

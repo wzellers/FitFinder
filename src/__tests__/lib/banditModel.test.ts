@@ -11,6 +11,9 @@ import {
   deserializeModel,
   MODEL_VERSION,
   PRIOR_PRECISION,
+  HALF_LIFE_DAYS,
+  fadeTo,
+  forgetReward,
   SAVED_OUTFIT_REWARD,
   type BanditModel,
   type FeatureVector,
@@ -177,6 +180,54 @@ describe('banditModel', () => {
       for (const name of ['variety', 'rating'] as const) {
         expect(Math.abs(m.params.weights[name])).toBeLessThan(0.15);
       }
+    });
+  });
+
+  describe('fading old ratings', () => {
+    const DAY0 = '2026-01-01';
+    const after = (days: number) =>
+      new Date(Date.parse(DAY0) + days * 86_400_000).toISOString().slice(0, 10);
+    const colorIdx = FEATURE_NAMES.indexOf('color');
+    const learnedPart = (m: BanditModel) =>
+      m.posterior.precision[colorIdx][colorIdx] - PRIOR_PRECISION;
+
+    it('halves what a rating contributed after one half-life', () => {
+      const m = updateWeights(defaultModel(), COLOR_ONLY, 1, { today: DAY0 });
+      const faded = fadeTo(m, after(HALF_LIFE_DAYS));
+      expect(learnedPart(faded)).toBeCloseTo(learnedPart(m) / 2, 8);
+      // …and the estimate drifts back toward the cold start.
+      expect(faded.params.weights.color).toBeLessThan(m.params.weights.color);
+      expect(faded.params.weights.color).toBeGreaterThan(FEATURE_WEIGHTS.color);
+    });
+
+    it('counts a rating for an older wear less', () => {
+      const fresh = updateWeights(defaultModel(), COLOR_ONLY, 1, { today: DAY0 });
+      const old = updateWeights(defaultModel(), COLOR_ONLY, 1, {
+        on: DAY0,
+        today: after(HALF_LIFE_DAYS),
+      });
+      expect(learnedPart(old)).toBeCloseTo(learnedPart(fresh) / 2, 8);
+    });
+
+    it('undoes a faded rating exactly', () => {
+      const base = updateWeights(defaultModel(), feats({ variety: 1 }), 0.4, { today: DAY0 });
+      const learned = updateWeights(base, COLOR_ONLY, 0.9, { on: DAY0, today: DAY0 });
+      // 60 days later the rating is changed: undo what is left of it.
+      const undone = forgetReward(learned, COLOR_ONLY, 0.9, { on: DAY0, today: after(60) });
+      const expected = fadeTo(base, after(60));
+      undone.posterior.precision.forEach((row, i) =>
+        row.forEach((v, j) => expect(v).toBeCloseTo(expected.posterior.precision[i][j], 8)),
+      );
+      undone.posterior.target.forEach((v, i) =>
+        expect(v).toBeCloseTo(expected.posterior.target[i], 8),
+      );
+    });
+
+    it("doesn't fade a belief without a date, or into the past", () => {
+      const m = updateWeights(defaultModel(), COLOR_ONLY, 1, { today: after(10) });
+      expect(fadeTo(m, DAY0).posterior.precision).toEqual(m.posterior.precision);
+      const undated = { ...m, posterior: { ...m.posterior, asOf: undefined } };
+      expect(fadeTo(undated, after(500)).posterior.precision).toEqual(m.posterior.precision);
     });
   });
 
