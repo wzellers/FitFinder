@@ -86,7 +86,9 @@ export function runBenchmark(
         const cands = candidatesFor(closet, liked, dayList[d], d, history);
         if (cands.length < 2) continue;
         const drifted = d >= days / 2;
-        const utils = cands.map((c) => trueUtility(user, c.features, c, drifted));
+        const utils = cands.map((c) =>
+          trueUtility(user, c.features, c, dayList[d].weather, drifted),
+        );
         const best = Math.max(...utils);
         const avg = utils.reduce((s, v) => s + v, 0) / utils.length;
 

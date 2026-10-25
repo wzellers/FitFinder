@@ -211,16 +211,51 @@ export const POPULATIONS: Population[] = [
   },
 ];
 
+/**
+ * Simulated people's weather comfort: the types they find best in each
+ * temperature range (1), otherwise neutral (0.5). The app only filters out
+ * blocked types; this finer preference is part of the hidden taste, so the
+ * benchmark measures what the app gives up by not ranking on weather.
+ */
+const COMFORTABLE_IN: Record<string, TemperatureCategory[]> = {
+  'Tank Top': ['hot'],
+  'T-Shirt': ['warm', 'hot'],
+  'Long Sleeve Shirt': ['cool', 'warm'],
+  Polo: ['warm'],
+  'Button-Up Shirt': ['cool', 'warm'],
+  Jacket: ['cold', 'cool'],
+  Sweatshirt: ['cold', 'cool'],
+  Crewneck: ['cold', 'cool'],
+  Sweater: ['cold', 'cool'],
+  Shorts: ['hot', 'warm'],
+  Skirt: ['warm', 'hot'],
+  Jeans: ['cool', 'warm'],
+  Pants: ['cold', 'cool', 'warm'],
+  Sweats: ['cold', 'cool'],
+  Leggings: ['cold', 'cool', 'warm'],
+};
+
+function weatherComfort(
+  outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
+  weather: TemperatureCategory,
+): number {
+  const fit = (i: ClothingItem) => (COMFORTABLE_IN[i.type]?.includes(weather) ? 1 : 0.5);
+  return (fit(outfit.top) + fit(outfit.bottom) + fit(outfit.shoes)) / 3;
+}
+
 /** The user's true (noise-free) liking of an outfit on a given day. */
 export function trueUtility(
   user: UserProfile,
   features: FeatureVector,
   outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
+  weather: TemperatureCategory,
   drifted: boolean,
 ): number {
   const taste = drifted && user.laterTaste ? user.laterTaste : user.taste;
-  let u = 0;
-  for (const f of TASTE_FEATURES) u += taste[f] * features[f];
+  let u =
+    taste.color * features.color +
+    taste.variety * features.variety +
+    taste.weather * weatherComfort(outfit, weather);
   for (const i of [outfit.top, outfit.bottom, outfit.shoes]) u += user.affinity.get(i.id) ?? 0;
   return u;
 }
