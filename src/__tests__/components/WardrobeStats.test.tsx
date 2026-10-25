@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
+// Stable, as the real useAuth keeps it (a new object per render reloads data).
+const mockUser = vi.hoisted(() => ({ id: 'u1' }));
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({ user: { id: 'u1' } })),
+  useAuth: vi.fn(() => ({ user: mockUser })),
 }));
 
 function makeChainable(result = { data: [] as unknown[], error: null }) {
