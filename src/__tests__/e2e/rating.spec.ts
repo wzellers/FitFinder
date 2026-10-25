@@ -48,13 +48,7 @@ test("asks for a rating of yesterday's outfit, and the model learns from it", as
     'wear',
   ).features as { items: string[]; values: Record<string, number> };
   expect(learned.items).toEqual([seeded.navyShirt, seeded.denimJeans, seeded.whiteShoes]);
-  expect(Object.keys(learned.values).sort()).toEqual([
-    'color',
-    'occasion',
-    'rating',
-    'variety',
-    'weather',
-  ]);
+  expect(Object.keys(learned.values).sort()).toEqual(['color', 'rating', 'variety']);
   const model = ok(
     await db.from('outfit_model_weights').select('feature_meta').eq('user_id', userId).single(),
     'model',

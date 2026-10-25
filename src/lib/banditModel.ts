@@ -53,8 +53,15 @@ export interface BanditModel {
   meta: ModelMeta;
 }
 
-/** 2: Bayesian posterior added. 1: gradient-step weights only. */
-export const MODEL_VERSION = 2;
+/**
+ * 3: features are color, variety and rating (weather and occasion became
+ *    filters only). 2: Bayesian posterior over five features.
+ * 1: gradient-step weights only.
+ */
+export const MODEL_VERSION = 3;
+
+/** Feature order of version-2 posteriors, for converting them. */
+const V2_FEATURES = ['color', 'weather', 'variety', 'occasion', 'rating'] as const;
 
 /**
  * How firmly the prior holds the cold-start (or previously learned) weights:
@@ -128,17 +135,71 @@ function priorAround(mean: BanditWeights): Posterior {
   };
 }
 
-function isValidPosterior(p: unknown): p is Posterior {
+/** Inverse of a symmetric positive-definite matrix of any size. */
+function inverse(a: number[][]): number[][] {
+  const n = a.length;
+  const L = a.map(() => new Array<number>(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j <= i; j++) {
+      let s = a[i][j];
+      for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k];
+      L[i][j] = i === j ? Math.sqrt(Math.max(s, 1e-12)) : s / L[j][j];
+    }
+  }
+  const inv = a.map(() => new Array<number>(n).fill(0));
+  for (let c = 0; c < n; c++) {
+    const y = new Array<number>(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      let s = i === c ? 1 : 0;
+      for (let k = 0; k < i; k++) s -= L[i][k] * y[k];
+      y[i] = s / L[i][i];
+    }
+    for (let i = n - 1; i >= 0; i--) {
+      let s = y[i];
+      for (let k = i + 1; k < n; k++) s -= L[k][i] * inv[k][c];
+      inv[i][c] = s / L[i][i];
+    }
+  }
+  return inv;
+}
+
+/**
+ * Convert a version-2 posterior (five features + bias) to the current
+ * features by marginalizing out weather and occasion: keep exactly what was
+ * known about the remaining weights, as if the dropped ones were never in the
+ * model.
+ */
+function fromV2Posterior(p: Posterior): Posterior | null {
+  const n = V2_FEATURES.length + 1;
+  if (!isValidPosterior(p, n)) return null;
+  const keep = [...FEATURE_NAMES.map((f) => V2_FEATURES.indexOf(f)), n - 1];
+  const cov = inverse(p.precision);
+  const fullMean = solveAny(p.precision, p.target);
+  const subCov = keep.map((i) => keep.map((j) => cov[i][j]));
+  const precision = inverse(subCov);
+  const mean = keep.map((i) => fullMean[i]);
+  return { precision, target: precision.map((row) => dot(row, mean)) };
+}
+
+const dot = (a: number[], b: number[]) => a.reduce((s, v, i) => s + v * b[i], 0);
+
+/** Solve Ax = b for a symmetric positive-definite A of any size. */
+function solveAny(a: number[][], b: number[]): number[] {
+  const inv = inverse(a);
+  return inv.map((row) => dot(row, b));
+}
+
+function isValidPosterior(p: unknown, size: number = D): p is Posterior {
   if (!p || typeof p !== 'object') return false;
   const { precision, target } = p as Posterior;
   const finite = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
   return (
     Array.isArray(target) &&
-    target.length === D &&
+    target.length === size &&
     target.every(finite) &&
     Array.isArray(precision) &&
-    precision.length === D &&
-    precision.every((row) => Array.isArray(row) && row.length === D && row.every(finite)) &&
+    precision.length === size &&
+    precision.every((row) => Array.isArray(row) && row.length === size && row.every(finite)) &&
     precision.every((row, i) => row[i] > 0)
   );
 }
@@ -181,7 +242,9 @@ export function normalizeModel(
   const params = { weights, bias };
   return {
     params,
-    posterior: isValidPosterior(loaded.posterior) ? loaded.posterior : priorAround(params),
+    posterior: isValidPosterior(loaded.posterior)
+      ? loaded.posterior
+      : (fromV2Posterior(loaded.posterior as Posterior) ?? priorAround(params)),
     meta: { version: MODEL_VERSION, updates: loaded.meta?.updates ?? 0 },
   };
 }

@@ -112,23 +112,23 @@ export function clearWeatherCache(): void {
 
 import type { ClothingWeatherRules } from '@/lib/types';
 
-/** Weather appropriateness rules for each clothing type */
+/** Which temperature categories each clothing type is blocked in (a filter). */
 export const clothingWeatherRules: Record<string, ClothingWeatherRules> = {
-  'Tank Top': { blockedIn: ['cold', 'cool'], suggestedIn: ['hot'] },
-  'T-Shirt': { blockedIn: ['cold'], suggestedIn: ['warm', 'hot'] },
-  'Long Sleeve Shirt': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
-  Polo: { blockedIn: ['cold'], suggestedIn: ['warm'] },
-  'Button-Up Shirt': { blockedIn: [], suggestedIn: ['cool', 'warm'] },
-  Jacket: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  Sweatshirt: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  Crewneck: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  Sweater: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  Shorts: { blockedIn: ['cold'], suggestedIn: ['hot', 'warm'] },
-  Skirt: { blockedIn: ['cold'], suggestedIn: ['warm', 'hot'] },
-  Jeans: { blockedIn: [], suggestedIn: ['cool', 'warm'] },
-  Pants: { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
-  Sweats: { blockedIn: ['hot'], suggestedIn: ['cold', 'cool'] },
-  Leggings: { blockedIn: [], suggestedIn: ['cold', 'cool', 'warm'] },
+  'Tank Top': { blockedIn: ['cold', 'cool'] },
+  'T-Shirt': { blockedIn: ['cold'] },
+  'Long Sleeve Shirt': { blockedIn: [] },
+  Polo: { blockedIn: ['cold'] },
+  'Button-Up Shirt': { blockedIn: [] },
+  Jacket: { blockedIn: ['hot'] },
+  Sweatshirt: { blockedIn: ['hot'] },
+  Crewneck: { blockedIn: ['hot'] },
+  Sweater: { blockedIn: ['hot'] },
+  Shorts: { blockedIn: ['cold'] },
+  Skirt: { blockedIn: ['cold'] },
+  Jeans: { blockedIn: [] },
+  Pants: { blockedIn: [] },
+  Sweats: { blockedIn: ['hot'] },
+  Leggings: { blockedIn: [] },
 };
 
 export function isClothingAppropriateForWeather(

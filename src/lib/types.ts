@@ -39,10 +39,9 @@ export type ClothingSection = 'Tops' | 'Bottoms' | 'Shoes';
 
 import type { TemperatureCategory } from '@/lib/weatherApi';
 
-// Defines which temperature categories a clothing type is appropriate for
+// The temperature categories a clothing type is not allowed in
 export interface ClothingWeatherRules {
   blockedIn: TemperatureCategory[];
-  suggestedIn: TemperatureCategory[];
 }
 
 // ============================================================================

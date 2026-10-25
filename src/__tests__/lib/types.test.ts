@@ -24,8 +24,8 @@ describe('clothingWeatherRules', () => {
     expect(clothingWeatherRules['Jeans'].blockedIn).toHaveLength(0);
   });
 
-  it('Tank Top is suggested in hot', () => {
-    expect(clothingWeatherRules['Tank Top'].suggestedIn).toContain('hot');
+  it('Tank Top is allowed when hot', () => {
+    expect(clothingWeatherRules['Tank Top'].blockedIn).not.toContain('hot');
   });
 });
 
@@ -60,7 +60,6 @@ describe('getUserClothingWeatherRules', () => {
     const override = {
       'T-Shirt': {
         blockedIn: ['cold', 'cool'] as TemperatureCategory[],
-        suggestedIn: ['hot'] as TemperatureCategory[],
       },
     };
     const result = getUserClothingWeatherRules(override);
@@ -73,7 +72,6 @@ describe('getUserClothingWeatherRules', () => {
     const override = {
       Shorts: {
         blockedIn: [] as TemperatureCategory[],
-        suggestedIn: ['hot', 'warm', 'cool'] as TemperatureCategory[],
       },
     };
     const result = getUserClothingWeatherRules(override);

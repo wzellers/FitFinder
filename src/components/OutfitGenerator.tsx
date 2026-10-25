@@ -35,8 +35,6 @@ import {
 } from '@/lib/weatherApi';
 import { buildCandidates, featureVector } from '@/lib/outfitScoring';
 import type { OccasionRules } from '@/lib/outfitScoring';
-import { getUserClothingWeatherRules } from '@/lib/weatherApi';
-import { getUserOccasionRules } from '@/lib/occasionRules';
 import { occasions } from '@/lib/constants';
 import type { Occasion } from '@/lib/constants';
 import {
@@ -266,30 +264,16 @@ export default function OutfitGenerator({
     }));
   };
 
-  // The outfit's features in today's context (weather, wear history, occasion).
+  // The outfit's features today (liked colors, wear and rating history).
   const currentFeatures = (outfit: {
     top: ClothingItem;
     bottom: ClothingItem;
     shoes: ClothingItem;
   }): FeatureVector =>
-    featureVector(
-      outfit,
-      {
-        likedCombinations: liked,
-        weather: ignoreWeather ? null : tempCategory,
-        weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
-        recentWears,
-        ratedOutfits,
-        occasion,
-        occasionRules: userOccasionRules ?? undefined,
-      },
-      getUserClothingWeatherRules(userWeatherPrefs?.clothingRules ?? undefined),
-      getUserOccasionRules(userOccasionRules),
-    );
+    featureVector(outfit, { likedCombinations: liked, recentWears, ratedOutfits });
 
   // Apply an online learning update for a given outfit + reward, then persist the
-  // new weights. Features are recomputed from the current context (weather and
-  // occasion default to neutral, matching the rating-time path).
+  // new weights.
   const applyReward = async (
     outfit: {
       top: ClothingItem;

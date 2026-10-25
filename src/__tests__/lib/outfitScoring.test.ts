@@ -5,8 +5,6 @@ import {
   FEATURE_WEIGHTS,
   type ScoringContext,
 } from '@/lib/outfitScoring';
-import { getUserClothingWeatherRules } from '@/lib/weatherApi';
-import { getUserOccasionRules } from '@/lib/occasionRules';
 import { makeTop, makeBottom, makeShoes } from '../factories/clothingItem';
 
 const WEIGHT_SUM = Object.values(FEATURE_WEIGHTS).reduce((a, b) => a + b, 0);
@@ -177,12 +175,7 @@ describe('generateScoredOutfits', () => {
       shoes_id: shoes.id,
     });
     const variety = (ctx: Partial<ScoringContext>) =>
-      featureVector(
-        { top, bottom, shoes },
-        baseCtx(ctx),
-        getUserClothingWeatherRules(null),
-        getUserOccasionRules(null),
-      ).variety;
+      featureVector({ top, bottom, shoes }, baseCtx(ctx)).variety;
 
     it('measures recency from asOf, not from now', () => {
       // Worn 7 days before 2026-03-10: half-way through the 14-day window.
@@ -291,7 +284,7 @@ describe('generateScoredOutfits', () => {
   describe('custom weatherRules', () => {
     it('custom rules override defaults', () => {
       const customRules = {
-        'T-Shirt': { blockedIn: ['warm' as const], suggestedIn: [] },
+        'T-Shirt': { blockedIn: ['warm' as const] },
       };
       const top = makeTop({ type: 'T-Shirt' });
       const bottom = makeBottom();
