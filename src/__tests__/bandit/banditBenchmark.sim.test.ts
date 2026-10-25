@@ -168,6 +168,24 @@ describe.runIf(FULL)('bandit benchmark (full)', () => {
       log(`\n### ${sweep.title}\n\n${sweep.note}\n`);
       log(formatTable(results));
     }
+    // Fading needs a longer horizon to judge: 180 days, taste changing at day 90
+    // for drifting users.
+    const longWindows = [...WINDOWS, { label: '91–180', from: 91, to: 180 }];
+    const halfLives = [Infinity, 30, 60, 120, 240, 480];
+    log('\n## Half-life of old ratings (180 days)\n');
+    log('How fast old ratings fade (production learner). ∞ = never.');
+    for (const pop of POPULATIONS.filter((p) => ['typical', 'drifting'].includes(p.name))) {
+      const results = runBenchmark(
+        pop,
+        halfLives.map((h) => ({
+          name: `half-life ${h === Infinity ? '∞' : `${h} days`}`,
+          make: () => production({ halfLifeDays: h }),
+        })),
+        { ...opts, days: 180, windows: longWindows },
+      );
+      log(`\n### Scenario: ${pop.name}\n`);
+      log(formatTable(results, longWindows));
+    }
     out.push(
       '',
       `Windows: ${WINDOWS.map((w) => `${w.label} = ratings ${w.from}–${w.to}`).join('; ')}.`,

@@ -13,6 +13,7 @@ import {
   makeLikedCombos,
   mulberry32,
   rate,
+  simDate,
   trueUtility,
   type Population,
   type WearRecord,
@@ -49,6 +50,8 @@ export interface RunOptions {
   users: number;
   days: number;
   seed: number;
+  /** Reporting windows (default WINDOWS). */
+  windows?: Window[];
 }
 
 function stat(values: number[]): Stat {
@@ -61,11 +64,11 @@ function stat(values: number[]): Stat {
 export function runBenchmark(
   population: Population,
   learners: LearnerSpec[],
-  { users, days, seed }: RunOptions,
+  { users, days, seed, windows = WINDOWS }: RunOptions,
 ): LearnerResult[] {
   const perLearner = learners.map(() => ({
-    regret: WINDOWS.map(() => [] as number[]),
-    top10: WINDOWS.map(() => [] as number[]),
+    regret: windows.map(() => [] as number[]),
+    top10: windows.map(() => [] as number[]),
   }));
 
   for (let u = 0; u < users; u++) {
@@ -92,7 +95,7 @@ export function runBenchmark(
         const best = Math.max(...utils);
         const avg = utils.reduce((s, v) => s + v, 0) / utils.length;
 
-        const i = learner.choose(cands, policyRng);
+        const i = learner.choose(cands, policyRng, simDate(d));
         const gap = best - avg;
         regret.push(gap > 1e-9 ? (best - utils[i]) / gap : 0);
         const better = utils.filter((v) => v > utils[i]).length;
@@ -100,12 +103,12 @@ export function runBenchmark(
 
         // Same noise for every learner on the same user and day.
         const rating = rate(utils[i], user.noise, mulberry32(seed * 104_729 + u * 1_000 + d));
-        learner.learn(cands[i].features, computeReward(rating));
+        learner.learn(cands[i].features, computeReward(rating), simDate(d));
         const c = cands[i];
         history.push({ day: d, top: c.top.id, bottom: c.bottom.id, shoes: c.shoes.id, rating });
       }
 
-      WINDOWS.forEach((w, wi) => {
+      windows.forEach((w, wi) => {
         const r = regret.slice(w.from - 1, w.to);
         const t = top.slice(w.from - 1, w.to);
         if (r.length) {
@@ -124,12 +127,13 @@ export function runBenchmark(
 }
 
 /** A results table in Markdown. */
-export function formatTable(results: LearnerResult[]): string {
-  const head = `| Learner | ${WINDOWS.map((w) => `Regret, ${w.label}`).join(' | ')} | Top-10% picks, ${WINDOWS[2].label} |`;
-  const sep = `|${'---|'.repeat(WINDOWS.length + 2)}`;
+export function formatTable(results: LearnerResult[], windows: Window[] = WINDOWS): string {
+  const last = windows.length - 1;
+  const head = `| Learner | ${windows.map((w) => `Regret, ${w.label}`).join(' | ')} | Top-10% picks, ${windows[last].label} |`;
+  const sep = `|${'---|'.repeat(windows.length + 2)}`;
   const rows = results.map(
     (r) =>
-      `| ${r.name} | ${r.regret.map((s) => `${s.mean.toFixed(2)} ± ${s.ci.toFixed(2)}`).join(' | ')} | ${(r.top10[2].mean * 100).toFixed(0)}% |`,
+      `| ${r.name} | ${r.regret.map((s) => `${s.mean.toFixed(2)} ± ${s.ci.toFixed(2)}`).join(' | ')} | ${(r.top10[last].mean * 100).toFixed(0)}% |`,
   );
   return [head, sep, ...rows].join('\n');
 }

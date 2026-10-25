@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-25 (weather/occasion as filters)
+**Last updated:** 2026-10-25 (fading old ratings)
 
 ## What's live
 
@@ -79,11 +79,12 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Open items
 
 - **Bandit upgrade:** steps 1–3 are done (benchmark, Thompson sampling,
-  learning from the worn outfit's real features and Calendar ratings), and
-  weather and occasion are now filters only (`MODEL_VERSION` 3). In progress,
-  in this order: fade old ratings gently (half-life tuned with the benchmark),
-  then rating outfits without wearing them (1–10, counted like worn ratings,
-  needs migration 021). Ratings from before step 3 aren't retro-trained.
+  learning from the worn outfit's real features and Calendar ratings);
+  weather and occasion are filters only (`MODEL_VERSION` 3); old ratings fade
+  with a 60-day half-life. Next: rating outfits without wearing them (1–10,
+  counted like worn ratings, needs migration 021). A rating-heavy cold start
+  looked better for weeks 2–4 in the benchmark; worth trying later. Ratings
+  from before step 3 aren't retro-trained.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in

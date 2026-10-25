@@ -39,7 +39,8 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   outfit as it was the day you wore it) and saved outfits, and picks outfits by
   Thompson sampling, exploring only where it is still unsure. It runs in the
   browser and persists per user in Supabase; before any rating it reproduces
-  the fixed-weight scorer (cold start).
+  the fixed-weight scorer (cold start). Old ratings gently fade (60-day
+  half-life), so it follows your taste as it changes.
 - Keep individual pieces and regenerate around them, or pick a piece by hand
 - Save outfits for later or log one as today's wear
 

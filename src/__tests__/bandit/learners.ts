@@ -10,10 +10,11 @@ import { FEATURE_NAMES, FEATURE_WEIGHTS, type FeatureName } from '@/lib/outfitSc
 import { gaussian, type Rng } from './world';
 
 export interface Learner {
-  /** Index of the outfit to show, among today's candidates. */
-  choose(candidates: { features: FeatureVector }[], rng: Rng): number;
+  /** Index of the outfit to show, among today's candidates. `today` is the
+   * simulated date (YYYY-MM-DD). */
+  choose(candidates: { features: FeatureVector }[], rng: Rng, today: string): number;
   /** Learn from the shown outfit's features and the reward from its rating. */
-  learn(features: FeatureVector, reward: number): void;
+  learn(features: FeatureVector, reward: number, today: string): void;
 }
 
 export interface LearnerSpec {
@@ -44,18 +45,27 @@ function mask(f: FeatureVector, ignore: FeatureName[] = []): FeatureVector {
 // ---------------------------------------------------------------------------
 
 /** The app's real model and policy: Thompson sampling, show its top pick. */
-export function production(opts: { ignore?: FeatureName[] } = {}): Learner {
+export function production(opts: { ignore?: FeatureName[]; halfLifeDays?: number } = {}): Learner {
   let model = defaultModel();
   return {
-    choose(cands, rng) {
+    choose(cands, rng, today) {
       const indexed = cands.map((c, i) => ({
         candidate: i,
         features: mask(c.features, opts.ignore),
       }));
-      return selectOutfits(indexed, model, { count: 1, rng })[0].candidate;
+      return selectOutfits(indexed, model, {
+        count: 1,
+        rng,
+        today,
+        halfLifeDays: opts.halfLifeDays,
+      })[0].candidate;
     },
-    learn(features, reward) {
-      model = updateWeights(model, mask(features, opts.ignore), reward);
+    learn(features, reward, today) {
+      model = updateWeights(model, mask(features, opts.ignore), reward, {
+        on: today,
+        today,
+        halfLifeDays: opts.halfLifeDays,
+      });
     },
   };
 }

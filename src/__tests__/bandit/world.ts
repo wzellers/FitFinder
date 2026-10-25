@@ -284,7 +284,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * reproducible; dating wears from the real clock made variety, and so the
  * results, depend on when the benchmark ran. */
 const SIM_START = Date.UTC(2026, 0, 1);
-const simDate = (day: number) => new Date(SIM_START + day * DAY_MS).toISOString().slice(0, 10);
+export const simDate = (day: number) =>
+  new Date(SIM_START + day * DAY_MS).toISOString().slice(0, 10);
 
 /** Convert the simulation's history into the app's OutfitWear rows. */
 function toWears(history: WearRecord[], withRating: boolean): OutfitWear[] {
