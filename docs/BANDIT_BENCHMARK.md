@@ -50,6 +50,19 @@ learned from features rebuilt without weather or wear history, and Calendar
 ratings aren't learned from at all. Fixing that (step 3) feeds the model
 better data.
 
+### Weather and occasion as filters only (`MODEL_VERSION` 3)
+
+Since version 3, weather and occasion only filter which items are allowed;
+outfits are ranked on color, variety and rating. Simulated users still prefer
+weather-comfortable clothes (the old "suggested" lists are now part of their
+hidden taste), so the benchmark measures what is given up. Regret after a month,
+five ranking features → filters plus three: typical **0.33 → 0.33**,
+item-driven 0.36 → **0.31**, drifting 0.39 → **0.37**, noisy 0.54 → 0.56;
+weeks 2–4 are 0.48 → 0.51. No meaningful loss, with fewer weights to learn.
+Hiding rating still undoes almost all learning (0.71); color and variety are
+worth about 0.06 and 0.10. A rating-heavy cold start gave the best weeks 2–4
+(0.41 vs ≈0.48), a candidate for a later tweak.
+
 ## Method
 
 **The world is real; only the user is simulated.** Each simulated user gets:
