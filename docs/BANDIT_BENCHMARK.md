@@ -63,6 +63,17 @@ Hiding rating still undoes almost all learning (0.71); color and variety are
 worth about 0.06 and 0.10. A rating-heavy cold start gave the best weeks 2–4
 (0.41 vs ≈0.48), a candidate for a later tweak.
 
+### Fading old ratings (60-day half-life)
+
+Each rating's weight halves every 60 days after the outfit was worn. In a
+180-day sweep (taste changing at day 90 for drifting users), fading never hurt
+stable users (days 91–180: 0.32 with or without) and helped the others: drifting
+0.39 → 0.37, inconsistent raters 0.46 → 0.42. A 30-day half-life scored slightly
+better in simulation, but simulated users rate every day; 60 days keeps more
+memory for real users who rate less often. Regret after a month with fading:
+typical **0.32**, item-driven **0.29**, drifting **0.35**, noisy **0.53** (each
+0.01–0.03 better than without).
+
 ## Method
 
 **The world is real; only the user is simulated.** Each simulated user gets:

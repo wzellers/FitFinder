@@ -130,6 +130,12 @@ user, behind the same interface:
   (`A += xxᵀ/σ²`, `b += x·reward/σ²`, assumed rating noise σ = 0.1). Saving an
   outfit contributes a mild positive reward. Updates are immutable (they return
   a new model), and `forgetReward()` undoes one exactly.
+- **Fading.** Old ratings fade with a 60-day half-life (`HALF_LIFE_DAYS`),
+  counted from the day the outfit was worn: the belief drifts back toward the
+  cold start (`fadeTo()`), so the model follows a changing taste, and a model
+  that hasn't learned in a while becomes less sure and explores again.
+  `selectOutfits()` fades to today before sampling. Undoing a rating removes
+  exactly what is left of it.
 - **What it learns from** (`src/lib/outfitLearning.ts`). "Wear today" stores the
   outfit's feature vector on its `outfit_wears` row (`features`, with the item
   ids it describes), so a later rating trains on the outfit as it was that day.

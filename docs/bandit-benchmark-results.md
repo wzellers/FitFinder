@@ -16,7 +16,7 @@ Random tastes over color/weather/variety, item favourites, ±1-point rating nois
 | no learning (cold-start weights) | 0.76 ± 0.03 | 0.67 ± 0.03 | 0.65 ± 0.03 | 36% |
 | legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.76 ± 0.03 | 0.66 ± 0.03 | 0.62 ± 0.02 | 39% |
 | legacy gradient, show the best, ε decays | 0.68 ± 0.04 | 0.53 ± 0.04 | 0.45 ± 0.03 | 53% |
-| **production** (Thompson sampling, λ 3, σ 0.1) | 0.74 ± 0.03 | 0.51 ± 0.04 | 0.33 ± 0.03 | 65% |
+| **production** (Thompson sampling, λ 3, σ 0.1) | 0.74 ± 0.03 | 0.50 ± 0.04 | 0.32 ± 0.03 | 65% |
 | LinUCB (α 0.5) | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.33 ± 0.03 | 63% |
 
 ### Scenario: item-driven
@@ -29,7 +29,7 @@ Likes specific pieces far more than any general rule.
 | no learning (cold-start weights) | 0.90 ± 0.03 | 0.78 ± 0.03 | 0.76 ± 0.02 | 26% |
 | legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.90 ± 0.02 | 0.76 ± 0.03 | 0.67 ± 0.03 | 33% |
 | legacy gradient, show the best, ε decays | 0.85 ± 0.03 | 0.63 ± 0.04 | 0.50 ± 0.04 | 48% |
-| **production** (Thompson sampling, λ 3, σ 0.1) | 0.94 ± 0.03 | 0.56 ± 0.05 | 0.31 ± 0.03 | 67% |
+| **production** (Thompson sampling, λ 3, σ 0.1) | 0.95 ± 0.03 | 0.53 ± 0.04 | 0.29 ± 0.03 | 67% |
 | LinUCB (α 0.5) | 0.92 ± 0.03 | 0.58 ± 0.05 | 0.36 ± 0.04 | 63% |
 
 ### Scenario: noisy
@@ -42,7 +42,7 @@ Typical tastes, inconsistent ratings (±3 points).
 | no learning (cold-start weights) | 0.77 ± 0.03 | 0.72 ± 0.03 | 0.68 ± 0.03 | 33% |
 | legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.77 ± 0.03 | 0.71 ± 0.03 | 0.66 ± 0.02 | 35% |
 | legacy gradient, show the best, ε decays | 0.71 ± 0.04 | 0.60 ± 0.04 | 0.52 ± 0.03 | 45% |
-| **production** (Thompson sampling, λ 3, σ 0.1) | 0.78 ± 0.03 | 0.73 ± 0.05 | 0.56 ± 0.04 | 45% |
+| **production** (Thompson sampling, λ 3, σ 0.1) | 0.78 ± 0.03 | 0.72 ± 0.04 | 0.53 ± 0.04 | 47% |
 | LinUCB (α 0.5) | 0.77 ± 0.04 | 0.71 ± 0.04 | 0.58 ± 0.04 | 40% |
 
 ### Scenario: drifting
@@ -55,7 +55,7 @@ Taste changes completely halfway through.
 | no learning (cold-start weights) | 0.76 ± 0.03 | 0.67 ± 0.03 | 0.65 ± 0.02 | 36% |
 | legacy gradient (ε 0.15, lr 0.1, random of top 5; the app before v2) | 0.76 ± 0.03 | 0.66 ± 0.03 | 0.63 ± 0.02 | 37% |
 | legacy gradient, show the best, ε decays | 0.68 ± 0.04 | 0.53 ± 0.04 | 0.45 ± 0.03 | 52% |
-| **production** (Thompson sampling, λ 3, σ 0.1) | 0.74 ± 0.03 | 0.51 ± 0.04 | 0.37 ± 0.03 | 60% |
+| **production** (Thompson sampling, λ 3, σ 0.1) | 0.74 ± 0.03 | 0.50 ± 0.04 | 0.35 ± 0.03 | 61% |
 | LinUCB (α 0.5) | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.38 ± 0.03 | 59% |
 
 ## Sweeps (scenario: typical)
@@ -140,9 +140,35 @@ Regret rises most when a useful feature is removed.
 
 | Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 |
 |---|---|---|---|---|
-| all features | 0.74 ± 0.03 | 0.51 ± 0.04 | 0.33 ± 0.03 | 65% |
-| without color | 0.87 ± 0.03 | 0.62 ± 0.04 | 0.39 ± 0.03 | 58% |
-| without variety | 0.83 ± 0.04 | 0.54 ± 0.03 | 0.43 ± 0.04 | 52% |
-| without rating | 0.74 ± 0.03 | 0.72 ± 0.04 | 0.71 ± 0.04 | 28% |
+| all features | 0.74 ± 0.03 | 0.50 ± 0.04 | 0.32 ± 0.03 | 65% |
+| without color | 0.87 ± 0.03 | 0.62 ± 0.04 | 0.39 ± 0.03 | 59% |
+| without variety | 0.83 ± 0.04 | 0.53 ± 0.03 | 0.42 ± 0.04 | 53% |
+| without rating | 0.74 ± 0.03 | 0.72 ± 0.04 | 0.71 ± 0.04 | 27% |
+
+## Half-life of old ratings (180 days)
+
+How fast old ratings fade (production learner). ∞ = never.
+
+### Scenario: typical
+
+| Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Regret, 91–180 | Top-10% picks, 91–180 |
+|---|---|---|---|---|---|
+| half-life ∞ | 0.72 ± 0.03 | 0.49 ± 0.04 | 0.34 ± 0.03 | 0.32 ± 0.02 | 65% |
+| half-life 30 days | 0.72 ± 0.03 | 0.48 ± 0.04 | 0.32 ± 0.02 | 0.33 ± 0.02 | 66% |
+| half-life 60 days | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.32 ± 0.03 | 0.32 ± 0.02 | 66% |
+| half-life 120 days | 0.71 ± 0.03 | 0.50 ± 0.04 | 0.33 ± 0.03 | 0.31 ± 0.02 | 66% |
+| half-life 240 days | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.34 ± 0.03 | 0.32 ± 0.02 | 65% |
+| half-life 480 days | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.34 ± 0.03 | 0.32 ± 0.02 | 66% |
+
+### Scenario: drifting
+
+| Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Regret, 91–180 | Top-10% picks, 91–180 |
+|---|---|---|---|---|---|
+| half-life ∞ | 0.72 ± 0.03 | 0.49 ± 0.04 | 0.34 ± 0.03 | 0.39 ± 0.03 | 57% |
+| half-life 30 days | 0.72 ± 0.03 | 0.48 ± 0.04 | 0.32 ± 0.02 | 0.36 ± 0.03 | 61% |
+| half-life 60 days | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.32 ± 0.03 | 0.37 ± 0.03 | 60% |
+| half-life 120 days | 0.71 ± 0.03 | 0.50 ± 0.04 | 0.33 ± 0.03 | 0.38 ± 0.03 | 58% |
+| half-life 240 days | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.34 ± 0.03 | 0.39 ± 0.03 | 57% |
+| half-life 480 days | 0.71 ± 0.03 | 0.49 ± 0.04 | 0.34 ± 0.03 | 0.39 ± 0.03 | 57% |
 
 Windows: ratings 1–7 = ratings 1–7; 8–30 = ratings 8–30; 31–90 = ratings 31–90.
