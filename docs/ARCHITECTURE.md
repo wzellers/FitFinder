@@ -141,6 +141,10 @@ user, behind the same interface:
   ids it describes), so a later rating trains on the outfit as it was that day.
   Wears logged in the Calendar get features rebuilt as of their date from the
   wear history.
+  Outfits rated in the Outfits tab without wearing them
+  (`rateOutfitWithoutWearing`) are stored in `outfit_ratings` with their
+  features and learned at once, like a worn rating. Both kinds feed the rating
+  feature (`loadRatedOutfits` in `src/lib/ratedOutfits.ts` merges them).
   `syncWearLearning` runs after the rating prompt and every Calendar save: it
   undoes what the row's `learned_rating` taught the model and learns the
   current rating, so edits never double-count; `forgetWearLearning` runs before
@@ -194,6 +198,7 @@ files applied in order. Each is immutable; changes are made by adding a new file
 | `clothing_items`       | Wardrobe items: type, colors (primary at index 0), photo path, laundry status                                    |
 | `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                                                    |
 | `outfit_wears`         | Daily wear log (one per day): rating (1–10), occasion, and what the model learned (`features`, `learned_rating`) |
+| `outfit_ratings`       | Outfits rated without wearing them (Outfits tab): items, rating 1–10, features                                   |
 | `color_preferences`    | Liked color combinations                                                                                         |
 | `weather_preferences`  | The user's temperature ranges and per-type weather rules                                                         |
 | `occasion_preferences` | Which clothing types suit each occasion                                                                          |

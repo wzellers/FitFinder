@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-25 (fading old ratings)
+**Last updated:** 2026-10-25 (rate outfits without wearing)
 
 ## What's live
 
@@ -33,7 +33,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`020` are all applied. Vault holds the two daily-email secrets.
+  `001`–`021` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -81,10 +81,10 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 - **Bandit upgrade:** steps 1–3 are done (benchmark, Thompson sampling,
   learning from the worn outfit's real features and Calendar ratings);
   weather and occasion are filters only (`MODEL_VERSION` 3); old ratings fade
-  with a 60-day half-life. Next: rating outfits without wearing them (1–10,
-  counted like worn ratings, needs migration 021). A rating-heavy cold start
-  looked better for weeks 2–4 in the benchmark; worth trying later. Ratings
-  from before step 3 aren't retro-trained.
+  with a 60-day half-life; outfits can be rated without wearing them (Outfits
+  tab, `outfit_ratings`, counted like worn ratings). A rating-heavy cold start
+  looked better for weeks 2–4 in the benchmark; worth trying. Ratings from
+  before step 3 aren't retro-trained.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in

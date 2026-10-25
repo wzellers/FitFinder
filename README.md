@@ -43,6 +43,8 @@ Built with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase.
   half-life), so it follows your taste as it changes.
 - Keep individual pieces and regenerate around them, or pick a piece by hand
 - Save outfits for later or log one as today's wear
+- **Rate outfits without wearing them** (1–10): rate what's shown and get the
+  next one. Each rating teaches the model like a worn one
 
 ### Outfit Calendar
 
