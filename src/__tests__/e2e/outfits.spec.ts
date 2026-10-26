@@ -36,6 +36,17 @@ test('generates a full outfit from clean items only', async ({ page }) => {
   await expectImagesLoaded(page, 'button[aria-label^="Change "] img', 3);
 });
 
+test('shows every outfit once before repeating any', async ({ page }) => {
+  // The seeded closet makes 4 clean outfits: 2 tops × 2 bottoms × 1 pair of shoes.
+  await openApp(page, 'Outfits');
+  const shown = new Set<string>();
+  for (let i = 0; i < 4; i++) {
+    await generate(page);
+    shown.add(`${await currentPiece(page, 'top')} + ${await currentPiece(page, 'bottom')}`);
+  }
+  expect(shown.size).toBe(4);
+});
+
 test('a kept piece stays while the rest is regenerated', async ({ page }) => {
   await openApp(page, 'Outfits');
   await generate(page);
