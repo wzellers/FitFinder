@@ -96,11 +96,11 @@ Every candidate outfit is `{ top, bottom, shoes }`. `buildCandidates()` in
 type doesn't suit it are removed. Weather and occasion play no further part.
 Each remaining outfit becomes three numbers, each in `[0, 1]`:
 
-| Feature     | Meaning                                                 |
-| ----------- | ------------------------------------------------------- |
-| **color**   | How well the colors match the user's liked combinations |
-| **variety** | Penalizes items worn in the last 14 days                |
-| **rating**  | Boost from the user's higher-rated past outfits         |
+| Feature     | Meaning                                                                |
+| ----------- | ---------------------------------------------------------------------- |
+| **color**   | How well the colors match the user's liked combinations                |
+| **variety** | Penalizes items worn in the last 14 days                               |
+| **rating**  | Average of the outfit's items' ratings; unrated items count as neutral |
 
 `buildCandidates()` is the shared entry point used by both the fixed scorer and
 the bandit.
@@ -154,7 +154,16 @@ user, behind the same interface:
   the top pick. While the model is unsure, samples vary and it explores; as
   ratings narrow the belief, it settles on the user's best outfits. Each
   "Try another" draws a new sample. The RNG is injectable so tests are
-  deterministic.
+  deterministic. Exact ties (common before any color preference or rating)
+  break at random.
+- **Exploring the closet.** The model learns weights over features, not
+  items, so on its own it can't tell an untried piece is worth a look. When
+  picking, the generator draws each item's rating from how sure it is of it
+  (`sampleItemRatings`: neutral 0.5 with a wide spread for unrated items,
+  narrowing as ratings come in), so pieces you haven't rated get their turn.
+  Learning always uses the expected ratings (`meanItemRatings`). The generator
+  also skips outfits it has already shown since it opened, until it has shown
+  them all.
 - **Persistence.** `outfit_model_weights` holds one row per user: `weights` is
   the posterior mean (enough for readers like the daily email, which takes the
   best expected outfit) and `feature_meta` carries the posterior and version.
@@ -243,7 +252,8 @@ logic in `src/lib/dailyEmail/`:
   (`profiles.daily_email_time` in `profiles.timezone`) has passed, at most
   once per local day, within a two-hour catch-up window.
 - **`digest.ts`.** Picks the outfit: the bandit's exploit-only best pick for the
-  forecast high, filtered by the same weather rules as the generator. Also
+  forecast high, filtered by the same weather rules as the generator. Equally
+  good outfits rotate by date (the same day always gives the same pick). Also
   lists up to six clean items not worn in the last week.
 - **`render.ts`.** HTML (tables and inline styles, for email clients) plus plain
   text.

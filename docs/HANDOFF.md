@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-25 (rate outfits without wearing)
+**Last updated:** 2026-10-26 (outfit variety: per-item ratings, exploring untried pieces)
 
 ## What's live
 
@@ -49,8 +49,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 345 unit/component tests (`npm run test`).
-- **Playwright:** 44 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 352 unit/component tests (`npm run test`).
+- **Playwright:** 45 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a
@@ -82,7 +82,10 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   learning from the worn outfit's real features and Calendar ratings);
   weather and occasion are filters only (`MODEL_VERSION` 3); old ratings fade
   with a 60-day half-life; outfits can be rated without wearing them (Outfits
-  tab, `outfit_ratings`, counted like worn ratings). A rating-heavy cold start
+  tab, `outfit_ratings`, counted like worn ratings); the rating feature is per
+  item and picking explores untried pieces, the generator doesn't repeat an
+  outfit until all have been shown, and ties break at random (the daily email
+  rotates ties by date). A rating-heavy cold start
   looked better for weeks 2–4 in the benchmark; worth trying. Ratings from
   before step 3 aren't retro-trained.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
