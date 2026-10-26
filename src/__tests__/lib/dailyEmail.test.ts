@@ -122,6 +122,24 @@ describe('digest', () => {
     expect(pick?.top.id).toBe(tee.id);
   });
 
+  it('rotates equally good outfits by day, and keeps one pick per day', () => {
+    const items = [
+      makeTop({ colors: ['red'] }),
+      makeTop({ colors: ['green'] }),
+      makeTop({ colors: ['white'] }),
+      makeBottom(),
+      makeBottom({ colors: ['black'] }),
+      makeShoes(),
+    ];
+    const pickOn = (today: string) => {
+      const p = pickDailyOutfit(input({ items, today }), null);
+      return `${p?.top.id}|${p?.bottom.id}`;
+    };
+    expect(pickOn('2026-10-13')).toBe(pickOn('2026-10-13'));
+    const week = Array.from({ length: 7 }, (_, d) => pickOn(`2026-10-1${d}`));
+    expect(new Set(week).size).toBeGreaterThan(2);
+  });
+
   it('returns no outfit when a slot is empty', () => {
     expect(pickDailyOutfit(input({ items: [makeTop(), makeBottom()] }), 'warm')).toBeNull();
   });
