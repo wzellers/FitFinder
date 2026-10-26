@@ -95,7 +95,11 @@ export function runBenchmark(
         const best = Math.max(...utils);
         const avg = utils.reduce((s, v) => s + v, 0) / utils.length;
 
-        const i = learner.choose(cands, policyRng, simDate(d));
+        // Same outfits in the same order, ranked on drawn item ratings.
+        const choices = spec.exploreItems
+          ? candidatesFor(closet, liked, dayList[d], d, history, policyRng, spec.itemSpread)
+          : cands;
+        const i = learner.choose(choices, policyRng, simDate(d));
         const gap = best - avg;
         regret.push(gap > 1e-9 ? (best - utils[i]) / gap : 0);
         const better = utils.filter((v) => v > utils[i]).length;

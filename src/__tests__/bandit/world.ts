@@ -5,7 +5,12 @@
 // occasions. Only the user is synthetic: a hidden taste the learner has to
 // discover from noisy 1–10 ratings.
 
-import { buildCandidates, FEATURE_NAMES, type ScoringContext } from '@/lib/outfitScoring';
+import {
+  buildCandidates,
+  FEATURE_NAMES,
+  sampleItemRatings,
+  type ScoringContext,
+} from '@/lib/outfitScoring';
 import { getTemperatureCategory, type TemperatureCategory } from '@/lib/weatherApi';
 import type { ClothingItem, ColorCombination, OutfitWear } from '@/lib/types';
 import type { FeatureVector } from '@/lib/banditModel';
@@ -306,15 +311,21 @@ export function candidatesFor(
   day: Day,
   today: number,
   history: WearRecord[],
+  /** Draw item ratings with this rng (Thompson sampling over items), as the
+   * app does when picking; omit for the expected ratings it learns from. */
+  sampleRng?: Rng,
+  spread?: number,
 ) {
   const recent = history.filter((h) => today - h.day <= 14);
+  const ratedOutfits = toWears(history.slice(-100), true);
   const ctx: ScoringContext = {
     likedCombinations: liked,
     weather: day.weather,
     occasion: day.occasion,
     recentWears: toWears(recent, false),
-    ratedOutfits: toWears(history.slice(-100), true),
+    ratedOutfits,
     asOf: simDate(today),
+    itemRating: sampleRng ? sampleItemRatings(ratedOutfits, sampleRng, spread) : undefined,
   };
   let cands = buildCandidates(closet, ctx);
   // An occasion the closet can't dress for falls back to "any", as a user would.

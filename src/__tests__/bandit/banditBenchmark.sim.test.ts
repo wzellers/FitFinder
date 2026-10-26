@@ -38,7 +38,12 @@ const MAIN: LearnerSpec[] = [
     name: 'legacy gradient, show the best, ε decays',
     make: () => legacyGradient({ showAmongTop: 1, decayEpsilon: true }),
   },
-  { name: '**production** (Thompson sampling, λ 3, σ 0.1)', make: () => production() },
+  { name: 'Thompson sampling, λ 3, σ 0.1 (no item exploration)', make: () => production() },
+  {
+    name: '**production** (Thompson sampling, λ 3, σ 0.1, item ratings drawn with spread 0.1)',
+    make: () => production(),
+    exploreItems: true,
+  },
   { name: 'LinUCB (α 0.5)', make: () => linUcb({ priorPrecision: 3, noise: 0.1, alpha: 0.5 }) },
 ];
 
@@ -96,6 +101,16 @@ function sweeps(): Array<{ title: string; note: string; learners: LearnerSpec[] 
       title: 'Cold-start weights (legacy gradient)',
       note: 'The same, for the learner the app used before.',
       learners: starts.map(([name, start]) => ({ name, make: () => legacyGradient({ start }) })),
+    },
+    {
+      title: 'Exploring untried items (spread of drawn item ratings)',
+      note: 'Each pick draws every item’s rating around its mean, by this spread ÷ √(1 + ratings of it). 0 = no item exploration.',
+      learners: [0, 0.05, 0.1, 0.15, 0.25].map((spread) => ({
+        name: `spread ${spread}`,
+        make: () => production(),
+        exploreItems: spread > 0,
+        itemSpread: spread,
+      })),
     },
     {
       title: 'Feature importance (production, one feature hidden)',
