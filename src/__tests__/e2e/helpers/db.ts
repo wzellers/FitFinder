@@ -133,6 +133,7 @@ export async function resetAndSeed(
   const { db, userId } = await testDb();
 
   for (const table of [
+    'outfit_ratings',
     'outfit_wears',
     'saved_outfits',
     'clothing_items',

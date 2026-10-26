@@ -47,6 +47,7 @@ import {
   type FeatureVector,
 } from '@/lib/banditModel';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import RatingPicker from '@/components/ui/RatingPicker';
 import { SkeletonOutfitSlots } from '@/components/ui/Skeleton';
 import type {
   ClothingItem,
@@ -56,6 +57,8 @@ import type {
   OutfitWear,
 } from '@/lib/types';
 import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
+import { loadRatedOutfits } from '@/lib/ratedOutfits';
+import { rateOutfitWithoutWearing } from '@/lib/outfitLearning';
 
 interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
@@ -153,13 +156,8 @@ export default function OutfitGenerator({
               .select('*')
               .eq('user_id', user.id)
               .gte('worn_date', recencyCutoff),
-            supabase
-              .from('outfit_wears')
-              .select('*')
-              .eq('user_id', user.id)
-              .not('rating', 'is', null)
-              .order('worn_date', { ascending: false })
-              .limit(100),
+            // Worn and browsing ratings, for the rating feature.
+            loadRatedOutfits(supabase, user.id).then((data) => ({ data, error: null })),
             supabase
               .from('outfit_model_weights')
               .select('weights, feature_meta')
@@ -219,7 +217,9 @@ export default function OutfitGenerator({
   const reelDuration = { top: 700, bottom: 950, shoes: 1200 } as const;
   const sectionFor = { top: 'Tops', bottom: 'Bottoms', shoes: 'Shoes' } as const;
 
-  const pickOutfit = () => {
+  // `withModel` lets a caller that just updated the model use it before React
+  // state catches up (e.g. right after rating an outfit).
+  const pickOutfit = (withModel?: BanditModel) => {
     setError('');
 
     let candidates = buildCandidates(items, {
@@ -250,7 +250,7 @@ export default function OutfitGenerator({
     // pick is the outfit to show and repeated clicks still vary.
     const [{ candidate: pick }] = selectOutfits(
       candidates.map((c) => ({ candidate: c, features: c.features })),
-      model ?? deserializeModel(null),
+      withModel ?? model ?? deserializeModel(null),
       { count: 1 },
     );
     if (!lockedTop) setTop(pick.top);
@@ -339,6 +339,42 @@ export default function OutfitGenerator({
       showToast("Couldn't save this outfit. Try again.", 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Rate the shown outfit without wearing it, then show the next one.
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const rateShownOutfit = async (rating: number) => {
+    if (!user || !top || !bottom || !shoes || rating < 1) return;
+    setRatingSaving(true);
+    const features = currentFeatures({ top, bottom, shoes });
+    try {
+      const updated = await rateOutfitWithoutWearing(
+        user.id,
+        { top, bottom, shoes },
+        rating,
+        features,
+      );
+      setModel(updated);
+      // Remember it for the rating feature right away.
+      setRatedOutfits((prev) => [
+        {
+          id: `rating-new-${Date.now()}`,
+          user_id: user.id,
+          top_id: top.id,
+          bottom_id: bottom.id,
+          shoes_id: shoes.id,
+          rating,
+          worn_date: toLocalDateString(),
+        },
+        ...prev,
+      ]);
+      showToast(`Rated ${rating}/10. Here's another.`, 'success');
+      pickOutfit(updated);
+    } catch {
+      showToast("Couldn't save your rating. Try again.", 'error');
+    } finally {
+      setRatingSaving(false);
     }
   };
 
@@ -669,7 +705,7 @@ export default function OutfitGenerator({
 
             <div className="divider pt-5 flex flex-col gap-3">
               <button
-                onClick={pickOutfit}
+                onClick={() => pickOutfit()}
                 disabled={loading}
                 className="btn-primary w-full text-base min-h-[52px]"
               >
@@ -688,6 +724,25 @@ export default function OutfitGenerator({
                 Keep a piece to build the rest of the outfit around it.
               </p>
             </div>
+
+            {hasOutfit && (
+              <div className="divider pt-5 mt-5">
+                <RatingPicker
+                  value={0}
+                  onChange={rateShownOutfit}
+                  clearable={false}
+                  disabled={ratingSaving}
+                  legend={
+                    <>
+                      Rate this outfit{' '}
+                      <span className="font-normal text-[var(--text-secondary)]">
+                        (no need to wear it; helps FitFinder learn your taste)
+                      </span>
+                    </>
+                  }
+                />
+              </div>
+            )}
           </div>
 
           {/* ====== Conditions ====== */}

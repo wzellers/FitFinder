@@ -14,6 +14,7 @@ import { describeItem } from '@/lib/itemLabels';
 import { useToast } from '@/components/ToastProvider';
 import { typeToSection } from '@/lib/constants';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import RatingPicker from '@/components/ui/RatingPicker';
 import { SkeletonCalendar } from '@/components/ui/Skeleton';
 import type { ClothingItem, OutfitWear, SavedOutfit } from '@/lib/types';
 
@@ -258,36 +259,6 @@ export default function OutfitCalendar() {
     'December',
   ];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  // 1–10 rating picker. Tapping the current value clears it.
-  const RatingPicker = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
-    <fieldset>
-      <legend className="text-sm font-semibold mb-2">
-        How did it feel?{' '}
-        <span className="font-normal text-[var(--text-secondary)]">(optional)</span>
-      </legend>
-      <div className="flex flex-wrap gap-1.5">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange(value === n ? 0 : n)}
-            aria-pressed={value === n}
-            aria-label={`${n} out of 10`}
-            className={`tabular w-10 h-10 rounded-md border text-sm font-semibold transition-colors ${
-              value === n
-                ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
-                : n <= value
-                  ? 'bg-[var(--accent-light)] border-[var(--line-strong)]'
-                  : 'bg-white border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
-            }`}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
 
   if (loading) return <SkeletonCalendar />;
 
@@ -556,7 +527,16 @@ export default function OutfitCalendar() {
 
           {/* Rating */}
           <div className="mb-5">
-            <RatingPicker value={rating} onChange={setRating} />
+            <RatingPicker
+              value={rating}
+              onChange={setRating}
+              legend={
+                <>
+                  How did it feel?{' '}
+                  <span className="font-normal text-[var(--text-secondary)]">(optional)</span>
+                </>
+              }
+            />
           </div>
 
           <label htmlFor="wear-notes" className="text-sm font-semibold mb-1.5 block">

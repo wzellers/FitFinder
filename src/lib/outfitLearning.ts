@@ -16,11 +16,13 @@ import {
   deserializeModel,
   forgetReward,
   serializeModel,
+  todayDate,
   updateWeights,
   type BanditModel,
   type FeatureVector,
 } from '@/lib/banditModel';
 import type { ClothingItem, ColorCombination, OutfitWear } from '@/lib/types';
+import { loadRatedOutfits } from '@/lib/ratedOutfits';
 
 // ============================================================================
 // Stored features
@@ -147,14 +149,10 @@ async function rebuildFeatures(userId: string, wear: OutfitWear): Promise<Featur
         .eq('user_id', userId)
         .gte('worn_date', since)
         .lt('worn_date', wear.worn_date),
-      supabase
-        .from('outfit_wears')
-        .select('*')
-        .eq('user_id', userId)
-        .lt('worn_date', wear.worn_date)
-        .not('rating', 'is', null)
-        .order('worn_date', { ascending: false })
-        .limit(100),
+      loadRatedOutfits(supabase, userId, { before: wear.worn_date }).then((data) => ({
+        data,
+        error: null,
+      })),
       supabase
         .from('color_preferences')
         .select('liked_combinations')
@@ -239,4 +237,34 @@ export async function forgetWearLearning(userId: string, wearId: string): Promis
     { on: wear.worn_date },
   );
   await saveModel(userId, model);
+}
+
+/**
+ * Rate an outfit without wearing it (Outfits tab): remember the rating, so it
+ * feeds the rating feature, and learn from it now, as from a worn outfit.
+ */
+export async function rateOutfitWithoutWearing(
+  userId: string,
+  outfit: { top: { id: string }; bottom: { id: string }; shoes: { id: string } },
+  rating: number,
+  features: FeatureVector,
+): Promise<BanditModel> {
+  const today = todayDate();
+  const items: ItemIds = [outfit.top.id, outfit.bottom.id, outfit.shoes.id];
+  const { error } = await supabase.from('outfit_ratings').insert({
+    user_id: userId,
+    top_id: outfit.top.id,
+    bottom_id: outfit.bottom.id,
+    shoes_id: outfit.shoes.id,
+    rating,
+    features: { items, values: features },
+    rated_on: today,
+  });
+  if (error) throw error;
+  const model = updateWeights(await loadModel(userId), features, computeReward(rating), {
+    on: today,
+    today,
+  });
+  await saveModel(userId, model);
+  return model;
 }
