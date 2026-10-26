@@ -278,6 +278,19 @@ describe('banditModel', () => {
       const confident = draws(m);
       expect(confident.filter((c) => c === 'high').length).toBeGreaterThan(195);
     });
+
+    it('breaks ties at random, not by candidate order', () => {
+      // Identical features score identically under any sampled weights.
+      const tied = ['a', 'b', 'c', 'd'].map((c) => ({ candidate: c, features: feats() }));
+      const r = rng(13);
+      const picks = Array.from(
+        { length: 200 },
+        () => selectOutfits(tied, defaultModel(), { count: 1, rng: r })[0].candidate,
+      );
+      for (const c of ['a', 'b', 'c', 'd']) {
+        expect(picks.filter((p) => p === c).length).toBeGreaterThan(25);
+      }
+    });
   });
 
   describe('serialization', () => {

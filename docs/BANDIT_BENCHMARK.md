@@ -74,6 +74,29 @@ memory for real users who rate less often. Regret after a month with fading:
 typical **0.32**, item-driven **0.29**, drifting **0.35**, noisy **0.53** (each
 0.01–0.03 better than without).
 
+### Rating items, and exploring untried ones
+
+The rating feature used to average the ratings of past outfits sharing any
+piece with a candidate, so one good rating lifted every outfit that shared a
+single piece with it as much as the rated outfit itself, and unrated pieces
+were never tried. Now each item has its own rating estimate (its ratings
+averaged with a neutral 0.5 that counts as one rating), and the outfit's
+feature is the average over its three items. Regret after a month, before →
+after: typical **0.32 → 0.28**, item-driven 0.29 → 0.28, drifting 0.35 →
+**0.33**, noisy 0.53 → **0.46**.
+
+The model learns weights over features, not items, so it can't tell an untried
+piece is worth showing. When picking, the app now draws each item's rating
+around its estimate (spread 0.1 ÷ √(1 + its ratings)), so untried pieces get
+shown now and then. In the sweep, spread 0.1 did best: after a month, typical
+0.28 → **0.27** (top-10% picks 67% → 72%), item-driven 0.28 → **0.22** (68% →
+78%), drifting 0.33 → 0.32, noisy 0.46 → 0.47 (within noise); weeks 2–4 cost
+0.02. A spread of 0.25 explored too much (typical 0.33).
+
+The benchmark wears an outfit every day, so its variety feature already
+rotates pieces. Browsing the Outfits tab doesn't, which is why the generator
+also skips outfits it has already shown, and exact ties break at random.
+
 ## Method
 
 **The world is real; only the user is simulated.** Each simulated user gets:

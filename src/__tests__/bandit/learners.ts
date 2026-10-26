@@ -20,6 +20,11 @@ export interface Learner {
 export interface LearnerSpec {
   name: string;
   make: () => Learner;
+  /** Choose among candidates scored with sampled item ratings (the app's
+   * picking), still learning from the expected ones. */
+  exploreItems?: boolean;
+  /** Spread of the item-rating draws (default: the app's). */
+  itemSpread?: number;
 }
 
 export type Weights = Record<FeatureName, number>;

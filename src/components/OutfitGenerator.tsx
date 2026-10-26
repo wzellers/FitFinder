@@ -33,7 +33,7 @@ import {
   getWeatherIconUrl,
   TEMPERATURE_THRESHOLDS,
 } from '@/lib/weatherApi';
-import { buildCandidates, featureVector } from '@/lib/outfitScoring';
+import { buildCandidates, featureVector, sampleItemRatings } from '@/lib/outfitScoring';
 import type { OccasionRules } from '@/lib/outfitScoring';
 import { occasions } from '@/lib/constants';
 import type { Occasion } from '@/lib/constants';
@@ -217,19 +217,29 @@ export default function OutfitGenerator({
   const reelDuration = { top: 700, bottom: 950, shoes: 1200 } as const;
   const sectionFor = { top: 'Tops', bottom: 'Bottoms', shoes: 'Shoes' } as const;
 
-  // `withModel` lets a caller that just updated the model use it before React
-  // state catches up (e.g. right after rating an outfit).
-  const pickOutfit = (withModel?: BanditModel) => {
+  // Outfits shown since the generator opened, so "Try another" and rating move
+  // on to ones not seen yet (until every outfit has been shown).
+  const shownOutfits = useRef(new Set<string>());
+  const outfitKey = (o: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem }) =>
+    `${o.top.id}|${o.bottom.id}|${o.shoes.id}`;
+
+  // `latest` lets a caller that just updated the model or ratings use them
+  // before React state catches up (e.g. right after rating an outfit).
+  const pickOutfit = (latest: { model?: BanditModel; ratedOutfits?: OutfitWear[] } = {}) => {
     setError('');
+    const rated = latest.ratedOutfits ?? ratedOutfits;
 
     let candidates = buildCandidates(items, {
       likedCombinations: liked,
       weather: ignoreWeather ? null : tempCategory,
       weatherRules: userWeatherPrefs?.clothingRules ?? undefined,
       recentWears,
-      ratedOutfits,
+      ratedOutfits: rated,
       occasion,
       occasionRules: userOccasionRules ?? undefined,
+      // A fresh guess at each item's rating, so pieces you haven't rated yet
+      // get their turn alongside the ones you have.
+      itemRating: sampleItemRatings(rated),
     });
 
     // Respect locked slots: only consider candidates that keep the frozen items.
@@ -246,13 +256,25 @@ export default function OutfitGenerator({
       return;
     }
 
+    // Skip outfits already shown (and the one on screen), starting over once
+    // they all have been.
+    const current = top && bottom && shoes ? outfitKey({ top, bottom, shoes }) : null;
+    let unseen = candidates.filter((c) => !shownOutfits.current.has(outfitKey(c)));
+    if (unseen.length === 0) {
+      shownOutfits.current.clear();
+      unseen = candidates.filter((c) => outfitKey(c) !== current);
+    }
+    if (unseen.length > 0) candidates = unseen;
+
     // Thompson sampling: each call samples the user's weights afresh, so its top
     // pick is the outfit to show and repeated clicks still vary.
     const [{ candidate: pick }] = selectOutfits(
       candidates.map((c) => ({ candidate: c, features: c.features })),
-      withModel ?? model ?? deserializeModel(null),
+      latest.model ?? model ?? deserializeModel(null),
       { count: 1 },
     );
+    shownOutfits.current.add(outfitKey(pick));
+    if (current) shownOutfits.current.add(current);
     if (!lockedTop) setTop(pick.top);
     if (!lockedBottom) setBottom(pick.bottom);
     if (!lockedShoes) setShoes(pick.shoes);
@@ -357,7 +379,7 @@ export default function OutfitGenerator({
       );
       setModel(updated);
       // Remember it for the rating feature right away.
-      setRatedOutfits((prev) => [
+      const rated: OutfitWear[] = [
         {
           id: `rating-new-${Date.now()}`,
           user_id: user.id,
@@ -367,10 +389,11 @@ export default function OutfitGenerator({
           rating,
           worn_date: toLocalDateString(),
         },
-        ...prev,
-      ]);
+        ...ratedOutfits,
+      ];
+      setRatedOutfits(rated);
       showToast(`Rated ${rating}/10. Here's another.`, 'success');
-      pickOutfit(updated);
+      pickOutfit({ model: updated, ratedOutfits: rated });
     } catch {
       showToast("Couldn't save your rating. Try again.", 'error');
     } finally {

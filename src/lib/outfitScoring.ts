@@ -43,6 +43,9 @@ export interface ScoringContext {
   /** Score as of this date (YYYY-MM-DD) instead of now, e.g. for a past day's
    * wear. Only affects how recent `recentWears` count as. */
   asOf?: string;
+  /** Each item's rating estimate in [0, 1], replacing the mean from
+   * `ratedOutfits`; e.g. `sampleItemRatings` to explore untried items. */
+  itemRating?: (itemId: string) => number;
 }
 
 // ============================================================================
@@ -116,27 +119,85 @@ function varietyFeature(
   return Math.max(0, 1 - penalty);
 }
 
+// What an item's rating is believed to be before any rating (neutral), and how
+// many ratings that belief counts as.
+const ITEM_RATING_PRIOR = 0.5;
+const ITEM_PRIOR_COUNT = 1;
+/** How widely an unrated item's rating is drawn when picking (narrowing with
+ * each rating). 0.1 did best in the benchmark's sweep; 0.25 explored so much
+ * that typical users got worse picks. */
+export const ITEM_RATING_SPREAD = 0.1;
+
+/** Sum and count of normalized ratings per item, from rated outfits. */
+function itemRatingTotals(ratedOutfits: OutfitWear[]): Map<string, { sum: number; n: number }> {
+  const totals = new Map<string, { sum: number; n: number }>();
+  for (const w of ratedOutfits) {
+    if (typeof w.rating !== 'number') continue;
+    for (const id of [w.top_id, w.bottom_id, w.shoes_id]) {
+      if (!id) continue;
+      const t = totals.get(id) ?? { sum: 0, n: 0 };
+      t.sum += w.rating / 10; // ratings are 1–10 → [0.1, 1]
+      t.n += 1;
+      totals.set(id, t);
+    }
+  }
+  return totals;
+}
+
+function itemEstimate(t: { sum: number; n: number } | undefined, spread = ITEM_RATING_SPREAD) {
+  const n = ITEM_PRIOR_COUNT + (t?.n ?? 0);
+  return {
+    mean: (ITEM_RATING_PRIOR * ITEM_PRIOR_COUNT + (t?.sum ?? 0)) / n,
+    sd: spread / Math.sqrt(n),
+  };
+}
+
+/** Each item's expected rating: its ratings averaged with a neutral prior. */
+export function meanItemRatings(ratedOutfits: OutfitWear[]): (itemId: string) => number {
+  const totals = itemRatingTotals(ratedOutfits);
+  return (id) => itemEstimate(totals.get(id)).mean;
+}
+
 /**
- * Rating affinity: blends the normalized ratings of past wears that share items
- * with this outfit, weighted by how many items overlap. Neutral 0.5 with no data.
+ * One random draw of every item's rating, from how sure we are of it: items
+ * with few ratings vary most, so untried pieces sometimes rank high and get
+ * shown (Thompson sampling over items). Draws are fixed per item per call.
+ */
+export function sampleItemRatings(
+  ratedOutfits: OutfitWear[],
+  rng: () => number = Math.random,
+  spread = ITEM_RATING_SPREAD,
+): (itemId: string) => number {
+  const totals = itemRatingTotals(ratedOutfits);
+  const drawn = new Map<string, number>();
+  return (id) => {
+    let v = drawn.get(id);
+    if (v === undefined) {
+      const { mean, sd } = itemEstimate(totals.get(id), spread);
+      v = Math.min(1, Math.max(0, mean + sd * standardNormal(rng)));
+      drawn.set(id, v);
+    }
+    return v;
+  };
+}
+
+function standardNormal(rng: () => number): number {
+  const u = Math.max(rng(), Number.EPSILON);
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng());
+}
+
+/**
+ * Rating affinity: the average of the outfit's three items' rating estimates.
+ * An item no one has rated counts as neutral (0.5), so one good rating lifts
+ * its own pieces without crowding out the rest of the closet.
  */
 function ratingFeature(
   outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
-  ratedOutfits: OutfitWear[],
+  itemRating: (itemId: string) => number,
 ): number {
-  const ids = new Set([outfit.top.id, outfit.bottom.id, outfit.shoes.id]);
-  let weightedSum = 0;
-  let weightTotal = 0;
-  for (const w of ratedOutfits) {
-    if (typeof w.rating !== 'number') continue;
-    const overlap = [w.top_id, w.bottom_id, w.shoes_id].filter((id) => id && ids.has(id)).length;
-    if (overlap === 0) continue;
-    const weight = overlap / 3;
-    weightedSum += (w.rating / 10) * weight; // ratings are 1–10 → [0.1, 1]
-    weightTotal += weight;
-  }
-  if (weightTotal === 0) return 0.5; // neutral when no rated outfit shares items
-  return weightedSum / weightTotal;
+  return (
+    (itemRating(outfit.top.id) + itemRating(outfit.bottom.id) + itemRating(outfit.shoes.id)) / 3
+  );
 }
 
 // ============================================================================
@@ -159,12 +220,15 @@ export function featureVector(
     bottom: ClothingItem;
     shoes: ClothingItem;
   },
-  ctx: Pick<ScoringContext, 'likedCombinations' | 'recentWears' | 'ratedOutfits' | 'asOf'>,
+  ctx: Pick<
+    ScoringContext,
+    'likedCombinations' | 'recentWears' | 'ratedOutfits' | 'asOf' | 'itemRating'
+  >,
 ): Record<FeatureName, number> {
   return {
     color: colorFeature(outfit.top, outfit.bottom, ctx.likedCombinations),
     variety: varietyFeature(outfit, ctx.recentWears ?? [], ctx.asOf),
-    rating: ratingFeature(outfit, ctx.ratedOutfits ?? []),
+    rating: ratingFeature(outfit, ctx.itemRating ?? meanItemRatings(ctx.ratedOutfits ?? [])),
   };
 }
 
@@ -221,6 +285,11 @@ export function buildCandidates(items: ClothingItem[], ctx: ScoringContext): Fea
     }
   }
 
+  // Item ratings once for all candidates (and the same draw, when sampled).
+  const featureCtx = {
+    ...ctx,
+    itemRating: ctx.itemRating ?? meanItemRatings(ctx.ratedOutfits ?? []),
+  };
   const candidates: FeaturizedCandidate[] = [];
   const seen = new Set<string>();
   for (const top of tops) {
@@ -230,7 +299,7 @@ export function buildCandidates(items: ClothingItem[], ctx: ScoringContext): Fea
         if (seen.has(key)) continue;
         seen.add(key);
         const outfit = { top, bottom, shoes };
-        candidates.push({ ...outfit, features: featureVector(outfit, ctx) });
+        candidates.push({ ...outfit, features: featureVector(outfit, featureCtx) });
       }
     }
   }

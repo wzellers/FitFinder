@@ -486,8 +486,11 @@ export function selectOutfits<T>(
       features: c.features,
       score: predict(model.params, c.features),
       sampledScore: rawScore(sampled, c.features),
+      // Outfits often share features exactly (no color preferences, nothing
+      // rated or worn yet), so break ties at random, not by closet order.
+      tieBreak: rng(),
     }))
-    .sort((a, b) => b.sampledScore - a.sampledScore)
+    .sort((a, b) => b.sampledScore - a.sampledScore || a.tieBreak - b.tieBreak)
     .slice(0, count)
-    .map(({ sampledScore: _sampledScore, ...rest }) => rest);
+    .map(({ sampledScore: _sampledScore, tieBreak: _tieBreak, ...rest }) => rest);
 }

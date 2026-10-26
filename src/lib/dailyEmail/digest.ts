@@ -88,15 +88,30 @@ export function pickDailyOutfit(input: DigestInput, temperature: TemperatureCate
   const { params } = deserializeModel(input.model);
   let best: Outfit | null = null;
   let bestScore = -Infinity;
-  // Strict ">" keeps the first of equal scores, so the pick is deterministic.
+  let bestTie = Infinity;
+  // Equal scores are common (no color preferences, nothing rated yet), so ties
+  // go to a different outfit each day rather than always the first in the
+  // closet; the same day always gives the same pick.
   for (const c of candidates) {
     const score = predict(params, c.features);
-    if (score > bestScore) {
+    const tie = hashString(`${input.today}|${c.top.id}|${c.bottom.id}|${c.shoes.id}`);
+    if (score > bestScore || (score === bestScore && tie < bestTie)) {
       bestScore = score;
+      bestTie = tie;
       best = { top: c.top, bottom: c.bottom, shoes: c.shoes };
     }
   }
   return best;
+}
+
+/** FNV-1a: a fast, stable 32-bit hash. */
+function hashString(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
 }
 
 export function buildDigest(input: DigestInput): Digest {

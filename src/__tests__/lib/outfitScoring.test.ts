@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   generateScoredOutfits,
   featureVector,
+  meanItemRatings,
+  sampleItemRatings,
   FEATURE_WEIGHTS,
   type ScoringContext,
 } from '@/lib/outfitScoring';
@@ -277,6 +279,82 @@ describe('generateScoredOutfits', () => {
 
       if (highResults.length > 0 && noneResults.length > 0) {
         expect(highResults[0].score).toBeGreaterThanOrEqual(noneResults[0].score);
+      }
+    });
+  });
+
+  describe('rating feature per item', () => {
+    const rated = (rating: number, ids: [string, string, string], n = 1) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `r-${ids.join('-')}-${i}`,
+        user_id: 'u1',
+        worn_date: '2026-02-20',
+        top_id: ids[0],
+        bottom_id: ids[1],
+        shoes_id: ids[2],
+        rating,
+      }));
+    const ctx = (ratedOutfits: ReturnType<typeof rated>) => ({
+      likedCombinations: [],
+      ratedOutfits,
+    });
+
+    it('is neutral for pieces no one has rated', () => {
+      const outfit = {
+        top: makeTop({ id: 't' }),
+        bottom: makeBottom({ id: 'b' }),
+        shoes: makeShoes({ id: 's' }),
+      };
+      expect(featureVector(outfit, ctx(rated(9, ['x', 'y', 'z']))).rating).toBe(0.5);
+    });
+
+    it('lifts only the rated pieces, blended with a neutral prior', () => {
+      const ratings = rated(9, ['t', 'b', 's']);
+      const sameOutfit = {
+        top: makeTop({ id: 't' }),
+        bottom: makeBottom({ id: 'b' }),
+        shoes: makeShoes({ id: 's' }),
+      };
+      const oneShared = {
+        ...sameOutfit,
+        bottom: makeBottom({ id: 'b2' }),
+        shoes: makeShoes({ id: 's2' }),
+      };
+      // One rating of 9 → each rated item is (0.5 + 0.9) / 2 = 0.7.
+      expect(featureVector(sameOutfit, ctx(ratings)).rating).toBeCloseTo(0.7, 10);
+      // Sharing one item lifts the outfit a third as much: (0.7 + 0.5 + 0.5) / 3.
+      expect(featureVector(oneShared, ctx(ratings)).rating).toBeCloseTo(1.7 / 3, 10);
+    });
+
+    it('meanItemRatings moves toward the ratings as they add up', () => {
+      expect(meanItemRatings(rated(9, ['t', 'b', 's'], 9))('t')).toBeCloseTo((0.5 + 8.1) / 10, 10);
+    });
+
+    it('sampled ratings vary most for untried items, and are fixed per item per draw', () => {
+      const ratings = rated(9, ['t', 'b', 's'], 20);
+      let seed = 1;
+      const r = () => {
+        seed = (seed * 16807) % 2147483647;
+        return seed / 2147483647;
+      };
+      const untried: number[] = [];
+      const wellRated: number[] = [];
+      for (let i = 0; i < 300; i++) {
+        const draw = sampleItemRatings(ratings, r);
+        expect(draw('new')).toBe(draw('new'));
+        untried.push(draw('new'));
+        wellRated.push(draw('t'));
+      }
+      const sd = (v: number[]) => {
+        const m = v.reduce((a, b) => a + b, 0) / v.length;
+        return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length);
+      };
+      // Untried items are sometimes drawn well above neutral.
+      expect(untried.some((v) => v > 0.75)).toBe(true);
+      expect(sd(untried)).toBeGreaterThan(3 * sd(wellRated));
+      for (const v of [...untried, ...wellRated]) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(1);
       }
     });
   });
