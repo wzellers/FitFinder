@@ -105,5 +105,3 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   and what happened (`outfit_impressions`). After a few weeks of real use, run
   `select * from recommendation_quality order by user_id, week;` in the SQL
   Editor: if learning works, skip rate falls and ratings rise over the weeks.
-- An orphaned photo from deleted test data remains in storage (harmless,
-  private).
