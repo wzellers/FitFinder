@@ -11,6 +11,7 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, it, expect, vi } from 'vitest';
+import { SKIP_REWARD, SKIP_WEIGHT } from '@/lib/banditModel';
 import { FEATURE_NAMES, FEATURE_WEIGHTS, type FeatureName } from '@/lib/outfitScoring';
 import {
   legacyGradient,
@@ -205,6 +206,31 @@ describe.runIf(FULL)('bandit benchmark (full)', () => {
       );
       log(`\n### Scenario: ${pop.name}\n`);
       log(formatTable(results, longWindows));
+    }
+    // Browsing: users press "Try another" on outfits outside about their top
+    // 30% (judged with noise), up to 5 a day, and wear the one they accept.
+    const browse = { maxShown: 5, acceptTop: 0.3, noise: 0.15 };
+    log('\n## Learning from "Try another" (browsing users)\n');
+    log(
+      'Users skip outfits outside about their top 30% (with noise), up to 5 a day. Regret is for the first outfit shown each day.',
+    );
+    for (const pop of POPULATIONS) {
+      const results = runBenchmark(
+        pop,
+        [
+          { name: 'ignore skips', make: () => production({ skips: false }), exploreItems: true },
+          ...[0.1, 0.3].flatMap((reward) =>
+            [0.1, 0.25, 0.5].map((weight) => ({
+              name: `${reward === SKIP_REWARD && weight === SKIP_WEIGHT ? '**production** ' : ''}skip reward ${reward}, weight ${weight}`,
+              make: () => production({ skips: { reward, weight } }),
+              exploreItems: true,
+            })),
+          ),
+        ],
+        { ...opts, browse },
+      );
+      log(`\n### Scenario: ${pop.name}\n`);
+      log(formatTable(results));
     }
     out.push(
       '',

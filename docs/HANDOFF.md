@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-26 (rating-heavy cold start)
+**Last updated:** 2026-10-26 (learning from "Try another")
 
 ## What's live
 
@@ -49,8 +49,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 352 unit/component tests (`npm run test`).
-- **Playwright:** 45 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 355 unit/component tests (`npm run test`).
+- **Playwright:** 46 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a
@@ -86,7 +86,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   item and picking explores untried pieces, the generator doesn't repeat an
   outfit until all have been shown, and ties break at random (the daily email
   rotates ties by date); cold-start weights are rating-heavy (color / variety
-  / rating 0.25 / 0.25 / 0.5). Ratings from before step 3 aren't retro-trained.
+  / rating 0.25 / 0.25 / 0.5); "Try another" is learned as a weak negative.
+  Ratings from before step 3 aren't retro-trained.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in

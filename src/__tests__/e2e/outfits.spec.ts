@@ -47,6 +47,38 @@ test('shows every outfit once before repeating any', async ({ page }) => {
   expect(shown.size).toBe(4);
 });
 
+test('"Try another" teaches the model a little, without counting as a rating', async ({ page }) => {
+  const { db, userId } = await testDb();
+  await openApp(page, 'Outfits');
+  await generate(page);
+  await generate(page); // "Try another" on the first outfit
+
+  await expect
+    .poll(async () => {
+      const { data } = await db
+        .from('outfit_model_weights')
+        .select('feature_meta')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return (data?.feature_meta as { updates?: number } | undefined)?.updates;
+    })
+    .toBe(0);
+  // It did learn: the belief is more certain than the cold start (precision 3).
+  const model = ok(
+    await db.from('outfit_model_weights').select('feature_meta').eq('user_id', userId).single(),
+    'model',
+  );
+  const { precision } = (model.feature_meta as { posterior: { precision: number[][] } }).posterior;
+  expect(Math.max(...precision.map((row, i) => row[i]))).toBeGreaterThan(3);
+  // Skipping logs nothing as worn or rated.
+  expect(
+    ok(await db.from('outfit_wears').select('id').eq('user_id', userId), 'wears'),
+  ).toHaveLength(0);
+  expect(
+    ok(await db.from('outfit_ratings').select('id').eq('user_id', userId), 'ratings'),
+  ).toHaveLength(0);
+});
+
 test('a kept piece stays while the rest is regenerated', async ({ page }) => {
   await openApp(page, 'Outfits');
   await generate(page);

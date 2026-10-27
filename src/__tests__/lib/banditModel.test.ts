@@ -14,6 +14,7 @@ import {
   HALF_LIFE_DAYS,
   fadeTo,
   forgetReward,
+  learnFromSkip,
   SAVED_OUTFIT_REWARD,
   type BanditModel,
   type FeatureVector,
@@ -228,6 +229,29 @@ describe('banditModel', () => {
       expect(fadeTo(m, DAY0).posterior.precision).toEqual(m.posterior.precision);
       const undated = { ...m, posterior: { ...m.posterior, asOf: undefined } };
       expect(fadeTo(undated, after(500)).posterior.precision).toEqual(m.posterior.precision);
+    });
+  });
+
+  describe('learning from skips', () => {
+    it('lowers the skipped outfit a little, less than a low rating, and is not counted', () => {
+      const f = feats({ color: 1, variety: 1, rating: 1 });
+      const m = defaultModel();
+      const skipped = learnFromSkip(m, f);
+      const rated = updateWeights(m, f, computeReward(2));
+      expect(predict(skipped.params, f)).toBeLessThan(predict(m.params, f));
+      expect(predict(skipped.params, f)).toBeGreaterThan(predict(rated.params, f));
+      expect(skipped.meta.updates).toBe(0);
+      expect(rated.meta.updates).toBe(1);
+    });
+
+    it('counts as a fraction of a rating with the same reward', () => {
+      const f = feats({ color: 1, variety: 0, rating: 0 });
+      const m = defaultModel();
+      const skip = learnFromSkip(m, f, {}, { reward: 0.1, weight: 1 });
+      const full = updateWeights(m, f, 0.1);
+      expect(skip.params.weights.color).toBeCloseTo(full.params.weights.color, 10);
+      const quarter = learnFromSkip(m, f, {}, { reward: 0.1, weight: 0.25 });
+      expect(quarter.params.weights.color).toBeGreaterThan(full.params.weights.color);
     });
   });
 
