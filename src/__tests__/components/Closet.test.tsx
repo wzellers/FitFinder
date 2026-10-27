@@ -106,6 +106,15 @@ describe('Closet', () => {
     expect(await screen.findByLabelText('Category')).toBeTruthy();
     expect(screen.getByLabelText('Color')).toBeTruthy();
   });
+
+  it('styles the filter dropdowns as pills, highlighted while filtering', async () => {
+    renderWithProviders(<Closet onAddItem={vi.fn()} />);
+    const category = (await screen.findByLabelText('Category')) as HTMLSelectElement;
+    expect(category.className).toContain('select-pill');
+    expect(category.className).not.toContain('select-pill-active');
+    fireEvent.change(category, { target: { value: 'Tops' } });
+    expect(category.className).toContain('select-pill-active');
+  });
 });
 
 describe('Closet sections', () => {

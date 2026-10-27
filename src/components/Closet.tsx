@@ -247,7 +247,7 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
           id={`${filterId}-section`}
           value={filterSection}
           onChange={(e) => setFilterSection(e.target.value)}
-          className="min-h-[36px] py-1"
+          className={`select-pill ${filterSection ? 'select-pill-active' : ''}`}
         >
           <option value="">All categories</option>
           {sectionNames.map((s) => (
@@ -264,7 +264,7 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
           id={`${filterId}-color`}
           value={filterColor}
           onChange={(e) => setFilterColor(e.target.value)}
-          className="min-h-[36px] py-1"
+          className={`select-pill ${filterColor ? 'select-pill-active' : ''}`}
         >
           <option value="">All colors</option>
           {colorPalette.map((c) => (
