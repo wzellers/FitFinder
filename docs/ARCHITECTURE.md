@@ -164,6 +164,10 @@ user, behind the same interface:
   Learning always uses the expected ratings (`meanItemRatings`). The generator
   also skips outfits it has already shown since it opened, until it has shown
   them all.
+- **Skips.** "Try another" on an outfit the generator picked (and the user
+  hasn't saved, worn, rated or changed) is weak evidence against it:
+  `learnFromSkip` learns a reward of 0.1 (`SKIP_REWARD`) with a quarter of a
+  rating's weight (`SKIP_WEIGHT`), and doesn't count it in `meta.updates`.
 - **Persistence.** `outfit_model_weights` holds one row per user: `weights` is
   the posterior mean (enough for readers like the daily email, which takes the
   best expected outfit) and `feature_meta` carries the posterior and version.
