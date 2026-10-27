@@ -101,23 +101,22 @@ describe('Closet', () => {
     expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
   });
 
-  it('labels the filter dropdowns', async () => {
+  it('filters with dropdowns in the app style', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    expect(await screen.findByLabelText('Category')).toBeTruthy();
-    expect(screen.getByLabelText('Color')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Category: All categories' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Bottoms' }));
+    expect(screen.getByRole('button', { name: 'Category: Bottoms' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit Blue T-Shirt' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Color: All colors' }));
+    // Colours show their swatch.
+    const navy = screen.getByRole('option', { name: 'Navy Blue' });
+    expect(navy.querySelector('[aria-hidden="true"]')).toBeTruthy();
+    fireEvent.click(navy);
+    expect(screen.getByRole('button', { name: /^Edit .*Jeans$/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Edit .*Shorts$/ })).toBeNull();
   });
 
-  it('styles the filter dropdowns as pills, highlighted while filtering', async () => {
-    renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    const category = (await screen.findByLabelText('Category')) as HTMLSelectElement;
-    expect(category.className).toContain('select-pill');
-    expect(category.className).not.toContain('select-pill-active');
-    fireEvent.change(category, { target: { value: 'Tops' } });
-    expect(category.className).toContain('select-pill-active');
-  });
-});
-
-describe('Closet sections', () => {
   it('collapses and expands a section, exposing aria-expanded', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
     await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });

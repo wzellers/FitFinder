@@ -19,12 +19,14 @@ test('filters by category, color and laundry status', async ({ page }) => {
   await openApp(page);
   const filters = page.getByRole('group', { name: 'Filter closet' });
 
-  await filters.getByLabel('Category').selectOption('Bottoms');
+  await filters.getByRole('button', { name: 'Category: All categories' }).click();
+  await page.getByRole('option', { name: 'Bottoms' }).click();
   await expect(item(page, 'Denim Jeans')).toBeVisible();
   await expect(item(page, 'White T-Shirt')).toHaveCount(0);
 
   await filters.getByRole('button', { name: 'Clear filters' }).click();
-  await filters.getByLabel('Color').selectOption('white');
+  await filters.getByRole('button', { name: 'Color: All colors' }).click();
+  await page.getByRole('option', { name: 'White' }).click();
   await expect(item(page, 'White T-Shirt')).toBeVisible();
   await expect(item(page, 'White Shoes')).toBeVisible();
   await expect(item(page, 'Denim Jeans')).toHaveCount(0);

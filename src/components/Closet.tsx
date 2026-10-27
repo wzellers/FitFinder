@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useId } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, X, ChevronDown, ChevronRight, WashingMachine } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import Dropdown from '@/components/ui/Dropdown';
 import { flushSync } from 'react-dom';
 import { ITEM_PHOTO_TRANSITION, withViewTransition } from '@/lib/viewTransition';
 import PosterHeader from '@/components/ui/PosterHeader';
@@ -68,7 +69,6 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
-  const filterId = useId();
 
   // Filters
   const [filterSection, setFilterSection] = useState<string>('');
@@ -240,39 +240,28 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
         aria-label="Filter closet"
         className="card px-3 py-3 mb-8 flex flex-wrap items-center gap-2"
       >
-        <label htmlFor={`${filterId}-section`} className="sr-only">
-          Category
-        </label>
-        <select
-          id={`${filterId}-section`}
+        <Dropdown
+          label="Category"
           value={filterSection}
-          onChange={(e) => setFilterSection(e.target.value)}
-          className={`select-pill ${filterSection ? 'select-pill-active' : ''}`}
-        >
-          <option value="">All categories</option>
-          {sectionNames.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor={`${filterId}-color`} className="sr-only">
-          Color
-        </label>
-        <select
-          id={`${filterId}-color`}
+          onChange={setFilterSection}
+          options={[
+            { value: '', label: 'All categories' },
+            ...sectionNames.map((s) => ({ value: s, label: s })),
+          ]}
+        />
+        <Dropdown
+          label="Color"
           value={filterColor}
-          onChange={(e) => setFilterColor(e.target.value)}
-          className={`select-pill ${filterColor ? 'select-pill-active' : ''}`}
-        >
-          <option value="">All colors</option>
-          {colorPalette.map((c) => (
-            <option key={c} value={c}>
-              {getColorName(c)}
-            </option>
-          ))}
-        </select>
+          onChange={setFilterColor}
+          options={[
+            { value: '', label: 'All colors' },
+            ...colorPalette.map((c) => ({
+              value: c,
+              label: getColorName(c),
+              swatch: getColorStyle(c).backgroundColor,
+            })),
+          ]}
+        />
 
         <div className="flex gap-1" role="group" aria-label="Laundry status">
           {(['all', 'clean', 'dirty'] as const).map((status) => (
