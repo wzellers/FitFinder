@@ -364,4 +364,24 @@ describe('OutfitGenerator', () => {
       await screen.findByText('Navy Blue · Beige · White', {}, { timeout: 4000 }),
     ).toBeTruthy();
   });
+
+  it("warms the outfit's glow while a high rating is pointed at", async () => {
+    mockRows.clothing_items = [makeTop(), makeBottom(), makeShoes()];
+    renderWithProviders(<OutfitGenerator />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+    const outfit = screen.getByRole('region', { name: 'Your outfit' });
+    expect(outfit.style.boxShadow).toBe('');
+    fireEvent.mouseEnter(await screen.findByRole('button', { name: '9 out of 10' }));
+    expect(outfit.style.boxShadow).toContain('rgba(255, 140, 40, 0.56)');
+  });
+
+  it('stamps the outfit into today after Wear today', async () => {
+    mockRows.clothing_items = [makeTop(), makeBottom(), makeShoes()];
+    renderWithProviders(<OutfitGenerator />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+    expect(screen.queryByTestId('worn-stamp')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Wear today/ }));
+    expect(await screen.findByTestId('worn-stamp')).toBeTruthy();
+    expect(mockWrites.some((w) => w.table === 'outfit_wears' && w.op === 'insert')).toBe(true);
+  });
 });

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Plus, X, ChevronDown, ChevronRight, WashingMachine } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import { flushSync } from 'react-dom';
+import { ITEM_PHOTO_TRANSITION, withViewTransition } from '@/lib/viewTransition';
 import PosterHeader from '@/components/ui/PosterHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/lib/supabaseClient';
@@ -49,6 +51,17 @@ interface ClosetProps {
 type LaundryAction = 'clean' | 'dirty' | null;
 
 export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
+  // Opening an item: its photo is named for the view transition just long
+  // enough to be snapshotted, then the name passes to the dialog's photo.
+  const [morphingId, setMorphingId] = useState<string | null>(null);
+  const openItem = (item: ClothingItem) => {
+    if (!onEditItem) return;
+    flushSync(() => setMorphingId(item.id));
+    withViewTransition(() => {
+      setMorphingId(null);
+      onEditItem(item);
+    });
+  };
   const { user } = useAuth();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -361,7 +374,8 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                             <li key={item.id}>
                               <ItemCard
                                 item={item}
-                                onOpen={() => onEditItem?.(item)}
+                                morphing={morphingId === item.id}
+                                onOpen={() => openItem(item)}
                                 onToggleDirty={() => toggleItemDirty(item)}
                               />
                             </li>
@@ -426,17 +440,22 @@ function singleTypeSection(types: string[]) {
 
 interface ItemCardProps {
   item: ClothingItem;
+  /** This card's photo is about to grow into the edit dialog. */
+  morphing?: boolean;
   onOpen: () => void;
   onToggleDirty: () => void;
 }
 
 /** A closet item: photo, type, colors and a clean/dirty toggle. */
-function ItemCard({ item, onOpen, onToggleDirty }: ItemCardProps) {
+function ItemCard({ item, morphing = false, onOpen, onToggleDirty }: ItemCardProps) {
   const name = describeItem(item);
   return (
     <div className="item-card h-full flex flex-col">
       <button onClick={onOpen} className="text-left rounded-sm" aria-label={`Edit ${name}`}>
-        <div className="item-card-photo aspect-square w-full">
+        <div
+          className="item-card-photo aspect-square w-full"
+          style={morphing ? { viewTransitionName: ITEM_PHOTO_TRANSITION } : undefined}
+        >
           <ClothingImage
             src={item.image_url}
             alt=""

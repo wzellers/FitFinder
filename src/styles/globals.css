@@ -252,6 +252,47 @@
     background: color-mix(in srgb, var(--outfit-bottom) 14%, var(--muted));
   }
 
+  /* "Wear today": pieces shrink into the day's calendar tile, then a check. */
+  .worn-stamp {
+    animation: worn-fade 1.8s ease forwards;
+  }
+  .worn-stamp-tile {
+    animation: worn-tile 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .worn-stamp-piece {
+    animation: worn-piece 0.6s cubic-bezier(0.3, 0.8, 0.3, 1) both;
+  }
+  .worn-stamp-check {
+    animation: worn-check 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) 0.75s both;
+  }
+  @keyframes worn-fade {
+    0%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes worn-tile {
+    from {
+      opacity: 0;
+      transform: scale(0.85) translateY(12px);
+    }
+  }
+  @keyframes worn-piece {
+    from {
+      opacity: 0;
+      transform: translateY(-90px) scale(2.6);
+    }
+  }
+  @keyframes worn-check {
+    from {
+      opacity: 0;
+      transform: scale(0.2) rotate(-30deg);
+    }
+  }
+
   /* A tab's content easing in when it's shown (also when un-hidden). */
   .page-in {
     animation: page-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -310,4 +351,10 @@
   .logo {
     @apply font-poster uppercase tracking-[0.02em] text-[var(--burgundy)];
   }
+}
+
+/* A closet photo growing into the edit dialog (see lib/viewTransition). */
+::view-transition-group(item-photo) {
+  animation-duration: 0.38s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }

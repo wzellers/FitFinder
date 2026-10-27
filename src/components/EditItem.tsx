@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import ClothingImage from '@/components/ui/ClothingImage';
+import { ITEM_PHOTO_TRANSITION } from '@/lib/viewTransition';
 import { imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes } from '@/lib/constants';
@@ -122,7 +123,10 @@ export default function EditItem({
 
         <div className="flex items-center gap-5 mb-6">
           <div className="item-card w-36 shrink-0">
-            <div className="item-card-photo aspect-square">
+            <div
+              className="item-card-photo aspect-square"
+              style={{ viewTransitionName: ITEM_PHOTO_TRANSITION }}
+            >
               <ClothingImage
                 src={item.image_url}
                 alt={describeItem(item)}

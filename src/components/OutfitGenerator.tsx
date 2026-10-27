@@ -1,7 +1,7 @@
 'use client';
 
 import Modal from '@/components/ui/Modal';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Lock,
   Unlock,
@@ -25,6 +25,7 @@ import { useOutfitTheme } from '@/components/OutfitTheme';
 import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import SlotReel, { type ReelDirection } from '@/components/ui/SlotReel';
 import SwipeArea, { type SwipeDirection } from '@/components/ui/SwipeArea';
+import WornStamp from '@/components/ui/WornStamp';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -487,6 +488,8 @@ export default function OutfitGenerator({
 
   // Rate the shown outfit without wearing it, then show the next one.
   const [ratingSaving, setRatingSaving] = useState(false);
+  // The rating being pointed at: the outfit's glow warms with it.
+  const [ratingPreview, setRatingPreview] = useState(0);
   const rateShownOutfit = async (rating: number) => {
     if (!user || !top || !bottom || !shoes || rating < 1) return;
     setRatingSaving(true);
@@ -524,6 +527,8 @@ export default function OutfitGenerator({
   };
 
   // Wear today
+  const [wornStamp, setWornStamp] = useState<ClothingItem[] | null>(null);
+  const clearWornStamp = useCallback(() => setWornStamp(null), []);
   const wearToday = async () => {
     if (!user || !top || !bottom || !shoes) return;
     const today = toLocalDateString();
@@ -558,6 +563,7 @@ export default function OutfitGenerator({
       }
       if (insertError) throw insertError;
       showToast("Logged as today's outfit.", 'success');
+      setWornStamp([top, bottom, shoes]);
       settleShownPick('worn');
     } catch {
       showToast("Couldn't log today's outfit. Try again.", 'error');
@@ -726,6 +732,7 @@ export default function OutfitGenerator({
 
   return (
     <div className="w-full outfit-scope">
+      {wornStamp && <WornStamp pieces={wornStamp} date={new Date()} onDone={clearWornStamp} />}
       <PosterHeader
         compact
         title="Today's fit"
@@ -832,7 +839,14 @@ export default function OutfitGenerator({
           {/* ====== The outfit: the centre of the screen ====== */}
           <section
             aria-labelledby="outfit-heading"
-            className="panel w-full px-4 sm:px-6 py-5 order-1 lg:order-2"
+            className="panel w-full px-4 sm:px-6 py-5 order-1 lg:order-2 transition-shadow duration-300"
+            style={
+              ratingPreview > 0
+                ? {
+                    boxShadow: `0 24px 60px -24px rgba(255, 140, 40, ${(0.12 + (0.5 * (ratingPreview - 1)) / 9).toFixed(2)})`,
+                  }
+                : undefined
+            }
           >
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <h3 id="outfit-heading" className="text-base">
@@ -1001,6 +1015,7 @@ export default function OutfitGenerator({
                   onChange={rateShownOutfit}
                   clearable={false}
                   disabled={ratingSaving}
+                  onPreview={setRatingPreview}
                   legend={
                     <>
                       Rate this outfit{' '}
