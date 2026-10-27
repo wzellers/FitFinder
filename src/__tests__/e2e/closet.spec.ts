@@ -129,7 +129,7 @@ test('adds an item from a photo', async ({ page }) => {
   // What detection found shows as chips; tapping one opens the editors.
   await expect(dialog.getByRole('button', { name: 'Type: T-Shirt. Edit' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Main color: Red. Edit' }).click();
-  await expect(dialog.getByLabel('Type')).toHaveValue('T-Shirt');
+  await expect(dialog.getByLabel('Type', { exact: true })).toHaveValue('T-Shirt');
   await expect(
     dialog.getByRole('group', { name: 'Main color' }).getByRole('button', { name: 'Red' }),
   ).toHaveAttribute('aria-pressed', 'true');
