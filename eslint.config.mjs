@@ -24,7 +24,17 @@ const config = [
     },
   }),
   {
-    ignores: ['.next/**', 'out/**', 'coverage/**', 'node_modules/**', 'next-env.d.ts'],
+    ignores: [
+      '.next/**',
+      'out/**',
+      'coverage/**',
+      'node_modules/**',
+      'next-env.d.ts',
+      'playwright-report/**',
+      'test-results/**',
+      // Git worktrees live here; each is linted from its own folder.
+      '.claude/**',
+    ],
   },
 ];
 
