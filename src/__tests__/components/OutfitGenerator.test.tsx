@@ -98,7 +98,7 @@ describe('OutfitGenerator', () => {
     renderWithProviders(<OutfitGenerator />);
     await waitFor(
       () => {
-        expect(screen.getByText(/Generate/)).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Generate outfit' })).toBeTruthy();
       },
       { timeout: 3000 },
     );
@@ -106,9 +106,11 @@ describe('OutfitGenerator', () => {
 
   it('clicking Generate triggers outfit generation', async () => {
     renderWithProviders(<OutfitGenerator />);
-    await waitFor(() => screen.getByText(/Generate/), { timeout: 3000 });
-    fireEvent.click(screen.getByText(/Generate/));
-    expect(screen.getByText(/Generate/)).toBeTruthy();
+    const generate = await screen.findByRole('button', { name: 'Generate outfit' });
+    fireEvent.click(generate);
+    expect(
+      screen.getByRole('button', { name: /^(Generate outfit|Try another outfit)$/ }),
+    ).toBeTruthy();
   });
 
   it('shows Saved tab button', async () => {
@@ -338,5 +340,14 @@ describe('OutfitGenerator', () => {
           .disabled,
       ).toBe(false);
     });
+  });
+
+  it('asks for a rating beside the outfit once there is one to rate', async () => {
+    mockRows.clothing_items = [makeTop(), makeBottom(), makeShoes()];
+    renderWithProviders(<OutfitGenerator />);
+    expect(await screen.findByText(/Generate an outfit, then rate it here/)).toBeTruthy();
+    expect(screen.queryByRole('group', { name: /Rate this outfit/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate outfit' }));
+    expect(await screen.findByRole('group', { name: /Rate this outfit/ })).toBeTruthy();
   });
 });

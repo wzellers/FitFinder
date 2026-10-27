@@ -725,6 +725,7 @@ export default function OutfitGenerator({
   return (
     <div className="w-full">
       <PosterHeader
+        compact
         title="Today's fit"
         script="get dressed"
         readout={`{ ${items.length} clean ${items.length === 1 ? 'item' : 'items'} to pick from }`}
@@ -744,217 +745,37 @@ export default function OutfitGenerator({
       />
 
       {activeTab === 'generator' && (
-        <div className="mx-auto w-full max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
-          {/* ====== Occasion: left of the outfit (below it on phones) ====== */}
-          <section
-            aria-labelledby="occasion-heading"
-            className="card p-4 order-2 lg:order-1 lg:sticky lg:top-6"
-          >
-            <h3 id="occasion-heading" className="panel-label mb-2">
-              Occasion
-            </h3>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Occasion">
-              <button
-                onClick={() => setOccasion(null)}
-                aria-pressed={occasion === null}
-                className={chip(occasion === null)}
-              >
-                Any
-              </button>
-              {occasions.map((o) => (
-                <button
-                  key={o}
-                  onClick={() => setOccasion(o)}
-                  aria-pressed={occasion === o}
-                  className={chip(occasion === o)}
-                >
-                  {o}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-2">
-              Only items that suit the occasion are used. Change what fits in Settings.
-            </p>
-          </section>
-
-          {/* ====== The outfit: the centre of the screen ====== */}
-          <section
-            aria-labelledby="outfit-heading"
-            className="panel w-full max-w-md mx-auto px-4 sm:px-6 pt-7 pb-7 order-1 lg:order-2"
-          >
-            <div className="text-center">
-              <h3 id="outfit-heading" className="text-lg">
-                Your outfit
+        <div className="mx-auto w-full max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
+          {/* ====== Left: what the outfit is for (below it on phones) ====== */}
+          <div className="order-3 lg:order-1 flex flex-col gap-4 lg:sticky lg:top-24">
+            <section aria-labelledby="occasion-heading" className="card p-4">
+              <h3 id="occasion-heading" className="panel-label mb-2">
+                Occasion
               </h3>
-              <p className="readout mt-1">
-                {new Date().toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-                {instructions && <> · {instructions}</>}
-              </p>
-              {pairing && (
-                <p className="readout mt-1.5 inline-flex items-center gap-1.5">
-                  <span className="flex -space-x-1" aria-hidden="true">
-                    {pairing.map((c, i) => (
-                      <span
-                        key={i}
-                        className="w-3.5 h-3.5 rounded-full border border-white"
-                        style={getColorStyle(c)}
-                      />
-                    ))}
-                  </span>
-                  {pairing[0] === pairing[1]
-                    ? `${getColorName(pairing[0])} · tonal`
-                    : `${getColorName(pairing[0])} × ${getColorName(pairing[1])}`}
-                </p>
-              )}
-            </div>
-
-            <div className="mt-5 flex flex-col gap-3">
-              <button
-                onClick={tryAnother}
-                disabled={loading}
-                className="btn-primary w-full text-base min-h-[52px]"
-              >
-                <Sparkles size={18} aria-hidden="true" />
-                {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
-              </button>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={openSaveModal} disabled={!hasOutfit} className="btn-secondary">
-                  <Save size={16} aria-hidden="true" /> Save outfit
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Occasion">
+                <button
+                  onClick={() => setOccasion(null)}
+                  aria-pressed={occasion === null}
+                  className={chip(occasion === null)}
+                >
+                  Any
                 </button>
-                <button onClick={wearToday} disabled={!hasOutfit} className="btn-secondary">
-                  <CalendarPlus size={16} aria-hidden="true" /> Wear today
-                </button>
-              </div>
-            </div>
-            {error && (
-              <p
-                role="status"
-                className="text-sm text-[var(--warning)] bg-[#fdf4e3] rounded-md px-3 py-2 mt-3"
-              >
-                {error}
-              </p>
-            )}
-
-            <ul className="divider mt-5 pt-5 flex flex-col gap-4">
-              {slots.map(({ key, label, item, locked, toggle }) => {
-                const canSwap = hasOutfit && !locked && !loading;
-                const arrow = (direction: SwipeDirection) => (
+                {occasions.map((o) => (
                   <button
-                    type="button"
-                    onClick={() => swapPiece(key, direction)}
-                    disabled={!canSwap}
-                    aria-label={`Swap ${label.toLowerCase()} (${direction === 'left' ? 'slide left' : 'slide right'})`}
-                    className="w-10 h-10 shrink-0 rounded-full border border-[var(--line-strong)] bg-white text-[var(--text-secondary)] hover:text-[var(--text)] flex items-center justify-center transition-opacity disabled:opacity-30"
+                    key={o}
+                    onClick={() => setOccasion(o)}
+                    aria-pressed={occasion === o}
+                    className={chip(occasion === o)}
                   >
-                    {direction === 'left' ? (
-                      <ChevronLeft size={18} aria-hidden="true" />
-                    ) : (
-                      <ChevronRight size={18} aria-hidden="true" />
-                    )}
+                    {o}
                   </button>
-                );
-                return (
-                  <li key={key}>
-                    <div className="flex items-center justify-center gap-3">
-                      {arrow('left')}
-                      <SwipeArea
-                        onSwipe={(direction) => swapPiece(key, direction)}
-                        disabled={!canSwap}
-                        className="shrink-0"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setPickerSlot(key)}
-                          aria-label={
-                            item
-                              ? `Change ${label.toLowerCase()}: ${describeItem(item)}`
-                              : `Choose a ${label.toLowerCase()}`
-                          }
-                          className={`w-40 h-40 sm:w-44 sm:h-44 rounded-xl overflow-hidden flex items-center justify-center transition-shadow ${
-                            item
-                              ? 'bg-white border border-[var(--border)] hover:border-[var(--line-strong)]'
-                              : 'border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
-                          } ${locked ? 'ring-2 ring-[var(--sky)] ring-offset-2' : ''}`}
-                        >
-                          {item ? (
-                            <SlotReel
-                              item={item}
-                              pool={items.filter((i) => typeToSection[i.type] === sectionFor[key])}
-                              spinKey={spins[key]}
-                              durationMs={
-                                directions[key] === 'down' ? reelDuration[key] : SWAP_DURATION
-                              }
-                              direction={directions[key]}
-                              spinOnMount={Date.now() - lastSpinAt.current < 300}
-                            />
-                          ) : (
-                            <span className="text-sm font-semibold">Choose</span>
-                          )}
-                        </button>
-                      </SwipeArea>
-                      {arrow('right')}
-                    </div>
-                    <div className="mt-2 mx-auto w-full max-w-[16rem] sm:max-w-[17.5rem] flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="panel-label">{label}</div>
-                        <div className="text-base font-semibold tracking-tight truncate">
-                          {item ? <ScrambleText text={describeItem(item)} /> : 'Not picked yet'}
-                        </div>
-                      </div>
-                      <button
-                        onClick={toggle}
-                        disabled={!item}
-                        aria-pressed={locked}
-                        aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
-                        className={`min-h-[40px] px-3 rounded-full border text-sm font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-40 ${
-                          locked
-                            ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
-                            : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
-                        }`}
-                      >
-                        {locked ? (
-                          <Lock size={14} aria-hidden="true" />
-                        ) : (
-                          <Unlock size={14} aria-hidden="true" />
-                        )}
-                        <span className="hidden sm:inline">{locked ? 'Kept' : 'Keep'}</span>
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="text-xs text-[var(--text-secondary)] text-center mt-4">
-              Swipe a piece or use its arrows to swap just that piece. Keep a piece to build around
-              it.
-            </p>
-
-            {hasOutfit && (
-              <div className="divider pt-5 mt-5">
-                <RatingPicker
-                  value={0}
-                  onChange={rateShownOutfit}
-                  clearable={false}
-                  disabled={ratingSaving}
-                  legend={
-                    <>
-                      Rate this outfit{' '}
-                      <span className="font-normal text-[var(--text-secondary)]">
-                        (no need to wear it; helps FitFinder learn your taste)
-                      </span>
-                    </>
-                  }
-                />
+                ))}
               </div>
-            )}
-          </section>
+              <p className="text-xs text-[var(--text-secondary)] mt-2">
+                Only items that suit the occasion are used. Change what fits in Settings.
+              </p>
+            </section>
 
-          {/* ====== Weather: right of the outfit (below it on phones) ====== */}
-          <div className="order-3 flex flex-col gap-3 lg:sticky lg:top-6">
             <section aria-labelledby="weather-heading" className="card p-4">
               <h3 id="weather-heading" className="panel-label mb-2">
                 Weather
@@ -1004,6 +825,199 @@ export default function OutfitGenerator({
                 </p>
               )}
             </section>
+          </div>
+
+          {/* ====== The outfit: the centre of the screen ====== */}
+          <section
+            aria-labelledby="outfit-heading"
+            className="panel w-full px-4 sm:px-6 py-5 order-1 lg:order-2"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h3 id="outfit-heading" className="text-base">
+                Your outfit
+              </h3>
+              <p className="readout">
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+                {instructions && <> · {instructions}</>}
+              </p>
+              {pairing && (
+                <p className="readout inline-flex items-center gap-1.5">
+                  <span className="flex -space-x-1" aria-hidden="true">
+                    {pairing.map((c, i) => (
+                      <span
+                        key={i}
+                        className="w-3.5 h-3.5 rounded-full border border-white"
+                        style={getColorStyle(c)}
+                      />
+                    ))}
+                  </span>
+                  {pairing[0] === pairing[1]
+                    ? `${getColorName(pairing[0])} · tonal`
+                    : `${getColorName(pairing[0])} × ${getColorName(pairing[1])}`}
+                </p>
+              )}
+            </div>
+
+            <ul className="mt-4 flex flex-col gap-3">
+              {slots.map(({ key, label, item, locked, toggle }) => {
+                const canSwap = hasOutfit && !locked && !loading;
+                const arrow = (direction: SwipeDirection) => (
+                  <button
+                    type="button"
+                    onClick={() => swapPiece(key, direction)}
+                    disabled={!canSwap}
+                    aria-label={`Swap ${label.toLowerCase()} (${direction === 'left' ? 'slide left' : 'slide right'})`}
+                    className="w-9 h-9 shrink-0 rounded-full border border-[var(--line-strong)] bg-white text-[var(--text-secondary)] hover:text-[var(--text)] flex items-center justify-center transition-opacity disabled:opacity-30"
+                  >
+                    {direction === 'left' ? (
+                      <ChevronLeft size={16} aria-hidden="true" />
+                    ) : (
+                      <ChevronRight size={16} aria-hidden="true" />
+                    )}
+                  </button>
+                );
+                return (
+                  <li
+                    key={key}
+                    className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3"
+                  >
+                    <div className="min-w-0 text-right">
+                      <div className="panel-label">{label}</div>
+                      <div className="text-sm font-semibold tracking-tight truncate">
+                        {item ? <ScrambleText text={describeItem(item)} /> : 'Not picked yet'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {arrow('left')}
+                      <SwipeArea
+                        onSwipe={(direction) => swapPiece(key, direction)}
+                        disabled={!canSwap}
+                        className="shrink-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setPickerSlot(key)}
+                          aria-label={
+                            item
+                              ? `Change ${label.toLowerCase()}: ${describeItem(item)}`
+                              : `Choose a ${label.toLowerCase()}`
+                          }
+                          className={`w-[7.5rem] h-[7.5rem] [@media(min-height:880px)]:w-36 [@media(min-height:880px)]:h-36 rounded-xl overflow-hidden flex items-center justify-center transition-shadow ${
+                            item
+                              ? 'bg-white border border-[var(--border)] hover:border-[var(--line-strong)]'
+                              : 'border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
+                          } ${locked ? 'ring-2 ring-[var(--sky)] ring-offset-2' : ''}`}
+                        >
+                          {item ? (
+                            <SlotReel
+                              item={item}
+                              pool={items.filter((i) => typeToSection[i.type] === sectionFor[key])}
+                              spinKey={spins[key]}
+                              durationMs={
+                                directions[key] === 'down' ? reelDuration[key] : SWAP_DURATION
+                              }
+                              direction={directions[key]}
+                              spinOnMount={Date.now() - lastSpinAt.current < 300}
+                            />
+                          ) : (
+                            <span className="text-sm font-semibold">Choose</span>
+                          )}
+                        </button>
+                      </SwipeArea>
+                      {arrow('right')}
+                    </div>
+                    <div className="justify-self-start">
+                      <button
+                        onClick={toggle}
+                        disabled={!item}
+                        aria-pressed={locked}
+                        aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
+                        className={`min-h-[40px] px-3 rounded-full border text-sm font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-40 ${
+                          locked
+                            ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
+                            : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {locked ? (
+                          <Lock size={14} aria-hidden="true" />
+                        ) : (
+                          <Unlock size={14} aria-hidden="true" />
+                        )}
+                        <span className="hidden sm:inline">{locked ? 'Kept' : 'Keep'}</span>
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {error && (
+              <p
+                role="status"
+                className="text-sm text-[var(--warning)] bg-[#fdf4e3] rounded-md px-3 py-2 mt-4"
+              >
+                {error}
+              </p>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={tryAnother}
+                disabled={loading}
+                className="btn-primary flex-1 min-w-[12rem] text-base min-h-[48px]"
+              >
+                <Sparkles size={18} aria-hidden="true" />
+                {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
+              </button>
+              <button
+                onClick={openSaveModal}
+                disabled={!hasOutfit}
+                className="btn-secondary min-h-[48px]"
+              >
+                <Save size={16} aria-hidden="true" /> Save outfit
+              </button>
+              <button
+                onClick={wearToday}
+                disabled={!hasOutfit}
+                className="btn-secondary min-h-[48px]"
+              >
+                <CalendarPlus size={16} aria-hidden="true" /> Wear today
+              </button>
+            </div>
+          </section>
+
+          {/* ====== Right: rating and history (below the outfit on phones) ====== */}
+          <div className="order-2 lg:order-3 flex flex-col gap-4 lg:sticky lg:top-24">
+            <section aria-label="Rate this outfit" className="card p-4">
+              {hasOutfit ? (
+                <RatingPicker
+                  value={0}
+                  onChange={rateShownOutfit}
+                  clearable={false}
+                  disabled={ratingSaving}
+                  legend={
+                    <>
+                      Rate this outfit{' '}
+                      <span className="font-normal text-[var(--text-secondary)]">
+                        (no need to wear it; helps FitFinder learn your taste)
+                      </span>
+                    </>
+                  }
+                />
+              ) : (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Generate an outfit, then rate it here. No need to wear it; it helps FitFinder
+                  learn your taste.
+                </p>
+              )}
+            </section>
+            <p className="text-xs text-[var(--text-secondary)] px-1">
+              Swipe a piece or use its arrows to swap just that piece. Keep a piece to build around
+              it.
+            </p>
             <button onClick={onNavigateToCalendar} className="btn-ghost justify-start">
               <Calendar size={16} aria-hidden="true" /> See what you&apos;ve worn
             </button>

@@ -15,9 +15,9 @@ Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.1
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 - **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
-  outfits). The Outfits screen centres the outfit as a vertical stack (top,
-  bottom, shoes), with occasion to its left and weather to its right on wide
-  screens (below it on phones); reels spin top to bottom, and each piece can
+  outfits). The Outfits screen has a slim header and centres the outfit as a
+  vertical stack (top, bottom, shoes) with its actions below; occasion and weather sit to its left and rating to its right on wide
+  screens (below it on phones). Reels spin top to bottom, and each piece can
   be swapped alone with its arrows or a sideways swipe, sliding in the way the
   user pointed. Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
   calendar, stats, settings (weather, occasions, colors, email), onboarding,
@@ -64,7 +64,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 381 unit/component tests (`npm run test`).
+- **Vitest:** 385 unit/component tests (`npm run test`).
 - **Playwright:** 49 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need

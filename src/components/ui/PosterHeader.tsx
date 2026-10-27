@@ -14,6 +14,9 @@ interface PosterHeaderProps {
   readout?: React.ReactNode;
   /** Buttons shown beside the readout. */
   actions?: React.ReactNode;
+  /** One slim row instead of a tall poster, for screens whose content
+   * should start near the top (Outfits). */
+  compact?: boolean;
 }
 
 /**
@@ -22,35 +25,77 @@ interface PosterHeaderProps {
  * Burgundy / sky blue by default; after an outfit is generated it takes on
  * that outfit's colours (see OutfitThemeProvider).
  */
-export default function PosterHeader({ title, script, readout, actions }: PosterHeaderProps) {
+export default function PosterHeader({
+  title,
+  script,
+  readout,
+  actions,
+  compact = false,
+}: PosterHeaderProps) {
   const { pairing, setPairing } = useOutfitTheme();
+  const styledBy = pairing && (
+    <span className="inline-flex items-center gap-2 rounded-full bg-white/90 pl-2 pr-1 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#2a0c12] shadow-sm">
+      <span className="flex -space-x-1" aria-hidden="true">
+        {pairing.map((c, i) => (
+          <span
+            key={i}
+            className="w-3.5 h-3.5 rounded-full border border-white"
+            style={getColorStyle(c)}
+          />
+        ))}
+      </span>
+      Styled by today&apos;s fit
+      <span className="sr-only">
+        : {getColorName(pairing[0])} and {getColorName(pairing[1])}
+      </span>
+      <button
+        onClick={() => setPairing(null)}
+        aria-label="Reset colors"
+        className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5"
+      >
+        <X size={12} aria-hidden="true" />
+      </button>
+    </span>
+  );
+
+  if (compact) {
+    return (
+      <header className="poster relative overflow-hidden rounded-[22px] bg-[var(--poster-bg)] px-5 sm:px-8 py-4 mb-4 transition-colors duration-700">
+        <Cutout className="absolute -right-6 -top-10 w-24 sm:w-32 text-[var(--poster-cutout)] transition-colors duration-700" />
+        <div className="relative flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div className="flex items-end gap-3 min-w-0">
+            <h2 className="font-poster uppercase leading-[0.85] text-[var(--poster-title)] text-[clamp(2.25rem,5vw,3.5rem)] tracking-[-0.01em] transition-colors duration-700">
+              {title}
+            </h2>
+            {script && (
+              <span
+                aria-hidden="true"
+                className="font-script -rotate-6 mb-1 text-[var(--poster-fg)] text-[clamp(1.25rem,2.4vw,1.9rem)] leading-none transition-colors duration-700"
+              >
+                {script}
+              </span>
+            )}
+          </div>
+          <div className="relative flex flex-wrap items-center gap-3">
+            {styledBy}
+            {readout && (
+              <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--poster-fg)] transition-colors duration-700">
+                {readout}
+              </p>
+            )}
+            {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="poster relative overflow-hidden rounded-[28px] bg-[var(--poster-bg)] px-6 sm:px-10 pt-8 sm:pt-10 pb-6 mb-8 transition-colors duration-700">
       <Cutout className="absolute -right-12 -top-20 w-28 sm:-right-14 sm:-top-28 sm:w-72 text-[var(--poster-cutout)] transition-colors duration-700" />
-      {pairing && (
+      {styledBy && (
         <div className="relative sm:absolute sm:right-6 sm:bottom-auto sm:top-5 mb-4 sm:mb-0 flex justify-start sm:justify-end">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/90 pl-2 pr-1 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#2a0c12] shadow-sm">
-            <span className="flex -space-x-1" aria-hidden="true">
-              {pairing.map((c, i) => (
-                <span
-                  key={i}
-                  className="w-3.5 h-3.5 rounded-full border border-white"
-                  style={getColorStyle(c)}
-                />
-              ))}
-            </span>
-            Styled by today&apos;s fit
-            <span className="sr-only">
-              : {getColorName(pairing[0])} and {getColorName(pairing[1])}
-            </span>
-            <button
-              onClick={() => setPairing(null)}
-              aria-label="Reset colors"
-              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5"
-            >
-              <X size={12} aria-hidden="true" />
-            </button>
-          </span>
+          {styledBy}
         </div>
       )}
       <div className="relative">
