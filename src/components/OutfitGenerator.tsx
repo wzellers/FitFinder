@@ -40,6 +40,7 @@ import type { Occasion } from '@/lib/constants';
 import {
   deserializeModel,
   serializeModel,
+  learnFromSkip,
   selectOutfits,
   updateWeights,
   SAVED_OUTFIT_REWARD,
@@ -223,6 +224,10 @@ export default function OutfitGenerator({
   const outfitKey = (o: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem }) =>
     `${o.top.id}|${o.bottom.id}|${o.shoes.id}`;
 
+  // The outfit the generator picked, until the user acts on it (saves, wears,
+  // rates, or changes a piece). "Try another" on it counts as a skip.
+  const skippable = useRef<string | null>(null);
+
   // `latest` lets a caller that just updated the model or ratings use them
   // before React state catches up (e.g. right after rating an outfit).
   const pickOutfit = (latest: { model?: BanditModel; ratedOutfits?: OutfitWear[] } = {}) => {
@@ -275,6 +280,7 @@ export default function OutfitGenerator({
     );
     shownOutfits.current.add(outfitKey(pick));
     if (current) shownOutfits.current.add(current);
+    skippable.current = outfitKey(pick);
     if (!lockedTop) setTop(pick.top);
     if (!lockedBottom) setBottom(pick.bottom);
     if (!lockedShoes) setShoes(pick.shoes);
@@ -296,17 +302,23 @@ export default function OutfitGenerator({
 
   // Apply an online learning update for a given outfit + reward, then persist the
   // new weights.
-  const applyReward = async (
+  const applyReward = (
     outfit: {
       top: ClothingItem;
       bottom: ClothingItem;
       shoes: ClothingItem;
     },
     reward: number,
-  ) => {
+  ) => learnAndSave(outfit, (m, features) => updateWeights(m, features, reward));
+
+  // Learn from the outfit, save the model, and return it.
+  const learnAndSave = async (
+    outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem },
+    learn: (m: BanditModel, features: FeatureVector) => BanditModel,
+  ): Promise<BanditModel | undefined> => {
     if (!user) return;
-    const features = currentFeatures(outfit);
-    const updated = updateWeights(model ?? deserializeModel(null), features, reward);
+    skippable.current = null;
+    const updated = learn(model ?? deserializeModel(null), currentFeatures(outfit));
     setModel(updated);
     const serialized = serializeModel(updated);
     const { error: weightsError } = await supabase.from('outfit_model_weights').upsert({
@@ -317,6 +329,26 @@ export default function OutfitGenerator({
     });
     // Learning is best-effort; the in-memory model still updated.
     if (weightsError) console.warn('Could not save outfit model', weightsError);
+    return updated;
+  };
+
+  // "Try another": passing on the generator's pick is a weak "not this one".
+  const tryAnother = () => {
+    if (top && bottom && shoes && skippable.current === outfitKey({ top, bottom, shoes })) {
+      const updated = learnFromSkipAndSave({ top, bottom, shoes });
+      pickOutfit({ model: updated });
+      return;
+    }
+    pickOutfit();
+  };
+  const learnFromSkipAndSave = (outfit: {
+    top: ClothingItem;
+    bottom: ClothingItem;
+    shoes: ClothingItem;
+  }) => {
+    const updated = learnFromSkip(model ?? deserializeModel(null), currentFeatures(outfit));
+    void learnAndSave(outfit, () => updated);
+    return updated;
   };
 
   // Save outfit with name
@@ -404,6 +436,7 @@ export default function OutfitGenerator({
   // Wear today
   const wearToday = async () => {
     if (!user || !top || !bottom || !shoes) return;
+    skippable.current = null;
     const today = toLocalDateString();
     try {
       const { data: existing, error: lookupError } = await supabase
@@ -728,7 +761,7 @@ export default function OutfitGenerator({
 
             <div className="divider pt-5 flex flex-col gap-3">
               <button
-                onClick={() => pickOutfit()}
+                onClick={tryAnother}
                 disabled={loading}
                 className="btn-primary w-full text-base min-h-[52px]"
               >

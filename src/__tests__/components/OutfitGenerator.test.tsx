@@ -21,6 +21,8 @@ vi.mock('@/lib/weatherApi', async (importOriginal) => {
 // Rows a test puts here are returned for that table; every other query
 // resolves empty.
 const mockRows = vi.hoisted(() => ({}) as Record<string, unknown[]>);
+// Every upsert, by table.
+const mockUpserts = vi.hoisted(() => [] as { table: string; row: unknown }[]);
 
 // A chainable builder where any filter or modifier returns the builder,
 // awaiting it gives the table's rows, and maybeSingle/single give null.
@@ -49,7 +51,10 @@ const mockFrom = vi.hoisted(() => {
     b.insert = () => b;
     b.update = () => b;
     b.delete = () => b;
-    b.upsert = () => Promise.resolve({ error: null });
+    b.upsert = (row: unknown) => {
+      mockUpserts.push({ table, row });
+      return Promise.resolve({ error: null });
+    };
     return b;
   };
   return vi.fn((table: string) => builder(table));
@@ -68,6 +73,7 @@ describe('OutfitGenerator', () => {
   beforeEach(() => {
     mockFrom.mockClear();
     for (const table of Object.keys(mockRows)) delete mockRows[table];
+    mockUpserts.length = 0;
   });
 
   it('renders the Generator tab', async () => {
@@ -206,5 +212,21 @@ describe('OutfitGenerator', () => {
       shown.push(`${piece('top')} + ${piece('bottom')}`);
     }
     expect(new Set(shown).size).toBe(4);
+  });
+
+  it('learns from "Try another" on a generated outfit, not on the first Generate', async () => {
+    mockRows.clothing_items = [makeTop(), makeTop(), makeBottom(), makeShoes()];
+    renderWithProviders(<OutfitGenerator />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+    await screen.findByRole('button', { name: 'Try another outfit' });
+    expect(mockUpserts.filter((u) => u.table === 'outfit_model_weights')).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try another outfit' }));
+    await waitFor(() =>
+      expect(mockUpserts.filter((u) => u.table === 'outfit_model_weights')).toHaveLength(1),
+    );
+    const { feature_meta } = mockUpserts[0].row as { feature_meta: { updates: number } };
+    // A skip isn't a rating.
+    expect(feature_meta.updates).toBe(0);
   });
 });
