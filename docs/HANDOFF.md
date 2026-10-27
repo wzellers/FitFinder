@@ -14,19 +14,26 @@ Production is `main`, deployed by Vercel on every push.
 Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.118
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
-- **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
-  outfits). Closet, outfit generator (weather and occasion filter; a per-user
+- **App:** pill nav, poster headers, slot-reel outfits. Neutral (near-black
+  on white, stone greys) until an outfit is generated; then the whole app
+  takes its colours (`themeFromOutfit`): the top's colour is the accent
+  (buttons, links, selected states, nav, header, rating glow; deepened to stay
+  readable), the bottom's the header title and wash, the shoes' the cutout
+  and wash. The clock is 12-hour; clicking it switches to 24-hour. Closet, outfit generator (weather and occasion filter; a per-user
   Bayesian bandit ranks on color, variety and rating, by Thompson sampling,
   `MODEL_VERSION` 3), calendar, stats, settings (weather, occasions, colors,
   email), onboarding, rating prompt.
 - **Outfits screen:** a slim header; the outfit centred as a vertical stack
-  (top, bottom, shoes) with Try another, Save, Wear today and Share below;
-  occasion and weather to its left, rating to its right (below it on phones).
+  (top, bottom, shoes) with Try another under it; occasion and weather to its
+  left; Save, Wear today, Share and rating to its right (below it on phones).
+  A rated outfit stays on screen with its rating until Try another.
   Reels spin top to bottom; one piece can be swapped with its arrows or a
   sideways swipe, sliding the way the user pointed. The screen takes today's
   outfit colours (a background wash, the button accent and a palette strip;
   registered CSS properties fade between outfits) and shows the weather
-  faintly behind it (`WeatherBackdrop`). Pointing at a rating warms the
+  behind it (`WeatherBackdrop`: a sky tint plus sun or stars, clouds, rain
+  or snow, seen through the screen's frosted cards). Coming back to the tab
+  re-reads the ZIP code and weather settings. Pointing at a rating warms the
   outfit's glow; Wear today stamps the pieces into a calendar tile; Share
   draws a PNG card (`lib/shareCard.ts`), shared on phones and downloaded on
   desktop.
@@ -78,7 +85,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 446 unit/component tests (`npm run test`).
+- **Vitest:** 458 unit/component tests (`npm run test`).
 - **Playwright:** 52 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
