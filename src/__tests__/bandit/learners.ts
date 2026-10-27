@@ -5,7 +5,13 @@
 // comparison. The thompson/linUcb implementations here take tunable priors, for
 // the sweeps that chose production's settings.
 
-import { defaultModel, selectOutfits, updateWeights, type FeatureVector } from '@/lib/banditModel';
+import {
+  defaultModel,
+  learnFromSkip,
+  selectOutfits,
+  updateWeights,
+  type FeatureVector,
+} from '@/lib/banditModel';
 import { FEATURE_NAMES, FEATURE_WEIGHTS, type FeatureName } from '@/lib/outfitScoring';
 import { gaussian, type Rng } from './world';
 
@@ -15,6 +21,8 @@ export interface Learner {
   choose(candidates: { features: FeatureVector }[], rng: Rng, today: string): number;
   /** Learn from the shown outfit's features and the reward from its rating. */
   learn(features: FeatureVector, reward: number, today: string): void;
+  /** The user skipped this outfit ("Try another"); optional. */
+  skip?(features: FeatureVector, today: string): void;
 }
 
 export interface LearnerSpec {
@@ -60,7 +68,14 @@ function mask(f: FeatureVector, ignore: FeatureName[] = []): FeatureVector {
  * and the belief it fades back to both read them); `runBenchmark` runs one
  * learner's days at a time, so each learner sees its own. */
 export function production(
-  opts: { ignore?: FeatureName[]; halfLifeDays?: number; coldStart?: Weights } = {},
+  opts: {
+    ignore?: FeatureName[];
+    halfLifeDays?: number;
+    coldStart?: Weights;
+    /** Learn from skips (default: the app's SKIP_REWARD / SKIP_WEIGHT); false
+     * ignores them. */
+    skips?: false | { reward?: number; weight?: number };
+  } = {},
 ): Learner {
   if (opts.coldStart) setColdStart(opts.coldStart);
   else setColdStart(APP_START);
@@ -84,6 +99,15 @@ export function production(
         today,
         halfLifeDays: opts.halfLifeDays,
       });
+    },
+    skip(features, today) {
+      if (opts.skips === false) return;
+      model = learnFromSkip(
+        model,
+        mask(features, opts.ignore),
+        { on: today, today, halfLifeDays: opts.halfLifeDays },
+        opts.skips,
+      );
     },
   };
 }

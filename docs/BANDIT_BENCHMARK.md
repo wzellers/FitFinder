@@ -107,6 +107,20 @@ month 0.32 → **0.30**. Gains are modest because per-item ratings already
 captured most of what a rating-heavy start used to add; heavier still (0.8)
 started worse for noisy raters.
 
+### Learning from "Try another" (browsing users)
+
+The benchmark can now simulate browsing: users press "Try another" on
+outfits outside about their top 30% of the day (judged with noise), up to 5 a
+day, then wear and rate the one they accept. Regret is for the first outfit
+shown, so it measures how well the model has learned. Each skip is learned as
+a reward of 0.1 with a quarter of a rating's weight, and isn't counted as a
+rating. After a month, ignoring skips → learning from them: typical **0.40 →
+0.34**, item-driven 0.27 → **0.25**, noisy **0.61 → 0.52**, drifting **0.44 →
+0.37**, and fewer outfits shown before one is accepted (typical 1.70 → 1.60 a
+day). A reward of 0.3 helped less, and a weight of 0.5 no more. If skips were
+mostly random (heavy noise on the user's judgement), learning from them
+neither helped nor hurt (0.25 either way).
+
 ## Method
 
 **The world is real; only the user is simulated.** Each simulated user gets:

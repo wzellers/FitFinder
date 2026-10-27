@@ -189,4 +189,56 @@ How fast old ratings fade (production learner). ∞ = never.
 | half-life 240 days | 0.65 ± 0.03 | 0.42 ± 0.03 | 0.32 ± 0.03 | 0.32 ± 0.03 | 63% |
 | half-life 480 days | 0.65 ± 0.03 | 0.42 ± 0.03 | 0.32 ± 0.03 | 0.32 ± 0.03 | 63% |
 
+## Learning from "Try another" (browsing users)
+
+Users skip outfits outside about their top 30% (with noise), up to 5 a day. Regret is for the first outfit shown each day.
+
+### Scenario: typical
+
+| Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 | Outfits shown a day |
+|---|---|---|---|---|---|
+| ignore skips | 0.79 ± 0.03 | 0.61 ± 0.04 | 0.40 ± 0.03 | 62% | 1.70 |
+| skip reward 0.1, weight 0.1 | 0.76 ± 0.04 | 0.54 ± 0.04 | 0.36 ± 0.03 | 65% | 1.61 |
+| **production** skip reward 0.1, weight 0.25 | 0.76 ± 0.04 | 0.53 ± 0.04 | 0.34 ± 0.03 | 66% | 1.60 |
+| skip reward 0.1, weight 0.5 | 0.74 ± 0.04 | 0.52 ± 0.04 | 0.34 ± 0.03 | 65% | 1.58 |
+| skip reward 0.3, weight 0.1 | 0.77 ± 0.04 | 0.58 ± 0.04 | 0.38 ± 0.04 | 64% | 1.66 |
+| skip reward 0.3, weight 0.25 | 0.76 ± 0.04 | 0.57 ± 0.04 | 0.38 ± 0.04 | 64% | 1.67 |
+| skip reward 0.3, weight 0.5 | 0.74 ± 0.04 | 0.54 ± 0.04 | 0.37 ± 0.04 | 65% | 1.64 |
+
+### Scenario: item-driven
+
+| Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 | Outfits shown a day |
+|---|---|---|---|---|---|
+| ignore skips | 0.92 ± 0.04 | 0.50 ± 0.04 | 0.27 ± 0.03 | 76% | 1.54 |
+| skip reward 0.1, weight 0.1 | 0.90 ± 0.04 | 0.47 ± 0.04 | 0.25 ± 0.03 | 78% | 1.50 |
+| **production** skip reward 0.1, weight 0.25 | 0.87 ± 0.04 | 0.44 ± 0.04 | 0.25 ± 0.03 | 79% | 1.49 |
+| skip reward 0.1, weight 0.5 | 0.87 ± 0.04 | 0.46 ± 0.04 | 0.24 ± 0.03 | 79% | 1.50 |
+| skip reward 0.3, weight 0.1 | 0.92 ± 0.04 | 0.50 ± 0.04 | 0.27 ± 0.03 | 77% | 1.54 |
+| skip reward 0.3, weight 0.25 | 0.90 ± 0.04 | 0.49 ± 0.05 | 0.28 ± 0.04 | 76% | 1.55 |
+| skip reward 0.3, weight 0.5 | 0.89 ± 0.04 | 0.51 ± 0.05 | 0.31 ± 0.05 | 77% | 1.62 |
+
+### Scenario: noisy
+
+| Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 | Outfits shown a day |
+|---|---|---|---|---|---|
+| ignore skips | 0.83 ± 0.03 | 0.77 ± 0.04 | 0.61 ± 0.04 | 41% | 2.10 |
+| skip reward 0.1, weight 0.1 | 0.80 ± 0.03 | 0.71 ± 0.04 | 0.55 ± 0.04 | 45% | 1.96 |
+| **production** skip reward 0.1, weight 0.25 | 0.79 ± 0.04 | 0.69 ± 0.04 | 0.52 ± 0.04 | 50% | 1.89 |
+| skip reward 0.1, weight 0.5 | 0.79 ± 0.04 | 0.68 ± 0.04 | 0.52 ± 0.04 | 46% | 1.89 |
+| skip reward 0.3, weight 0.1 | 0.82 ± 0.04 | 0.77 ± 0.04 | 0.62 ± 0.04 | 42% | 2.08 |
+| skip reward 0.3, weight 0.25 | 0.80 ± 0.04 | 0.73 ± 0.04 | 0.56 ± 0.04 | 47% | 1.99 |
+| skip reward 0.3, weight 0.5 | 0.80 ± 0.04 | 0.72 ± 0.04 | 0.56 ± 0.04 | 45% | 1.98 |
+
+### Scenario: drifting
+
+| Learner | Regret, ratings 1–7 | Regret, 8–30 | Regret, 31–90 | Top-10% picks, 31–90 | Outfits shown a day |
+|---|---|---|---|---|---|
+| ignore skips | 0.79 ± 0.03 | 0.61 ± 0.04 | 0.44 ± 0.03 | 57% | 1.74 |
+| skip reward 0.1, weight 0.1 | 0.76 ± 0.04 | 0.54 ± 0.04 | 0.40 ± 0.03 | 60% | 1.66 |
+| **production** skip reward 0.1, weight 0.25 | 0.76 ± 0.04 | 0.53 ± 0.04 | 0.37 ± 0.03 | 62% | 1.64 |
+| skip reward 0.1, weight 0.5 | 0.74 ± 0.04 | 0.52 ± 0.04 | 0.37 ± 0.03 | 61% | 1.62 |
+| skip reward 0.3, weight 0.1 | 0.77 ± 0.04 | 0.58 ± 0.04 | 0.41 ± 0.04 | 60% | 1.69 |
+| skip reward 0.3, weight 0.25 | 0.76 ± 0.04 | 0.57 ± 0.04 | 0.41 ± 0.03 | 60% | 1.69 |
+| skip reward 0.3, weight 0.5 | 0.74 ± 0.04 | 0.54 ± 0.04 | 0.38 ± 0.03 | 61% | 1.66 |
+
 Windows: ratings 1–7 = ratings 1–7; 8–30 = ratings 8–30; 31–90 = ratings 31–90.

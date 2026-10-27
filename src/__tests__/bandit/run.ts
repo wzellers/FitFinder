@@ -8,6 +8,7 @@ import { computeReward } from '@/lib/banditModel';
 import type { LearnerSpec } from './learners';
 import {
   candidatesFor,
+  gaussian,
   makeCloset,
   makeDays,
   makeLikedCombos,
@@ -44,6 +45,8 @@ export interface LearnerResult {
   regret: Stat[];
   /** Share of days the shown outfit was in the day's true top 10%. */
   top10: Stat[];
+  /** With `browse`: outfits shown per day, until one was accepted. */
+  shownPerDay?: Stat;
 }
 
 export interface RunOptions {
@@ -52,6 +55,13 @@ export interface RunOptions {
   seed: number;
   /** Reporting windows (default WINDOWS). */
   windows?: Window[];
+  /**
+   * Users browse: they press "Try another" on outfits they don't like (not in
+   * about their top `acceptTop` share of the day's candidates, judged with
+   * some noise), up to `maxShown` outfits a day, then wear and rate the one
+   * they accept. Regret is still measured on the first outfit shown.
+   */
+  browse?: { maxShown: number; acceptTop: number; noise: number };
 }
 
 function stat(values: number[]): Stat {
@@ -64,11 +74,12 @@ function stat(values: number[]): Stat {
 export function runBenchmark(
   population: Population,
   learners: LearnerSpec[],
-  { users, days, seed, windows = WINDOWS }: RunOptions,
+  { users, days, seed, windows = WINDOWS, browse }: RunOptions,
 ): LearnerResult[] {
   const perLearner = learners.map(() => ({
     regret: windows.map(() => [] as number[]),
     top10: windows.map(() => [] as number[]),
+    shown: [] as number[],
   }));
 
   for (let u = 0; u < users; u++) {
@@ -84,6 +95,7 @@ export function runBenchmark(
       const history: WearRecord[] = [];
       const regret: number[] = [];
       const top: number[] = [];
+      const shownPerDay: number[] = [];
 
       for (let d = 0; d < days; d++) {
         const cands = candidatesFor(closet, liked, dayList[d], d, history);
@@ -105,13 +117,42 @@ export function runBenchmark(
         const better = utils.filter((v) => v > utils[i]).length;
         top.push(better / utils.length < 0.1 ? 1 : 0);
 
+        // Browsing: skip until an outfit is good enough, learning from skips.
+        let worn = i;
+        if (browse) {
+          const skipRng = mulberry32(seed * 15_485_863 + u * 1_000 + d);
+          const share = (k: number) => utils.filter((v) => v < utils[k]).length / utils.length;
+          const shown = new Set([i]);
+          while (
+            shown.size < browse.maxShown &&
+            share(worn) + browse.noise * gaussian(skipRng) < 1 - browse.acceptTop
+          ) {
+            learner.skip?.(cands[worn].features, simDate(d));
+            const rest = choices.map((c, k) => ({ c, k })).filter(({ k }) => !shown.has(k));
+            if (rest.length === 0) break;
+            worn =
+              rest[
+                learner.choose(
+                  rest.map((r) => r.c),
+                  policyRng,
+                  simDate(d),
+                )
+              ].k;
+            shown.add(worn);
+          }
+          shownPerDay.push(shown.size);
+        }
+
         // Same noise for every learner on the same user and day.
-        const rating = rate(utils[i], user.noise, mulberry32(seed * 104_729 + u * 1_000 + d));
-        learner.learn(cands[i].features, computeReward(rating), simDate(d));
-        const c = cands[i];
+        const rating = rate(utils[worn], user.noise, mulberry32(seed * 104_729 + u * 1_000 + d));
+        learner.learn(cands[worn].features, computeReward(rating), simDate(d));
+        const c = cands[worn];
         history.push({ day: d, top: c.top.id, bottom: c.bottom.id, shoes: c.shoes.id, rating });
       }
 
+      if (shownPerDay.length) {
+        perLearner[li].shown.push(shownPerDay.reduce((a, b) => a + b, 0) / shownPerDay.length);
+      }
       windows.forEach((w, wi) => {
         const r = regret.slice(w.from - 1, w.to);
         const t = top.slice(w.from - 1, w.to);
@@ -127,17 +168,19 @@ export function runBenchmark(
     name: spec.name,
     regret: perLearner[li].regret.map(stat),
     top10: perLearner[li].top10.map(stat),
+    shownPerDay: perLearner[li].shown.length ? stat(perLearner[li].shown) : undefined,
   }));
 }
 
 /** A results table in Markdown. */
 export function formatTable(results: LearnerResult[], windows: Window[] = WINDOWS): string {
   const last = windows.length - 1;
-  const head = `| Learner | ${windows.map((w) => `Regret, ${w.label}`).join(' | ')} | Top-10% picks, ${windows[last].label} |`;
-  const sep = `|${'---|'.repeat(windows.length + 2)}`;
+  const browsed = results.some((r) => r.shownPerDay);
+  const head = `| Learner | ${windows.map((w) => `Regret, ${w.label}`).join(' | ')} | Top-10% picks, ${windows[last].label} |${browsed ? ' Outfits shown a day |' : ''}`;
+  const sep = `|${'---|'.repeat(windows.length + 2 + (browsed ? 1 : 0))}`;
   const rows = results.map(
     (r) =>
-      `| ${r.name} | ${r.regret.map((s) => `${s.mean.toFixed(2)} ± ${s.ci.toFixed(2)}`).join(' | ')} | ${(r.top10[last].mean * 100).toFixed(0)}% |`,
+      `| ${r.name} | ${r.regret.map((s) => `${s.mean.toFixed(2)} ± ${s.ci.toFixed(2)}`).join(' | ')} | ${(r.top10[last].mean * 100).toFixed(0)}% |${r.shownPerDay ? ` ${r.shownPerDay.mean.toFixed(2)} |` : ''}`,
   );
   return [head, sep, ...rows].join('\n');
 }
