@@ -64,7 +64,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 380 unit/component tests (`npm run test`).
+- **Vitest:** 381 unit/component tests (`npm run test`).
 - **Playwright:** 49 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
