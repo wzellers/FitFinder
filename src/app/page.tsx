@@ -162,7 +162,15 @@ export default function Page() {
 
   return (
     <OutfitThemeProvider>
-      <div className="min-h-screen bg-[var(--bg)]">
+      {/* Today's outfit colours wash softly behind the Outfits screen. The
+          wrapper below stays transparent so the wash shows through. */}
+      <div
+        aria-hidden="true"
+        data-testid="outfit-wash"
+        className="outfit-wash fixed inset-0 -z-10 pointer-events-none"
+        style={{ opacity: activeTab === 'generator' ? 1 : 0 }}
+      />
+      <div className="min-h-screen">
         {/* ===== TOP BAR ===== */}
         <header className="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-[var(--border)] px-4 lg:px-8">
           <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
@@ -185,27 +193,42 @@ export default function Page() {
         {/* ===== MAIN CONTENT ===== */}
         <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-32">
           {activeTab === 'closet' && (
-            <Closet
-              key={closetRefreshKey}
-              onAddItem={() => setShowImageUpload(true)}
-              onEditItem={(item) => {
-                setSelectedItem(item);
-                setShowEditItem(true);
-              }}
-            />
+            <div className="page-in">
+              <Closet
+                key={closetRefreshKey}
+                onAddItem={() => setShowImageUpload(true)}
+                onEditItem={(item) => {
+                  setSelectedItem(item);
+                  setShowEditItem(true);
+                }}
+              />
+            </div>
           )}
-          {activeTab === 'preferences' && <ColorPreferences />}
+          {activeTab === 'preferences' && (
+            <div className="page-in">
+              <ColorPreferences />
+            </div>
+          )}
           {/* Kept mounted once opened, so the generated outfit survives tab switches. */}
           {generatorOpened && (
-            <div hidden={activeTab !== 'generator'}>
+            // page-in replays each time the tab is un-hidden.
+            <div hidden={activeTab !== 'generator'} className="page-in">
               <OutfitGenerator
                 onNavigateToCalendar={() => setActiveTab('calendar')}
                 refreshKey={closetRefreshKey}
               />
             </div>
           )}
-          {activeTab === 'calendar' && <OutfitCalendar />}
-          {activeTab === 'stats' && <WardrobeStats />}
+          {activeTab === 'calendar' && (
+            <div className="page-in">
+              <OutfitCalendar />
+            </div>
+          )}
+          {activeTab === 'stats' && (
+            <div className="page-in">
+              <WardrobeStats />
+            </div>
+          )}
         </main>
 
         {/* ===== MODALS ===== */}

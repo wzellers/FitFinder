@@ -44,6 +44,13 @@ export interface OutfitTheme {
   /** Nav highlight and its label. */
   pillActive: string;
   pillActiveInk: string;
+  /** The outfit's top and bottom colours, for the page's colour wash. */
+  top: string;
+  bottom: string;
+  /** An accent from the outfit for buttons and links on white: readable as
+   * text on white (4.5:1), with `uiAccentInk` readable on it. */
+  uiAccent: string;
+  uiAccentInk: string;
 }
 
 /**
@@ -63,7 +70,14 @@ export function themeFromPairing(top: string, bottom: string): OutfitTheme {
     contrast(pillActive, PAPER) >= 1.6 ? readableOn(pillActive) : readableOn('#5c1a26');
   // Buttons use the title colour when it's a strong match, else the readable ink.
   const accent = contrast(posterTitle, posterBg) >= 3 ? posterTitle : posterFg;
+  // On the white page: the bottom colour if it reads on white, else the top
+  // colour, else the house burgundy.
+  const uiAccent = [posterBg, topHex].find((c) => contrast(c, PAPER) >= 4.5) ?? '#5c1a26';
   return {
+    top: topHex,
+    bottom: posterBg,
+    uiAccent,
+    uiAccentInk: readableOn(uiAccent),
     posterBg,
     posterTitle,
     posterFg,

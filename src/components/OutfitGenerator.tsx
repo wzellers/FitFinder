@@ -664,20 +664,22 @@ export default function OutfitGenerator({
 
   // The outfit's colour pairing: the top's and the bottom's main colours.
   // After a spin it is revealed once the last reel lands, as the payoff.
-  const currentPairing: [string, string] | null =
-    top?.colors[0] && bottom?.colors[0] ? [top.colors[0], bottom.colors[0]] : null;
-  const pairingKey = currentPairing ? currentPairing.join('|') : '';
-  const [pairing, setPairing] = useState<[string, string] | null>(null);
+  // The palette strip shows every piece's main colour the same way.
+  const currentPalette =
+    top && bottom && shoes ? [top, bottom, shoes].map((i) => i.colors[0] ?? null) : null;
+  const pairingKey = currentPalette ? currentPalette.map((c) => c ?? '').join('|') : '';
+  const [palette, setPalette] = useState<(string | null)[] | null>(null);
   const { setPairing: setThemePairing } = useOutfitTheme();
   useEffect(() => {
     const justSpun = Date.now() - lastSpinAt.current < 300;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const delay = justSpun && !reduce ? reelDuration.shoes : 0;
+    const swapped = SLOTS.some((s) => directions[s] !== 'down');
+    const delay = justSpun && !reduce ? (swapped ? SWAP_DURATION : reelDuration.shoes) : 0;
     const t = setTimeout(() => {
-      const next = pairingKey ? (pairingKey.split('|') as [string, string]) : null;
-      setPairing(next);
-      // Today's outfit restyles the app (headers, nav highlight).
-      if (next) setThemePairing(next);
+      const next = pairingKey ? pairingKey.split('|').map((c) => c || null) : null;
+      setPalette(next);
+      // Today's outfit restyles the app (headers, nav, buttons, background).
+      if (next?.[0] && next[1]) setThemePairing([next[0], next[1]]);
     }, delay);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -723,7 +725,7 @@ export default function OutfitGenerator({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full outfit-scope">
       <PosterHeader
         compact
         title="Today's fit"
@@ -844,21 +846,22 @@ export default function OutfitGenerator({
                 })}
                 {instructions && <> · {instructions}</>}
               </p>
-              {pairing && (
-                <p className="readout inline-flex items-center gap-1.5">
-                  <span className="flex -space-x-1" aria-hidden="true">
-                    {pairing.map((c, i) => (
+              {palette && (
+                <div className="w-full mt-2">
+                  <div className="flex gap-1.5" aria-hidden="true">
+                    {palette.map((c, i) => (
                       <span
                         key={i}
-                        className="w-3.5 h-3.5 rounded-full border border-white"
-                        style={getColorStyle(c)}
+                        className="h-2 flex-1 rounded-full border border-black/5 transition-colors duration-700"
+                        style={c ? getColorStyle(c) : { backgroundColor: 'var(--muted)' }}
                       />
                     ))}
-                  </span>
-                  {pairing[0] === pairing[1]
-                    ? `${getColorName(pairing[0])} · tonal`
-                    : `${getColorName(pairing[0])} × ${getColorName(pairing[1])}`}
-                </p>
+                  </div>
+                  <p className="readout mt-1.5">
+                    <span className="sr-only">Palette: </span>
+                    {palette.map((c) => (c ? getColorName(c) : 'No colour')).join(' · ')}
+                  </p>
+                </div>
               )}
             </div>
 

@@ -18,7 +18,17 @@ describe('themeFromPairing', () => {
         expect(contrast(t.pillActiveInk, t.pillActive)).toBeGreaterThanOrEqual(4.5);
         expect(contrast(t.accentInk, t.accent)).toBeGreaterThanOrEqual(4.5);
         expect(contrast(t.accent, t.posterBg)).toBeGreaterThanOrEqual(3);
+        expect(contrast(t.uiAccent, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(t.uiAccentInk, t.uiAccent)).toBeGreaterThanOrEqual(4.5);
       }
     }
+  });
+
+  it('takes the page accent from the outfit when it reads on white', () => {
+    expect(themeFromPairing('white', 'navy blue').uiAccent.toLowerCase()).toBe('#1f2a4a');
+    // A pale bottom falls back to a dark top.
+    expect(themeFromPairing('navy blue', 'white').uiAccent.toLowerCase()).toBe('#1f2a4a');
+    // Nothing dark enough: the house burgundy.
+    expect(themeFromPairing('white', 'beige').uiAccent).toBe('#5c1a26');
   });
 });

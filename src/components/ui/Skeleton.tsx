@@ -5,7 +5,8 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className = '' }: SkeletonProps) {
-  return <div className={`animate-pulse bg-[var(--muted)] rounded ${className}`} />;
+  // Tinted with today's outfit colours once there is one (see .skeleton-tint).
+  return <div className={`animate-pulse skeleton-tint rounded ${className}`} />;
 }
 
 export function SkeletonGrid({ count = 8 }: { count?: number }) {

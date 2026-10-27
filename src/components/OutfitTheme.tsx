@@ -22,7 +22,8 @@ export function useOutfitTheme() {
 
 /**
  * Lets the latest generated outfit restyle the app: its colours are exposed
- * as CSS variables that the poster headers and the nav highlight read.
+ * as CSS variables that the poster headers, the nav highlight, the Outfits
+ * screen's buttons and its background wash read.
  * Without a pairing the default burgundy / sky blue applies.
  */
 export function OutfitThemeProvider({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,10 @@ export function OutfitThemeProvider({ children }: { children: React.ReactNode })
       '--poster-accent-ink': t.accentInk,
       '--pill-active': t.pillActive,
       '--pill-active-ink': t.pillActiveInk,
+      '--outfit-top': t.top,
+      '--outfit-bottom': t.bottom,
+      '--outfit-accent': t.uiAccent,
+      '--outfit-accent-ink': t.uiAccentInk,
     } as React.CSSProperties;
   }, [pairing]);
 

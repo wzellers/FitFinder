@@ -158,6 +158,18 @@ describe('Page — Logged In Navigation', () => {
     expect(screen.getByTestId('generator')).toBeTruthy();
   });
 
+  it("washes today's outfit colours behind the Outfits screen only", async () => {
+    renderWithProviders(<Page />);
+    await waitFor(() => screen.getByTestId('closet'), { timeout: 3000 });
+    const wash = screen.getByTestId('outfit-wash');
+    expect(wash.style.opacity).toBe('0');
+    fireEvent.click(screen.getByRole('button', { name: 'Outfits' }));
+    await waitFor(() => screen.getByTestId('generator'), { timeout: 3000 });
+    expect(wash.style.opacity).toBe('1');
+    fireEvent.click(screen.getByRole('button', { name: 'Closet' }));
+    expect(wash.style.opacity).toBe('0');
+  });
+
   it('navigates to Calendar tab on click', async () => {
     renderWithProviders(<Page />);
     await waitFor(() => screen.queryAllByText('Calendar').length > 0, { timeout: 3000 });

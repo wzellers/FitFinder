@@ -10,6 +10,29 @@
  * burgundy text on it; never as text on white), and a pale sky wash backs
  * panels. Raspberry is the rare pop (dirty / destructive).
  */
+/* Today's outfit colours (set by OutfitThemeProvider). Registered as colours
+ * so the page fades between outfits instead of snapping. */
+@property --outfit-top {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --outfit-bottom {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --outfit-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #5c1a26;
+}
+@property --outfit-accent-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+
 @layer base {
   :root {
     /* Palette */
@@ -61,6 +84,9 @@
     /* Nav highlight (themable) */
     --pill-active: var(--burgundy);
     --pill-active-ink: #ffffff;
+
+    /* Text on the primary button */
+    --accent-ink: #ffffff;
   }
 
   html {
@@ -188,8 +214,53 @@
            transition-colors min-h-[44px];
   }
   .btn-primary {
-    @apply btn bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]
+    @apply btn bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]
            disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* The Outfits screen takes its accent from today's outfit. */
+  .outfit-scope {
+    --accent: var(--outfit-accent);
+    --accent-hover: color-mix(in srgb, var(--outfit-accent) 82%, black);
+    --accent-ink: var(--outfit-accent-ink);
+    transition:
+      --outfit-accent 0.9s ease,
+      --outfit-accent-ink 0.9s ease;
+  }
+
+  /* A soft wash of today's outfit colours behind the Outfits screen. */
+  .outfit-wash {
+    background:
+      radial-gradient(
+        55% 45% at 12% 8%,
+        color-mix(in srgb, var(--outfit-top) 20%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        60% 50% at 90% 92%,
+        color-mix(in srgb, var(--outfit-bottom) 18%, transparent),
+        transparent 72%
+      );
+    transition:
+      --outfit-top 1.2s ease,
+      --outfit-bottom 1.2s ease,
+      opacity 0.7s ease;
+  }
+
+  /* Loading placeholders, tinted by today's outfit. */
+  .skeleton-tint {
+    background: color-mix(in srgb, var(--outfit-bottom) 14%, var(--muted));
+  }
+
+  /* A tab's content easing in when it's shown (also when un-hidden). */
+  .page-in {
+    animation: page-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
   }
   .btn-secondary {
     @apply btn bg-white text-[var(--text)] border border-[var(--line-strong)] hover:bg-[var(--muted)]

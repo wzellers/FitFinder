@@ -350,4 +350,18 @@ describe('OutfitGenerator', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Generate outfit' }));
     expect(await screen.findByRole('group', { name: /Rate this outfit/ })).toBeTruthy();
   });
+
+  it("shows the outfit's palette once it lands, and themes the screen from it", async () => {
+    mockRows.clothing_items = [
+      makeTop({ colors: ['navy blue'] }),
+      makeBottom({ colors: ['beige'] }),
+      makeShoes({ colors: ['white'] }),
+    ];
+    const { container } = renderWithProviders(<OutfitGenerator />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+    expect(container.querySelector('.outfit-scope')).toBeTruthy();
+    expect(
+      await screen.findByText('Navy Blue · Beige · White', {}, { timeout: 4000 }),
+    ).toBeTruthy();
+  });
 });
