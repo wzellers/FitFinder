@@ -259,4 +259,84 @@ describe('OutfitGenerator', () => {
     );
     expect(impressions().find((w) => w.op === 'update')?.row).toMatchObject({ outcome: 'skipped' });
   });
+
+  describe('swapping one piece', () => {
+    const piece = (part: string) =>
+      screen
+        .getByRole('button', { name: new RegExp(`^Change ${part}: `) })
+        .getAttribute('aria-label');
+
+    async function generated() {
+      renderWithProviders(<OutfitGenerator />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+      await screen.findByRole('button', { name: 'Try another outfit' });
+    }
+
+    it('changes only that piece, with either arrow', async () => {
+      mockRows.clothing_items = [
+        makeTop({ colors: ['red'] }),
+        makeTop({ colors: ['green'] }),
+        makeTop({ colors: ['blue'] }),
+        makeBottom(),
+        makeShoes(),
+      ];
+      await generated();
+      for (const direction of ['slide right', 'slide left']) {
+        const before = { top: piece('top'), bottom: piece('bottom'), shoes: piece('shoes') };
+        fireEvent.click(screen.getByRole('button', { name: `Swap top (${direction})` }));
+        await waitFor(() => expect(piece('top')).not.toBe(before.top));
+        expect(piece('bottom')).toBe(before.bottom);
+        expect(piece('shoes')).toBe(before.shoes);
+      }
+    });
+
+    it('learns the swap like a skip of the outfit as shown', async () => {
+      mockRows.clothing_items = [makeTop(), makeTop(), makeBottom(), makeShoes()];
+      await generated();
+      const impressions = () => mockWrites.filter((w) => w.table === 'outfit_impressions');
+      await waitFor(() => expect(impressions()).toHaveLength(1));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Swap top (slide left)' }));
+      await waitFor(() =>
+        expect(mockUpserts.filter((u) => u.table === 'outfit_model_weights')).toHaveLength(1),
+      );
+      await waitFor(() =>
+        expect(impressions().find((w) => w.op === 'update')?.row).toMatchObject({
+          outcome: 'skipped',
+        }),
+      );
+    });
+
+    it('says so when nothing else goes with the rest of the outfit', async () => {
+      mockRows.clothing_items = [makeTop(), makeTop(), makeBottom(), makeShoes()];
+      await generated();
+      const shoes = piece('shoes');
+      fireEvent.click(screen.getByRole('button', { name: 'Swap shoes (slide right)' }));
+      expect(
+        await screen.findByText(
+          'No other pair of shoes goes with the rest of this outfit right now.',
+        ),
+      ).toBeTruthy();
+      expect(piece('shoes')).toBe(shoes);
+      // Nothing was swapped, so it isn't a pass on the outfit.
+      expect(mockUpserts.filter((u) => u.table === 'outfit_model_weights')).toHaveLength(0);
+      expect(
+        mockWrites.filter((w) => w.table === 'outfit_impressions' && w.op === 'update'),
+      ).toHaveLength(0);
+    });
+
+    it("can't swap a kept piece", async () => {
+      mockRows.clothing_items = [makeTop(), makeTop(), makeBottom(), makeShoes()];
+      await generated();
+      fireEvent.click(screen.getByRole('button', { name: 'Lock top' }));
+      expect(
+        (screen.getByRole('button', { name: 'Swap top (slide left)' }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        (screen.getByRole('button', { name: 'Swap bottom (slide left)' }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(false);
+    });
+  });
 });

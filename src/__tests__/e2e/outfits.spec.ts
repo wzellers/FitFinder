@@ -118,6 +118,66 @@ test('picks a piece by hand', async ({ page }) => {
   expect(await currentPiece(page, 'top')).toBe('Navy blue Button-Up Shirt');
 });
 
+async function impressionOutcomes(db: Awaited<ReturnType<typeof testDb>>['db'], userId: string) {
+  const { data } = await db
+    .from('outfit_impressions')
+    .select('outcome')
+    .eq('user_id', userId)
+    .order('shown_at');
+  return (data ?? []).map((r) => r.outcome);
+}
+
+test('swaps just one piece with its arrow, and learns it as a skip', async ({ page }) => {
+  const { db, userId } = await testDb();
+  await openApp(page, 'Outfits');
+  await generate(page);
+  const before = {
+    top: await currentPiece(page, 'top'),
+    bottom: await currentPiece(page, 'bottom'),
+    shoes: await currentPiece(page, 'shoes'),
+  };
+
+  // The seeded closet has two clean tops, so the other one comes in.
+  await page.getByRole('button', { name: 'Swap top (slide right)' }).click();
+  await expect(slot(page, 'top')).not.toHaveAttribute('aria-label', `Change top: ${before.top}`);
+  expect(await currentPiece(page, 'bottom')).toBe(before.bottom);
+  expect(await currentPiece(page, 'shoes')).toBe(before.shoes);
+
+  // Only one pair of shoes is clean: there's nothing to swap them for.
+  await page.getByRole('button', { name: 'Swap shoes (slide left)' }).click();
+  await expect(
+    page.getByText('No other pair of shoes goes with the rest of this outfit right now.'),
+  ).toBeVisible();
+
+  // The first outfit was passed on; the swapped one is still on screen.
+  await expect.poll(() => impressionOutcomes(db, userId)).toEqual(['skipped', null]);
+});
+
+test('swipes a piece sideways to swap it, without opening the picker', async ({ page }) => {
+  await openApp(page, 'Outfits');
+  await generate(page);
+  const top = await currentPiece(page, 'top');
+
+  const box = (await slot(page, 'top').boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width * 0.8, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.2, y, { steps: 6 });
+  await page.mouse.up();
+
+  await expect(slot(page, 'top')).not.toHaveAttribute('aria-label', `Change top: ${top}`);
+  await expect(page.getByRole('dialog', { name: 'Choose a top' })).toHaveCount(0);
+});
+
+test("a kept piece can't be swapped", async ({ page }) => {
+  await openApp(page, 'Outfits');
+  await generate(page);
+  await page.getByRole('button', { name: 'Lock top' }).click();
+  await expect(page.getByRole('button', { name: 'Swap top (slide left)' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Swap top (slide right)' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Swap bottom (slide left)' })).toBeEnabled();
+});
+
 test('saves an outfit, reopens it, and deletes it', async ({ page }) => {
   await openApp(page, 'Outfits');
   await generate(page);
