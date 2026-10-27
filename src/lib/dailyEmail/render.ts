@@ -1,10 +1,12 @@
 // Render the daily email as HTML and plain text.
 //
 // Email clients ignore stylesheets and most modern CSS, so the HTML uses
-// tables and inline styles in the app's burgundy and sky palette.
+// tables and inline styles, coloured by the outfit it recommends (like the
+// app) on the app's warm neutrals.
 
 import { describeItem } from '@/lib/itemLabels';
 import { colorMap } from '@/lib/constants';
+import { NEUTRAL_ACCENT, themeFromOutfit } from '@/lib/outfitTheme';
 import type { ClothingItem } from '@/lib/types';
 import type { DailyForecast, Digest } from '@/lib/dailyEmail/digest';
 
@@ -25,15 +27,52 @@ export interface RenderedEmail {
   text: string;
 }
 
+/** The app's warm neutrals, shared by every email. */
 const C = {
-  burgundy: '#5c1a26',
-  text: '#3a1018',
-  secondary: '#6e5459',
-  sky: '#9fd0f0',
-  wash: '#edf6fb',
-  muted: '#f4f2f1',
-  border: '#ece6e7',
+  text: '#2b211c',
+  secondary: '#6b5a4e',
+  muted: '#f3ece2',
+  border: '#eae1d5',
 };
+
+/** The email's colours: from the recommended outfit (its top first, like the
+ * app), or the warm neutral scheme when there's no outfit. */
+export interface EmailColors {
+  /** Headings, the weather and the button. */
+  accent: string;
+  accentInk: string;
+  /** Soft fill behind the weather. */
+  tint: string;
+  /** The banner behind "Today's fit", and its title. */
+  bannerBg: string;
+  bannerTitle: string;
+  bannerFg: string;
+}
+
+const NEUTRAL: EmailColors = {
+  accent: NEUTRAL_ACCENT,
+  accentInk: '#ffffff',
+  tint: '#f1e8dc',
+  bannerBg: '#e6d8c5',
+  bannerTitle: '#5a4232',
+  bannerFg: '#3d2e24',
+};
+
+export function emailColors(
+  outfit: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem } | null,
+): EmailColors {
+  const [top, bottom, shoes] = outfit ? [outfit.top, outfit.bottom, outfit.shoes] : [];
+  if (!top?.colors[0] || !bottom?.colors[0]) return NEUTRAL;
+  const t = themeFromOutfit(top.colors[0], bottom.colors[0], shoes?.colors[0]);
+  return {
+    accent: t.uiAccent,
+    accentInk: t.uiAccentInk,
+    tint: t.uiTint,
+    bannerBg: t.posterBg,
+    bannerTitle: t.posterTitle,
+    bannerFg: t.posterFg,
+  };
+}
 
 const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 const MONO = "'SFMono-Regular', Menlo, Consolas, monospace";
@@ -97,8 +136,8 @@ function row(cells: string[]) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${cells.join('')}</tr></table>`;
 }
 
-function heading(text: string) {
-  return `<div style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${C.burgundy};padding:28px 0 10px;">${text}</div>`;
+function heading(text: string, color: string) {
+  return `<div style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${color};padding:28px 0 10px;">${text}</div>`;
 }
 
 export function renderDailyEmail(input: RenderInput): RenderedEmail {
@@ -106,6 +145,7 @@ export function renderDailyEmail(input: RenderInput): RenderedEmail {
   const dateLabel = formatEmailDate(date);
   const tip = forecast ? weatherTip(forecast) : null;
   const weatherText = forecast ? forecastLine(forecast) : null;
+  const P = emailColors(digest.outfit);
 
   const subject = digest.outfit
     ? `Today's fit: ${describeItem(digest.outfit.top)} + ${describeItem(digest.outfit.bottom)}${forecast ? ` · ${forecast.high}°` : ''}`
@@ -113,8 +153,8 @@ export function renderDailyEmail(input: RenderInput): RenderedEmail {
 
   // ---- HTML -------------------------------------------------------------
   const weatherBlock = forecast
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.wash};border-radius:14px;"><tr><td style="padding:16px 18px;">
-  <div style="font-family:${FONT};font-size:28px;font-weight:700;color:${C.burgundy};">${forecast.high}° <span style="font-size:18px;font-weight:400;color:${C.secondary};">/ ${forecast.low}°</span></div>
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${P.tint};border-radius:14px;"><tr><td style="padding:16px 18px;">
+  <div style="font-family:${FONT};font-size:28px;font-weight:700;color:${P.accent};">${forecast.high}° <span style="font-size:18px;font-weight:400;color:${C.secondary};">/ ${forecast.low}°</span></div>
   <div style="font-family:${FONT};font-size:14px;color:${C.text};padding-top:4px;">${escapeHtml(weatherText!)}</div>
   ${tip ? `<div style="font-family:${FONT};font-size:14px;color:${C.text};padding-top:8px;">${escapeHtml(tip)}</div>` : ''}
 </td></tr></table>`
@@ -131,7 +171,7 @@ export function renderDailyEmail(input: RenderInput): RenderedEmail {
   const extra = digest.unwornCount - digest.unworn.length;
   const unwornBlock =
     digest.unworn.length > 0
-      ? `${heading('Not worn this week')}
+      ? `${heading('Not worn this week', P.accent)}
 ${row(digest.unworn.slice(0, 3).map((i) => itemCell(i, '', imageUrls, 100)))}
 ${digest.unworn.length > 3 ? row(digest.unworn.slice(3).map((i) => itemCell(i, '', imageUrls, 100))) : ''}
 ${extra > 0 ? `<p style="font-family:${FONT};font-size:13px;color:${C.secondary};margin:8px 6px 0;">And ${extra} more waiting in your closet.</p>` : ''}`
@@ -139,17 +179,19 @@ ${extra > 0 ? `<p style="font-family:${FONT};font-size:13px;color:${C.secondary}
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;padding:0;background:#ffffff;">
+<body style="margin:0;padding:0;background:#faf6f0;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:24px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;"><tr><td>
-  <div style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${C.secondary};">FitFinder · ${escapeHtml(dateLabel)}</div>
-  <div style="font-family:${FONT};font-size:30px;font-weight:800;color:${C.burgundy};padding:6px 0 18px;">Today's fit</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${P.bannerBg};border-radius:18px;margin-bottom:18px;"><tr><td style="padding:18px 20px;">
+    <div style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${P.bannerFg};">FitFinder · ${escapeHtml(dateLabel)}</div>
+    <div style="font-family:${FONT};font-size:30px;font-weight:800;color:${P.bannerTitle};padding-top:6px;">Today's fit</div>
+  </td></tr></table>
   ${weatherBlock}
-  ${heading('Wear this')}
+  ${heading('Wear this', P.accent)}
   ${outfitBlock}
   ${unwornBlock}
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;"><tr><td style="background:${C.sky};border-radius:999px;">
-    <a href="${escapeHtml(appUrl)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:700;color:${C.burgundy};text-decoration:none;">Open FitFinder</a>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;"><tr><td style="background:${P.accent};border-radius:999px;">
+    <a href="${escapeHtml(appUrl)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:700;color:${P.accentInk};text-decoration:none;">Open FitFinder</a>
   </td></tr></table>
   <p style="font-family:${FONT};font-size:12px;line-height:18px;color:${C.secondary};border-top:1px solid ${C.border};margin:32px 0 0;padding-top:14px;">
     You get this because you turned on the daily email in FitFinder Settings.

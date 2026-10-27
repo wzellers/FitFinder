@@ -9,7 +9,8 @@ import {
 } from '@/lib/dailyEmail/schedule';
 import { buildDigest, pickDailyOutfit, wornThisWeek, UNWORN_LIMIT } from '@/lib/dailyEmail/digest';
 import type { DailyForecast, DigestInput } from '@/lib/dailyEmail/digest';
-import { forecastLine, renderDailyEmail, weatherTip } from '@/lib/dailyEmail/render';
+import { emailColors, forecastLine, renderDailyEmail, weatherTip } from '@/lib/dailyEmail/render';
+import { NEUTRAL_ACCENT, themeFromOutfit } from '@/lib/outfitTheme';
 import { makeBottom, makeItem, makeShoes, makeTop } from '../factories/clothingItem';
 import type { OutfitWear } from '@/lib/types';
 
@@ -237,6 +238,30 @@ describe('render', () => {
     expect(email.subject).toBe('Your FitFinder morning, Tuesday, October 13');
     expect(email.text).toContain('Add your ZIP code');
     expect(email.html).not.toContain('Not worn this week');
+  });
+
+  it('colours the email from the outfit it recommends, top first', () => {
+    const email = renderDailyEmail({
+      ...base,
+      forecast: mild,
+      digest: { outfit: { top, bottom, shoes }, temperature: 'warm', unworn: [], unwornCount: 0 },
+    });
+    const theme = themeFromOutfit(top.colors[0], bottom.colors[0], shoes.colors[0]);
+    expect(emailColors({ top, bottom, shoes }).accent).toBe(theme.uiAccent);
+    // The banner is the top's colour; the button and headings the accent.
+    expect(email.html).toContain(`background:${theme.posterBg};border-radius:18px`);
+    expect(email.html).toContain(`background:${theme.uiAccent};border-radius:999px`);
+    expect(email.html).not.toContain('#5c1a26');
+  });
+
+  it('uses the warm neutrals when there is no outfit', () => {
+    expect(emailColors(null).accent).toBe(NEUTRAL_ACCENT);
+    const email = renderDailyEmail({
+      ...base,
+      forecast: null,
+      digest: { outfit: null, temperature: null, unworn: [], unwornCount: 0 },
+    });
+    expect(email.html).toContain(`background:${NEUTRAL_ACCENT};border-radius:999px`);
   });
 
   it('escapes item text', () => {
