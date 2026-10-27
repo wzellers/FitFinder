@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-26 (measuring recommendations; migration 022 pending)
+**Last updated:** 2026-10-27 (measuring recommendations)
 
 ## What's live
 
@@ -33,10 +33,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`021` are applied. `022_outfit_impressions` (outfit impressions and
-  the `recommendation_quality` view) is written but **not applied yet**; its
-  branch `claude/measure-recommendations` must not be pushed until it is (the
-  E2E reset and the generator use the table). Vault holds the two daily-email secrets.
+  `001`–`022` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -91,9 +88,10 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   rotates ties by date); cold-start weights are rating-heavy (color / variety
   / rating 0.25 / 0.25 / 0.5); "Try another" is learned as a weak negative.
   Ratings from before step 3 aren't retro-trained.
-- **Measuring recommendations:** apply migration 022, then push
-  `claude/measure-recommendations` and open its PR. After that,
-  `select * from recommendation_quality` shows skip rate and ratings per week.
+- **Measuring recommendations:** the generator logs every outfit it shows
+  and what happened (`outfit_impressions`). After a few weeks of real use, run
+  `select * from recommendation_quality order by user_id, week;` in the SQL
+  Editor: if learning works, skip rate falls and ratings rise over the weeks.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
