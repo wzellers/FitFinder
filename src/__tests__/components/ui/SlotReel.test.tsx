@@ -21,14 +21,17 @@ const srcs = (c: HTMLElement) => [...c.querySelectorAll('img')].map((i) => i.get
 const strip = (c: HTMLElement) => c.querySelector<HTMLElement>('[aria-hidden="true"] > div')!;
 
 /** Spin `item` in from `direction` and return the strip as first painted. */
+let rerender: ReturnType<typeof render>['rerender'];
+
 function spin(direction?: 'down' | 'left' | 'right') {
-  const { container, rerender } = render(
+  const r = render(
     <SlotReel item={pool[0]} pool={pool} spinKey={0} durationMs={500} direction={direction} />,
   );
+  rerender = r.rerender;
   rerender(
     <SlotReel item={pool[1]} pool={pool} spinKey={1} durationMs={500} direction={direction} />,
   );
-  return container;
+  return r.container;
 }
 
 describe('SlotReel', () => {
@@ -94,5 +97,17 @@ describe('SlotReel', () => {
       });
       expect(srcs(c)).toEqual(['u1']);
     }
+  });
+
+  it("doesn't spin again when only its speed or direction changes", () => {
+    // Swapping another piece resets this reel's direction and speed; it must
+    // stay still, since its own piece didn't change.
+    const c = spin('left'); // swapped once, sideways
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(imgs(c)).toBe(1);
+    rerender(<SlotReel item={pool[1]} pool={pool} spinKey={1} durationMs={900} direction="down" />);
+    expect(imgs(c)).toBe(1);
   });
 });

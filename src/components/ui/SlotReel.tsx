@@ -72,7 +72,10 @@ export default function SlotReel({
       cancelAnimationFrame(raf);
       clearTimeout(done);
     };
-  }, [spinKey, strip.length, durationMs]);
+    // Only a new spinKey spins the reel. Its speed and direction change when
+    // another piece is swapped, and must not make this one spin again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spinKey]);
 
   if (phase === 'idle') {
     return (

@@ -223,7 +223,7 @@ export default function OutfitGenerator({
   // Bumped per slot on each generate so its reel spins (kept slots don't).
   const [spins, setSpins] = useState({ top: 0, bottom: 0, shoes: 0 });
   const lastSpinAt = useRef(0);
-  const reelDuration = { top: 700, bottom: 950, shoes: 1200 } as const;
+  const reelDuration = { top: 1100, bottom: 1500, shoes: 1900 } as const;
   // A full spin travels down; swapping one piece slides it the way the user
   // pointed (arrow or swipe), and is quicker.
   const [directions, setDirections] = useState<Record<Slot, ReelDirection>>({
@@ -231,7 +231,7 @@ export default function OutfitGenerator({
     bottom: 'down',
     shoes: 'down',
   });
-  const SWAP_DURATION = 650;
+  const SWAP_DURATION = 1100;
   const sectionFor = { top: 'Tops', bottom: 'Bottoms', shoes: 'Shoes' } as const;
 
   // Outfits shown since the generator opened, so "Try another" and rating move
@@ -812,7 +812,34 @@ export default function OutfitGenerator({
               )}
             </div>
 
-            <ul className="mt-6 flex flex-col gap-4">
+            <div className="mt-5 flex flex-col gap-3">
+              <button
+                onClick={tryAnother}
+                disabled={loading}
+                className="btn-primary w-full text-base min-h-[52px]"
+              >
+                <Sparkles size={18} aria-hidden="true" />
+                {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
+              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={openSaveModal} disabled={!hasOutfit} className="btn-secondary">
+                  <Save size={16} aria-hidden="true" /> Save outfit
+                </button>
+                <button onClick={wearToday} disabled={!hasOutfit} className="btn-secondary">
+                  <CalendarPlus size={16} aria-hidden="true" /> Wear today
+                </button>
+              </div>
+            </div>
+            {error && (
+              <p
+                role="status"
+                className="text-sm text-[var(--warning)] bg-[#fdf4e3] rounded-md px-3 py-2 mt-3"
+              >
+                {error}
+              </p>
+            )}
+
+            <ul className="divider mt-5 pt-5 flex flex-col gap-4">
               {slots.map(({ key, label, item, locked, toggle }) => {
                 const canSwap = hasOutfit && !locked && !loading;
                 const arrow = (direction: SwipeDirection) => (
@@ -832,12 +859,12 @@ export default function OutfitGenerator({
                 );
                 return (
                   <li key={key}>
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex items-center justify-center gap-3">
                       {arrow('left')}
                       <SwipeArea
                         onSwipe={(direction) => swapPiece(key, direction)}
                         disabled={!canSwap}
-                        className="flex-1 min-w-0"
+                        className="shrink-0"
                       >
                         <button
                           type="button"
@@ -847,7 +874,7 @@ export default function OutfitGenerator({
                               ? `Change ${label.toLowerCase()}: ${describeItem(item)}`
                               : `Choose a ${label.toLowerCase()}`
                           }
-                          className={`w-full ${key === 'shoes' ? 'h-28 sm:h-32' : 'h-40 sm:h-48'} rounded-xl overflow-hidden flex items-center justify-center transition-shadow ${
+                          className={`w-40 h-40 sm:w-44 sm:h-44 rounded-xl overflow-hidden flex items-center justify-center transition-shadow ${
                             item
                               ? 'bg-white border border-[var(--border)] hover:border-[var(--line-strong)]'
                               : 'border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
@@ -871,7 +898,7 @@ export default function OutfitGenerator({
                       </SwipeArea>
                       {arrow('right')}
                     </div>
-                    <div className="mt-2 flex items-center gap-3 px-12 sm:px-[3.25rem]">
+                    <div className="mt-2 mx-auto w-full max-w-[16rem] sm:max-w-[17.5rem] flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="panel-label">{label}</div>
                         <div className="text-base font-semibold tracking-tight truncate">
@@ -901,38 +928,10 @@ export default function OutfitGenerator({
                 );
               })}
             </ul>
-
-            {error && (
-              <p
-                role="status"
-                className="text-sm text-[var(--warning)] bg-[#fdf4e3] rounded-md px-3 py-2 mt-4"
-              >
-                {error}
-              </p>
-            )}
-
-            <div className="divider mt-6 pt-5 flex flex-col gap-3">
-              <button
-                onClick={tryAnother}
-                disabled={loading}
-                className="btn-primary w-full text-base min-h-[52px]"
-              >
-                <Sparkles size={18} aria-hidden="true" />
-                {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
-              </button>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={openSaveModal} disabled={!hasOutfit} className="btn-secondary">
-                  <Save size={16} aria-hidden="true" /> Save outfit
-                </button>
-                <button onClick={wearToday} disabled={!hasOutfit} className="btn-secondary">
-                  <CalendarPlus size={16} aria-hidden="true" /> Wear today
-                </button>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] text-center">
-                Swipe a piece or use its arrows to swap just that piece. Keep a piece to build
-                around it.
-              </p>
-            </div>
+            <p className="text-xs text-[var(--text-secondary)] text-center mt-4">
+              Swipe a piece or use its arrows to swap just that piece. Keep a piece to build around
+              it.
+            </p>
 
             {hasOutfit && (
               <div className="divider pt-5 mt-5">

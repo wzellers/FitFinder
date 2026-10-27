@@ -20,7 +20,9 @@ async function generate(page: Page) {
 
 test('generates a full outfit from clean items only', async ({ page }) => {
   await openApp(page, 'Outfits');
-  // The outfit is the focus: on a laptop-sized screen it starts above the fold.
+  // The outfit is the focus: on a laptop-sized screen it and the Generate
+  // button start above the fold.
+  await expect(page.getByRole('button', { name: 'Generate outfit' })).toBeInViewport();
   await expect(page.getByRole('button', { name: 'Choose a top' })).toBeInViewport();
   await expect(page.getByText('{ 5 clean items to pick from }')).toBeVisible();
 

@@ -42,6 +42,8 @@ test('settings sections fit as tabs without truncation', async ({ page }) => {
 
 test('generates an outfit on a phone', async ({ page }) => {
   await openApp(page, 'Outfits');
+  // Visible straight away, without scrolling.
+  await expect(page.getByRole('button', { name: 'Generate outfit' })).toBeInViewport();
   await page.getByRole('button', { name: 'Generate outfit' }).click();
   await expect(page.getByRole('button', { name: /^Change top: / })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Change shoes: / })).toBeVisible();
