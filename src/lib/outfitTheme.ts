@@ -21,7 +21,9 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const INK = '#2a0c12';
+/** The app's neutral ink: text, and the accent when there's no outfit. */
+export const NEUTRAL_INK = '#1c1917';
+const INK = NEUTRAL_INK;
 const PAPER = '#ffffff';
 
 /** Whichever of dark ink or white reads better on `bg`. */
@@ -29,14 +31,37 @@ function readableOn(bg: string): string {
   return contrast(INK, bg) >= contrast(PAPER, bg) ? INK : PAPER;
 }
 
+/** Mix `color` toward `toward` by `amount` (0 = color, 1 = toward), as hex. */
+export function mix(color: string, toward: string, amount: number): string {
+  const a = hexOf(color);
+  const b = hexOf(toward);
+  const out = [0, 2, 4].map((i) => {
+    const x = parseInt(a.slice(i, i + 2), 16);
+    const y = parseInt(b.slice(i, i + 2), 16);
+    return Math.round(x + (y - x) * amount)
+      .toString(16)
+      .padStart(2, '0');
+  });
+  return `#${out.join('')}`;
+}
+
+/** `color`, darkened just enough to reach `ratio` against `bg`. */
+function deepen(color: string, bg: string, ratio: number): string {
+  for (let k = 0; k <= 20; k++) {
+    const c = mix(color, '#000000', k * 0.05);
+    if (contrast(c, bg) >= ratio) return c;
+  }
+  return INK;
+}
+
 export interface OutfitTheme {
-  /** Poster header background. */
+  /** Poster header background: the top's colour. */
   posterBg: string;
-  /** Huge poster title (large text: needs 3:1). */
+  /** Huge poster title (large text: needs 3:1): the bottom's colour if it reads. */
   posterTitle: string;
   /** Readout, script and buttons on the poster (needs 4.5:1). */
   posterFg: string;
-  /** Decorative cutout shape. */
+  /** Decorative cutout shape: the shoes' colour if it shows. */
   cutout: string;
   /** Primary button / selected toggle on the poster, and its label. */
   accent: string;
@@ -44,47 +69,58 @@ export interface OutfitTheme {
   /** Nav highlight and its label. */
   pillActive: string;
   pillActiveInk: string;
-  /** The outfit's top and bottom colours, for the page's colour wash. */
+  /** The outfit's top, bottom and shoes colours, for the page's colour wash. */
   top: string;
   bottom: string;
-  /** An accent from the outfit for buttons and links on white: readable as
-   * text on white (4.5:1), with `uiAccentInk` readable on it. */
+  shoes: string;
+  /** The accent for buttons, links and selected states on white: the top's
+   * colour, deepened if needed to read as text on white (4.5:1). */
   uiAccent: string;
   uiAccentInk: string;
+  /** A pale tint of the accent, for soft fills. */
+  uiTint: string;
+  /** The rating glow: the top's colour, deepened if too pale to see on white. */
+  glow: string;
 }
 
 /**
- * Build a theme from an outfit's top and bottom colours: the bottom colour
- * becomes the poster block, the top colour the title (falling back to a
- * readable colour when the two clash), and the nav highlight follows.
+ * Build a theme from an outfit's colours: the top is the main colour, the
+ * bottom the secondary and the shoes the third. Every pairing stays
+ * readable; a colour that clashes falls back to readable ink.
  */
-export function themeFromPairing(top: string, bottom: string): OutfitTheme {
-  const posterBg = `#${hexOf(bottom)}`;
-  const topHex = `#${hexOf(top)}`;
+export function themeFromOutfit(top: string, bottom: string, shoes?: string | null): OutfitTheme {
+  const T = `#${hexOf(top)}`;
+  const B = `#${hexOf(bottom)}`;
+  const S = shoes ? `#${hexOf(shoes)}` : B;
+  const posterBg = T;
   const posterFg = readableOn(posterBg);
-  const posterTitle = contrast(topHex, posterBg) >= 3 ? topHex : posterFg;
-  const cutout = contrast(topHex, posterBg) >= 1.5 ? topHex : posterFg;
-  // The highlight sits on a white pill, so it needs to stand out from white.
-  const pillActive = contrast(posterBg, PAPER) >= 1.6 ? posterBg : topHex;
-  const pillActiveInk =
-    contrast(pillActive, PAPER) >= 1.6 ? readableOn(pillActive) : readableOn('#5c1a26');
-  // Buttons use the title colour when it's a strong match, else the readable ink.
+  const posterTitle = contrast(B, posterBg) >= 3 ? B : posterFg;
+  const cutout = contrast(S, posterBg) >= 1.5 ? S : contrast(B, posterBg) >= 1.5 ? B : posterFg;
   const accent = contrast(posterTitle, posterBg) >= 3 ? posterTitle : posterFg;
-  // On the white page: the bottom colour if it reads on white, else the top
-  // colour, else the house burgundy.
-  const uiAccent = [posterBg, topHex].find((c) => contrast(c, PAPER) >= 4.5) ?? '#5c1a26';
+  // The nav highlight sits on a white pill, so it needs to stand out from white.
+  const pillActive = [T, B, S].find((c) => contrast(c, PAPER) >= 1.6) ?? NEUTRAL_INK;
+  const uiAccent = deepen(T, PAPER, 4.5);
+  const uiTint = mix(uiAccent, PAPER, 0.88);
   return {
-    top: topHex,
-    bottom: posterBg,
-    uiAccent,
-    uiAccentInk: readableOn(uiAccent),
     posterBg,
     posterTitle,
     posterFg,
     cutout,
     accent,
     accentInk: readableOn(accent),
-    pillActive: contrast(pillActive, PAPER) >= 1.6 ? pillActive : '#5c1a26',
-    pillActiveInk,
+    pillActive,
+    pillActiveInk: readableOn(pillActive),
+    top: T,
+    bottom: B,
+    shoes: S,
+    uiAccent,
+    uiAccentInk: readableOn(uiAccent),
+    uiTint,
+    glow: contrast(T, PAPER) >= 1.4 ? T : deepen(T, PAPER, 1.4),
   };
+}
+
+/** The theme from just a top and bottom (the shoes take the bottom's colour). */
+export function themeFromPairing(top: string, bottom: string): OutfitTheme {
+  return themeFromOutfit(top, bottom);
 }

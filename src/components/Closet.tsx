@@ -205,7 +205,7 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
   const chip = (active: boolean) =>
     `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
       active
-        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
+        ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]'
         : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
     }`;
 

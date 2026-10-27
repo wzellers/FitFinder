@@ -371,22 +371,21 @@ describe('OutfitGenerator', () => {
       makeBottom({ colors: ['beige'] }),
       makeShoes({ colors: ['white'] }),
     ];
-    const { container } = renderWithProviders(<OutfitGenerator />);
+    renderWithProviders(<OutfitGenerator />);
     fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
-    expect(container.querySelector('.outfit-scope')).toBeTruthy();
     expect(
       await screen.findByText('Navy Blue · Beige · White', {}, { timeout: 4000 }),
     ).toBeTruthy();
   });
 
-  it("warms the outfit's glow while a high rating is pointed at", async () => {
+  it("glows in the top's colour while a rating is pointed at, stronger when higher", async () => {
     mockRows.clothing_items = [makeTop(), makeBottom(), makeShoes()];
     renderWithProviders(<OutfitGenerator />);
     fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
     const outfit = screen.getByRole('region', { name: 'Your outfit' });
     expect(outfit.style.boxShadow).toBe('');
     fireEvent.mouseEnter(await screen.findByRole('button', { name: '9 out of 10' }));
-    expect(outfit.style.boxShadow).toContain('rgba(255, 140, 40, 0.56)');
+    expect(outfit.style.boxShadow).toContain('var(--outfit-glow) 73%');
   });
 
   it('stamps the outfit into today after Wear today', async () => {

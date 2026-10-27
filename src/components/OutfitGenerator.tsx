@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { getClothingImageUrl } from '@/lib/clothingImages';
 import { renderShareCard, shareOrDownload } from '@/lib/shareCard';
-import { themeFromPairing } from '@/lib/outfitTheme';
+import { NEUTRAL_INK, themeFromOutfit } from '@/lib/outfitTheme';
 import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
@@ -657,8 +657,8 @@ export default function OutfitGenerator({
         }),
         accent:
           top.colors[0] && bottom.colors[0]
-            ? themeFromPairing(top.colors[0], bottom.colors[0]).uiAccent
-            : '#5c1a26',
+            ? themeFromOutfit(top.colors[0], bottom.colors[0], shoes.colors[0]).uiAccent
+            : NEUTRAL_INK,
       });
       const how = await shareOrDownload(blob, `fitfinder-outfit-${toLocalDateString()}.png`);
       if (how === 'downloaded') showToast('Saved an image of your outfit.', 'success');
@@ -787,7 +787,7 @@ export default function OutfitGenerator({
       const next = pairingKey ? pairingKey.split('|').map((c) => c || null) : null;
       setPalette(next);
       // Today's outfit restyles the app (headers, nav, buttons, background).
-      if (next?.[0] && next[1]) setThemePairing([next[0], next[1]]);
+      if (next?.[0] && next[1]) setThemePairing([next[0], next[1], next[2]]);
     }, delay);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -820,7 +820,7 @@ export default function OutfitGenerator({
   const chip = (active: boolean) =>
     `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
       active
-        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
+        ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]'
         : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
     }`;
 
@@ -833,7 +833,7 @@ export default function OutfitGenerator({
   }
 
   return (
-    <div className="w-full outfit-scope">
+    <div className="w-full">
       {/* Today's weather, faintly, behind the screen (off when not dressing for it). */}
       {weather && !ignoreWeather && (
         <WeatherBackdrop {...weatherScene(weather.icon, weather.condition)} />
@@ -953,7 +953,8 @@ export default function OutfitGenerator({
             style={
               ratingPreview > 0
                 ? {
-                    boxShadow: `0 24px 60px -24px rgba(255, 140, 40, ${(0.12 + (0.5 * (ratingPreview - 1)) / 9).toFixed(2)})`,
+                    // The top's colour, stronger the higher the rating.
+                    boxShadow: `0 24px 60px -20px color-mix(in srgb, var(--outfit-glow) ${Math.round(20 + (60 * (ratingPreview - 1)) / 9)}%, transparent)`,
                   }
                 : undefined
             }
@@ -1037,7 +1038,7 @@ export default function OutfitGenerator({
                             item
                               ? 'bg-white border border-[var(--border)] hover:border-[var(--line-strong)]'
                               : 'border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
-                          } ${locked ? 'ring-2 ring-[var(--sky)] ring-offset-2' : ''}`}
+                          } ${locked ? 'ring-2 ring-[var(--accent)] ring-offset-2' : ''}`}
                         >
                           {item ? (
                             <SlotReel
@@ -1065,7 +1066,7 @@ export default function OutfitGenerator({
                         aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
                         className={`min-h-[40px] px-3 rounded-full border text-sm font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-40 ${
                           locked
-                            ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
+                            ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]'
                             : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
                         }`}
                       >

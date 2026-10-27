@@ -3,15 +3,16 @@
 @tailwind utilities;
 
 /*
- * Burgundy & sky blue.
+ * Neutral until there's an outfit.
  *
- * A white page so the clothes carry the colour. Burgundy replaces black as
- * the ink (text, buttons, nav), sky blue is the accent fill (always with
- * burgundy text on it; never as text on white), and a pale sky wash backs
- * panels. Raspberry is the rare pop (dirty / destructive).
+ * A white page with near-black ink and soft stone greys, so the clothes carry
+ * the colour. Once an outfit is generated, OutfitThemeProvider sets the
+ * --outfit-* colours and the whole app takes them: the top's colour is the
+ * accent, the bottom's and the shoes' the secondary and third. Raspberry
+ * stays for dirty / destructive.
  */
-/* Today's outfit colours (set by OutfitThemeProvider). Registered as colours
- * so the page fades between outfits instead of snapping. */
+/* Today's outfit colours. Registered as colours so the app fades between
+ * outfits instead of snapping; the initial values are the neutral scheme. */
 @property --outfit-top {
   syntax: '<color>';
   inherits: true;
@@ -22,71 +23,90 @@
   inherits: true;
   initial-value: transparent;
 }
+@property --outfit-shoes {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
 @property --outfit-accent {
   syntax: '<color>';
   inherits: true;
-  initial-value: #5c1a26;
+  initial-value: #1c1917;
 }
 @property --outfit-accent-ink {
   syntax: '<color>';
   inherits: true;
   initial-value: #ffffff;
 }
+@property --outfit-tint {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f5f5f4;
+}
+@property --outfit-glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #a8a29e;
+}
 
 @layer base {
   :root {
     /* Palette */
-    --burgundy: #5c1a26;
-    --burgundy-deep: #48121d;
-    --sky: #9fd0f0;
-    --sky-wash: #edf6fb;
     --raspberry: #b0244f;
 
     /* Surfaces */
     --bg: #ffffff;
     --card: #ffffff;
-    --muted: #f4f2f1; /* photo wells: neutral so item colours read true */
+    --muted: #f5f5f4; /* photo wells: neutral so item colours read true */
 
     /* Text */
-    --text: #3a1018;
-    --text-secondary: #6e5459;
+    --text: #1c1917;
+    --text-secondary: #57534e;
 
     /* Links and focus */
     --carbon: #23608f;
-    --periwinkle: var(--sky);
 
     /* Lines */
-    --border: #ece6e7;
-    --line-strong: #958389; /* form control borders, 3:1 on white */
+    --border: #e7e5e4;
+    --line-strong: #8a837e; /* form control borders, 3:1 on white */
 
     /* Status */
     --success: #15803d;
     --warning: #92400e;
     --danger: var(--raspberry);
 
-    /* Names used across components */
-    --accent: var(--burgundy);
-    --accent-hover: var(--burgundy-deep);
-    --accent-light: var(--sky-wash);
     --purple: var(--carbon);
     --purple-hover: #1b4d74;
-    --purple-light: var(--sky-wash);
     --focus: var(--carbon);
 
     /* Poster headers (themable by today's outfit) */
-    --poster-bg: var(--burgundy);
-    --poster-title: var(--sky);
-    --poster-fg: #f6eef0;
-    --poster-cutout: var(--sky);
-    --poster-accent: var(--sky);
-    --poster-accent-ink: var(--burgundy);
+    --poster-bg: #1c1917;
+    --poster-title: #fafaf9;
+    --poster-fg: #e7e5e4;
+    --poster-cutout: #44403c;
+    --poster-accent: #fafaf9;
+    --poster-accent-ink: #1c1917;
 
     /* Nav highlight (themable) */
-    --pill-active: var(--burgundy);
+    --pill-active: #1c1917;
     --pill-active-ink: #ffffff;
+  }
 
-    /* Text on the primary button */
-    --accent-ink: #ffffff;
+  /* The accent follows today's outfit. Declared again on the provider's
+   * element, so var() resolves against the outfit colours set there. */
+  :root,
+  [data-outfit-theme] {
+    --accent: var(--outfit-accent);
+    --accent-ink: var(--outfit-accent-ink);
+    --accent-hover: color-mix(in srgb, var(--outfit-accent) 82%, black);
+    --accent-light: var(--outfit-tint);
+    --purple-light: var(--outfit-tint);
+    /* Older names, kept pointing at the accent. */
+    --burgundy: var(--outfit-accent);
+    --burgundy-deep: color-mix(in srgb, var(--outfit-accent) 82%, black);
+    --sky: var(--outfit-tint);
+    --sky-wash: var(--outfit-tint);
+    --periwinkle: var(--outfit-tint);
   }
 
   html {
@@ -218,38 +238,30 @@
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
-  /* The Outfits screen takes its accent from today's outfit. */
-  .outfit-scope {
-    --accent: var(--outfit-accent);
-    --accent-hover: color-mix(in srgb, var(--outfit-accent) 82%, black);
-    --accent-ink: var(--outfit-accent-ink);
-    transition:
-      --outfit-accent 0.9s ease,
-      --outfit-accent-ink 0.9s ease;
-  }
-
   /* A soft wash of today's outfit colours behind the Outfits screen. */
   .outfit-wash {
     background:
       radial-gradient(
         55% 45% at 12% 8%,
-        color-mix(in srgb, var(--outfit-top) 20%, transparent),
+        color-mix(in srgb, var(--outfit-top) 22%, transparent),
         transparent 72%
       ),
       radial-gradient(
-        60% 50% at 90% 92%,
+        60% 50% at 92% 88%,
         color-mix(in srgb, var(--outfit-bottom) 18%, transparent),
         transparent 72%
+      ),
+      radial-gradient(
+        40% 35% at 70% 10%,
+        color-mix(in srgb, var(--outfit-shoes) 14%, transparent),
+        transparent 72%
       );
-    transition:
-      --outfit-top 1.2s ease,
-      --outfit-bottom 1.2s ease,
-      opacity 0.7s ease;
+    transition: opacity 0.7s ease;
   }
 
   /* Loading placeholders, tinted by today's outfit. */
   .skeleton-tint {
-    background: color-mix(in srgb, var(--outfit-bottom) 14%, var(--muted));
+    background: color-mix(in srgb, var(--outfit-top) 14%, var(--muted));
   }
 
   /* "Wear today": pieces shrink into the day's calendar tile, then a check. */
@@ -347,7 +359,9 @@
     @apply btn bg-[var(--poster-accent)] text-[var(--poster-accent-ink)] hover:opacity-90;
   }
   .segmented-poster {
-    @apply inline-flex rounded-full p-1;
+    /* Its own poster-coloured backing, so the labels stay readable where it
+       overlaps the cutout shape. */
+    @apply inline-flex rounded-full p-1 bg-[var(--poster-bg)];
     border: 1px solid color-mix(in srgb, var(--poster-fg) 40%, transparent);
   }
   .segmented-poster > button {

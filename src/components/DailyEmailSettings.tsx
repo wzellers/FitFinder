@@ -129,7 +129,7 @@ export default function DailyEmailSettings() {
               disabled={saving}
               className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors ${
                 enabled
-                  ? 'bg-[var(--burgundy)] border-[var(--burgundy)]'
+                  ? 'bg-[var(--accent)] border-[var(--accent)]'
                   : 'bg-[var(--muted)] border-[var(--line-strong)]'
               }`}
             >

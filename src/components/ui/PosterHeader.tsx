@@ -33,10 +33,11 @@ export default function PosterHeader({
   compact = false,
 }: PosterHeaderProps) {
   const { pairing, setPairing } = useOutfitTheme();
+  const colors = ((pairing ?? []) as (string | null | undefined)[]).filter((c): c is string => !!c);
   const styledBy = pairing && (
-    <span className="inline-flex items-center gap-2 rounded-full bg-white/90 pl-2 pr-1 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#2a0c12] shadow-sm">
+    <span className="inline-flex items-center gap-2 rounded-full bg-white/90 pl-2 pr-1 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text)] shadow-sm">
       <span className="flex -space-x-1" aria-hidden="true">
-        {pairing.map((c, i) => (
+        {colors.map((c, i) => (
           <span
             key={i}
             className="w-3.5 h-3.5 rounded-full border border-white"
@@ -45,9 +46,7 @@ export default function PosterHeader({
         ))}
       </span>
       Styled by today&apos;s fit
-      <span className="sr-only">
-        : {getColorName(pairing[0])} and {getColorName(pairing[1])}
-      </span>
+      <span className="sr-only">: {colors.map(getColorName).join(', ')}</span>
       <button
         onClick={() => setPairing(null)}
         aria-label="Reset colors"

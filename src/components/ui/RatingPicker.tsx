@@ -48,7 +48,7 @@ export default function RatingPicker({
             data-filled={n <= shown ? 'true' : undefined}
             className={`tabular w-10 h-10 rounded-md border text-sm font-semibold transition-[background-color,color,transform] duration-150 disabled:opacity-50 ${
               n === shown
-                ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)] scale-105'
+                ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)] scale-105'
                 : n <= shown
                   ? 'bg-[var(--accent-light)] border-[var(--line-strong)]'
                   : 'bg-white border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'

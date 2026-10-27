@@ -7,32 +7,46 @@ function Picker() {
   const { setPairing } = useOutfitTheme();
   return (
     <>
-      <button onClick={() => setPairing(['white', 'navy blue'])}>Theme</button>
+      <button onClick={() => setPairing(['navy blue', 'beige', 'white'])}>Theme</button>
       <button onClick={() => setPairing(null)}>Reset</button>
     </>
   );
 }
 
-const vars = (c: HTMLElement) => (c.firstElementChild as HTMLElement).style;
+const themed = (c: HTMLElement) => c.firstElementChild as HTMLElement;
 
 describe('OutfitThemeProvider', () => {
-  it("exposes today's outfit colours and a readable accent as CSS variables", () => {
+  it('is neutral until there is an outfit', () => {
     const { container } = render(
       <OutfitThemeProvider>
         <Picker />
       </OutfitThemeProvider>,
     );
-    expect(vars(container).getPropertyValue('--outfit-top')).toBe('');
+    expect(themed(container).dataset.outfitTheme).toBe('neutral');
+    expect(themed(container).style.getPropertyValue('--outfit-accent')).toBe('');
+  });
 
+  it('themes the app from the outfit: top main, bottom secondary, shoes third', () => {
+    const { container } = render(
+      <OutfitThemeProvider>
+        <Picker />
+      </OutfitThemeProvider>,
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Theme' }));
-    const style = vars(container);
-    expect(style.getPropertyValue('--outfit-top').toLowerCase()).toBe('#fafaf7');
-    expect(style.getPropertyValue('--outfit-bottom').toLowerCase()).toBe('#1f2a4a');
-    // White doesn't read on the white page, so the accent is the navy.
-    expect(style.getPropertyValue('--outfit-accent').toLowerCase()).toBe('#1f2a4a');
-    expect(style.getPropertyValue('--outfit-accent-ink').toLowerCase()).toBe('#ffffff');
+    const el = themed(container);
+    const v = (name: string) => el.style.getPropertyValue(name).toLowerCase();
+    expect(el.dataset.outfitTheme).toBe('outfit');
+    expect(v('--outfit-accent')).toBe('#1f2a4a'); // the navy top
+    expect(v('--outfit-accent-ink')).toBe('#ffffff');
+    expect(v('--outfit-glow')).toBe('#1f2a4a');
+    expect(v('--poster-bg')).toBe('#1f2a4a');
+    expect(v('--outfit-top')).toBe('#1f2a4a');
+    expect(v('--outfit-shoes')).toBe('#fafaf7');
+    expect(v('--outfit-bottom')).not.toBe('');
+    // The colours fade rather than snap.
+    expect(el.style.transition).toContain('--outfit-accent');
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
-    expect(vars(container).getPropertyValue('--outfit-accent')).toBe('');
+    expect(themed(container).dataset.outfitTheme).toBe('neutral');
   });
 });
