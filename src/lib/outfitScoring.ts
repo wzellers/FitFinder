@@ -52,10 +52,12 @@ export interface ScoringContext {
 // FEATURE WEIGHTS (cold-start priors; sum to 1.0)
 // ============================================================================
 
+// Rating-heavy: in the benchmark's cold-start sweep this was best or tied in
+// every scenario, mostly in the first weeks (docs/BANDIT_BENCHMARK.md).
 export const FEATURE_WEIGHTS = {
-  color: 0.5,
-  variety: 0.33,
-  rating: 0.17,
+  color: 0.25,
+  variety: 0.25,
+  rating: 0.5,
 } as const;
 
 // Number of recent days over which repetition is penalized.

@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-26 (outfit variety: per-item ratings, exploring untried pieces)
+**Last updated:** 2026-10-26 (rating-heavy cold start)
 
 ## What's live
 
@@ -85,9 +85,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   tab, `outfit_ratings`, counted like worn ratings); the rating feature is per
   item and picking explores untried pieces, the generator doesn't repeat an
   outfit until all have been shown, and ties break at random (the daily email
-  rotates ties by date). A rating-heavy cold start
-  looked better for weeks 2–4 in the benchmark; worth trying. Ratings from
-  before step 3 aren't retro-trained.
+  rotates ties by date); cold-start weights are rating-heavy (color / variety
+  / rating 0.25 / 0.25 / 0.5). Ratings from before step 3 aren't retro-trained.
 - Verify a domain in Resend and set `EMAIL_FROM` to email users other than the
   owner.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in

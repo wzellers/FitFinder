@@ -97,6 +97,16 @@ The benchmark wears an outfit every day, so its variety feature already
 rotates pieces. Browsing the Outfits tab doesn't, which is why the generator
 also skips outfits it has already shown, and exact ties break at random.
 
+### Rating-heavy cold start (0.25 / 0.25 / 0.5)
+
+The cold-start weights (color / variety / rating) moved from 0.5 / 0.33 /
+0.17 to 0.25 / 0.25 / 0.5. In the cold-start sweep on the production learner
+it was best or tied in every scenario: weeks 2–4 for typical users 0.45 →
+**0.43**, the first week for item-driven users 0.89 → **0.83**, drifting after a
+month 0.32 → **0.30**. Gains are modest because per-item ratings already
+captured most of what a rating-heavy start used to add; heavier still (0.8)
+started worse for noisy raters.
+
 ## Method
 
 **The world is real; only the user is simulated.** Each simulated user gets:

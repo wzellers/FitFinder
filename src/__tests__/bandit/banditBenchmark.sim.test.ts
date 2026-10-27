@@ -52,7 +52,8 @@ function sweeps(): Array<{ title: string; note: string; learners: LearnerSpec[] 
   const heavy = (f: FeatureName): Weights =>
     Object.fromEntries(FEATURE_NAMES.map((n) => [n, n === f ? 0.6 : 0.1])) as Weights;
   const starts: Array<[string, Weights]> = [
-    ['current defaults (0.50/0.33/0.17)', { ...FEATURE_WEIGHTS }],
+    ['current defaults (0.25/0.25/0.5)', { ...FEATURE_WEIGHTS }],
+    ['previous defaults (0.5/0.33/0.17)', { color: 0.5, variety: 0.33, rating: 0.17 }],
     ['uniform 0.2', uniform],
     ...FEATURE_NAMES.map((f): [string, Weights] => [`${f}-heavy (0.6)`, heavy(f)]),
     ['all zero', Object.fromEntries(FEATURE_NAMES.map((n) => [n, 0])) as Weights],
@@ -93,9 +94,13 @@ function sweeps(): Array<{ title: string; note: string; learners: LearnerSpec[] 
       })),
     },
     {
-      title: 'Cold-start weights (Thompson sampling)',
+      title: 'Cold-start weights (production)',
       note: 'Which starting weights give the best first weeks.',
-      learners: starts.map(([name, start]) => ({ name, make: () => thompson({ start }) })),
+      learners: starts.map(([name, start]) => ({
+        name,
+        make: () => production({ coldStart: start }),
+        exploreItems: true,
+      })),
     },
     {
       title: 'Cold-start weights (legacy gradient)',

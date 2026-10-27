@@ -37,6 +37,12 @@ export interface LearnerOptions {
 }
 
 const DEFAULT_START: Weights = { ...FEATURE_WEIGHTS };
+/** The app's own cold-start weights, before any sweep changes them. */
+const APP_START: Weights = { ...FEATURE_WEIGHTS };
+
+function setColdStart(w: Weights) {
+  Object.assign(FEATURE_WEIGHTS as Weights, w);
+}
 
 function mask(f: FeatureVector, ignore: FeatureName[] = []): FeatureVector {
   if (ignore.length === 0) return f;
@@ -49,8 +55,15 @@ function mask(f: FeatureVector, ignore: FeatureName[] = []): FeatureVector {
 // Production: the app's current learner (banditModel.ts), unchanged
 // ---------------------------------------------------------------------------
 
-/** The app's real model and policy: Thompson sampling, show its top pick. */
-export function production(opts: { ignore?: FeatureName[]; halfLifeDays?: number } = {}): Learner {
+/** The app's real model and policy: Thompson sampling, show its top pick.
+ * `coldStart` swaps the app's FEATURE_WEIGHTS for the run (the model's prior
+ * and the belief it fades back to both read them); `runBenchmark` runs one
+ * learner's days at a time, so each learner sees its own. */
+export function production(
+  opts: { ignore?: FeatureName[]; halfLifeDays?: number; coldStart?: Weights } = {},
+): Learner {
+  if (opts.coldStart) setColdStart(opts.coldStart);
+  else setColdStart(APP_START);
   let model = defaultModel();
   return {
     choose(cands, rng, today) {

@@ -108,7 +108,7 @@ the bandit.
 ### 2. Fixed scorer (cold start)
 
 The score is a weighted sum with fixed `FEATURE_WEIGHTS`
-(`0.50 / 0.33 / 0.17`, summing to 1.0). Generation scores every valid
+(color / variety / rating `0.25 / 0.25 / 0.5`, summing to 1.0). Generation scores every valid
 `top × bottom × shoes` combination, sorts descending, and samples among the top
 results so repeated "generate" clicks stay fresh while favoring good outfits.
 Locked slots constrain the candidate pool before scoring.
