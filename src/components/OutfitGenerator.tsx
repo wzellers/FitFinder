@@ -60,6 +60,7 @@ import type {
 import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
 import { loadRatedOutfits } from '@/lib/ratedOutfits';
 import { rateOutfitWithoutWearing } from '@/lib/outfitLearning';
+import { logImpression, recordOutcome, type ImpressionOutcome } from '@/lib/impressions';
 
 interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
@@ -224,9 +225,19 @@ export default function OutfitGenerator({
   const outfitKey = (o: { top: ClothingItem; bottom: ClothingItem; shoes: ClothingItem }) =>
     `${o.top.id}|${o.bottom.id}|${o.shoes.id}`;
 
-  // The outfit the generator picked, until the user acts on it (saves, wears,
-  // rates, or changes a piece). "Try another" on it counts as a skip.
-  const skippable = useRef<string | null>(null);
+  // The outfit the generator picked and its logged impression, until the user
+  // acts on it (skips, saves, wears or rates it). Changing a piece makes it a
+  // different outfit, so "Try another" then isn't a skip.
+  const shownPick = useRef<{ key: string; impression: Promise<string | null> } | null>(null);
+  const isShownPick = () =>
+    !!top && !!bottom && !!shoes && shownPick.current?.key === outfitKey({ top, bottom, shoes });
+  /** Record what the user did with the generator's pick, if it's on screen. */
+  const settleShownPick = (outcome: ImpressionOutcome, rating?: number) => {
+    if (shownPick.current && isShownPick()) {
+      void recordOutcome(shownPick.current.impression, outcome, rating);
+    }
+    shownPick.current = null;
+  };
 
   // `latest` lets a caller that just updated the model or ratings use them
   // before React state catches up (e.g. right after rating an outfit).
@@ -273,14 +284,20 @@ export default function OutfitGenerator({
 
     // Thompson sampling: each call samples the user's weights afresh, so its top
     // pick is the outfit to show and repeated clicks still vary.
-    const [{ candidate: pick }] = selectOutfits(
+    const shownModel = latest.model ?? model ?? deserializeModel(null);
+    const [{ candidate: pick, score }] = selectOutfits(
       candidates.map((c) => ({ candidate: c, features: c.features })),
-      latest.model ?? model ?? deserializeModel(null),
+      shownModel,
       { count: 1 },
     );
     shownOutfits.current.add(outfitKey(pick));
     if (current) shownOutfits.current.add(current);
-    skippable.current = outfitKey(pick);
+    shownPick.current = {
+      key: outfitKey(pick),
+      impression: user
+        ? logImpression(user.id, pick, score, shownModel.meta.updates)
+        : Promise.resolve(null),
+    };
     if (!lockedTop) setTop(pick.top);
     if (!lockedBottom) setBottom(pick.bottom);
     if (!lockedShoes) setShoes(pick.shoes);
@@ -317,7 +334,6 @@ export default function OutfitGenerator({
     learn: (m: BanditModel, features: FeatureVector) => BanditModel,
   ): Promise<BanditModel | undefined> => {
     if (!user) return;
-    skippable.current = null;
     const updated = learn(model ?? deserializeModel(null), currentFeatures(outfit));
     setModel(updated);
     const serialized = serializeModel(updated);
@@ -334,7 +350,8 @@ export default function OutfitGenerator({
 
   // "Try another": passing on the generator's pick is a weak "not this one".
   const tryAnother = () => {
-    if (top && bottom && shoes && skippable.current === outfitKey({ top, bottom, shoes })) {
+    if (top && bottom && shoes && isShownPick()) {
+      settleShownPick('skipped');
       const updated = learnFromSkipAndSave({ top, bottom, shoes });
       pickOutfit({ model: updated });
       return;
@@ -381,6 +398,7 @@ export default function OutfitGenerator({
         .single();
       if (err) throw err;
       showToast('Outfit saved.', 'success');
+      settleShownPick('saved');
       // Saving signals mild approval — nudge the model toward this outfit.
       void applyReward({ top, bottom, shoes }, SAVED_OUTFIT_REWARD);
       const { data } = await supabase
@@ -424,6 +442,7 @@ export default function OutfitGenerator({
         ...ratedOutfits,
       ];
       setRatedOutfits(rated);
+      settleShownPick('rated', rating);
       showToast(`Rated ${rating}/10. Here's another.`, 'success');
       pickOutfit({ model: updated, ratedOutfits: rated });
     } catch {
@@ -436,7 +455,6 @@ export default function OutfitGenerator({
   // Wear today
   const wearToday = async () => {
     if (!user || !top || !bottom || !shoes) return;
-    skippable.current = null;
     const today = toLocalDateString();
     try {
       const { data: existing, error: lookupError } = await supabase
@@ -469,6 +487,7 @@ export default function OutfitGenerator({
       }
       if (insertError) throw insertError;
       showToast("Logged as today's outfit.", 'success');
+      settleShownPick('worn');
     } catch {
       showToast("Couldn't log today's outfit. Try again.", 'error');
     }

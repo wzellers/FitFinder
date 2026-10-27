@@ -70,6 +70,17 @@ test('"Try another" teaches the model a little, without counting as a rating', a
   );
   const { precision } = (model.feature_meta as { posterior: { precision: number[][] } }).posterior;
   expect(Math.max(...precision.map((row, i) => row[i]))).toBeGreaterThan(3);
+  // The first outfit is logged as skipped.
+  await expect
+    .poll(async () => {
+      const { data } = await db
+        .from('outfit_impressions')
+        .select('outcome')
+        .eq('user_id', userId)
+        .order('shown_at');
+      return (data ?? []).map((r) => r.outcome);
+    })
+    .toEqual(['skipped', null]);
   // Skipping logs nothing as worn or rated.
   expect(
     ok(await db.from('outfit_wears').select('id').eq('user_id', userId), 'wears'),
@@ -212,6 +223,22 @@ test('rates an outfit without wearing it, learns from it, and shows the next', a
   expect(
     ok(await db.from('outfit_wears').select('id').eq('user_id', userId), 'wears'),
   ).toHaveLength(0);
+
+  // Both shown outfits were logged for measuring recommendations, the rated
+  // one with its outcome.
+  await expect
+    .poll(async () => {
+      const { data } = await db
+        .from('outfit_impressions')
+        .select('outcome, rating, top_id, predicted')
+        .eq('user_id', userId)
+        .order('shown_at');
+      return data ?? [];
+    })
+    .toMatchObject([
+      { outcome: 'rated', rating: 8, top_id: rows![0].top_id },
+      { outcome: null, rating: null },
+    ]);
 
   // A next outfit is shown (the reels spin again; with a small closet it may
   // repeat), and rating stays available.
