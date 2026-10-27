@@ -45,6 +45,16 @@ test('a ZIP code saved in Settings shows on Outfits without reloading', async ({
   await goToTab(page, 'Outfits');
   await expect(weather.getByText(/^-?\d+°F$/)).toBeVisible();
   await expect(weather.getByText(/Add your ZIP code/)).toHaveCount(0);
+
+  // The weather plays behind the page, and nothing paints over it: the page
+  // colour is on <html>, not <body>.
+  await expect(page.getByTestId('weather-backdrop')).toBeAttached();
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
+    'rgba(0, 0, 0, 0)',
+  );
+  // Only on Outfits.
+  await goToTab(page, 'Closet');
+  await expect(page.getByTestId('weather-backdrop')).toBeHidden();
 });
 
 test('adds a liked color combination and deletes it', async ({ page }) => {

@@ -51,6 +51,7 @@ export function OutfitThemeProvider({ children }: { children: React.ReactNode })
       '--poster-title': t.posterTitle,
       '--poster-fg': t.posterFg,
       '--poster-cutout': t.cutout,
+      '--poster-script': t.script,
       '--poster-accent': t.accent,
       '--poster-accent-ink': t.accentInk,
       '--pill-active': t.pillActive,

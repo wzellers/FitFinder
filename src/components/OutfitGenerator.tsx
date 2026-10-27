@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { getClothingImageUrl } from '@/lib/clothingImages';
 import { renderShareCard, shareOrDownload } from '@/lib/shareCard';
-import { NEUTRAL_INK, themeFromOutfit } from '@/lib/outfitTheme';
+import { NEUTRAL_ACCENT, themeFromOutfit } from '@/lib/outfitTheme';
 import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
@@ -663,7 +663,7 @@ export default function OutfitGenerator({
         accent:
           top.colors[0] && bottom.colors[0]
             ? themeFromOutfit(top.colors[0], bottom.colors[0], shoes.colors[0]).uiAccent
-            : NEUTRAL_INK,
+            : NEUTRAL_ACCENT,
       });
       const how = await shareOrDownload(blob, `fitfinder-outfit-${toLocalDateString()}.png`);
       if (how === 'downloaded') showToast('Saved an image of your outfit.', 'success');

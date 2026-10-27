@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 /*
- * Neutral until there's an outfit.
+ * Warm and neutral until there's an outfit.
  *
- * A white page with near-black ink and soft stone greys, so the clothes carry
- * the colour. Once an outfit is generated, OutfitThemeProvider sets the
+ * A cream page with espresso ink, beige surfaces and a mocha accent: soft,
+ * so the clothes carry the colour. Once an outfit is generated, OutfitThemeProvider sets the
  * --outfit-* colours and the whole app takes them: the top's colour is the
  * accent, the bottom's and the shoes' the secondary and third. Raspberry
  * stays for dirty / destructive.
@@ -31,7 +31,7 @@
 @property --outfit-accent {
   syntax: '<color>';
   inherits: true;
-  initial-value: #1c1917;
+  initial-value: #7a5a45;
 }
 @property --outfit-accent-ink {
   syntax: '<color>';
@@ -41,12 +41,12 @@
 @property --outfit-tint {
   syntax: '<color>';
   inherits: true;
-  initial-value: #f5f5f4;
+  initial-value: #f1e8dc;
 }
 @property --outfit-glow {
   syntax: '<color>';
   inherits: true;
-  initial-value: #a8a29e;
+  initial-value: #b08968;
 }
 
 @layer base {
@@ -54,21 +54,21 @@
     /* Palette */
     --raspberry: #b0244f;
 
-    /* Surfaces */
-    --bg: #ffffff;
+    /* Surfaces: a cream page, white cards, beige wells */
+    --bg: #faf6f0;
     --card: #ffffff;
-    --muted: #f5f5f4; /* photo wells: neutral so item colours read true */
+    --muted: #f3ece2; /* photo wells: soft so item colours read true */
 
     /* Text */
-    --text: #1c1917;
-    --text-secondary: #57534e;
+    --text: #2b211c;
+    --text-secondary: #6b5a4e;
 
     /* Links and focus */
     --carbon: #23608f;
 
     /* Lines */
-    --border: #e7e5e4;
-    --line-strong: #8a837e; /* form control borders, 3:1 on white */
+    --border: #eae1d5;
+    --line-strong: #9a8676; /* form control borders, 3:1 on white */
 
     /* Status */
     --success: #15803d;
@@ -80,15 +80,16 @@
     --focus: var(--carbon);
 
     /* Poster headers (themable by today's outfit) */
-    --poster-bg: #1c1917;
-    --poster-title: #fafaf9;
-    --poster-fg: #e7e5e4;
-    --poster-cutout: #44403c;
-    --poster-accent: #fafaf9;
-    --poster-accent-ink: #1c1917;
+    --poster-bg: #e6d8c5;
+    --poster-title: #5a4232;
+    --poster-fg: #3d2e24;
+    --poster-cutout: #d3bea4;
+    --poster-script: #8a6a52;
+    --poster-accent: #5a4232;
+    --poster-accent-ink: #faf6f0;
 
     /* Nav highlight (themable) */
-    --pill-active: #1c1917;
+    --pill-active: #7a5a45;
     --pill-active-ink: #ffffff;
   }
 
@@ -113,9 +114,14 @@
     font-size: 16px;
   }
 
+  /* The page colour lives on <html> only: a <body> background would paint
+     over the weather and colour wash, which sit behind the page (z-index -10). */
+  html {
+    @apply bg-[var(--bg)];
+  }
   html,
   body {
-    @apply bg-[var(--bg)] text-[var(--text)] antialiased;
+    @apply text-[var(--text)] antialiased;
     min-height: 100vh;
     margin: 0;
     padding: 0;
@@ -243,17 +249,17 @@
     background:
       radial-gradient(
         55% 45% at 12% 8%,
-        color-mix(in srgb, var(--outfit-top) 22%, transparent),
+        color-mix(in srgb, var(--outfit-top) 30%, transparent),
         transparent 72%
       ),
       radial-gradient(
         60% 50% at 92% 88%,
-        color-mix(in srgb, var(--outfit-bottom) 18%, transparent),
+        color-mix(in srgb, var(--outfit-bottom) 16%, transparent),
         transparent 72%
       ),
       radial-gradient(
         40% 35% at 70% 10%,
-        color-mix(in srgb, var(--outfit-shoes) 14%, transparent),
+        color-mix(in srgb, var(--outfit-shoes) 8%, transparent),
         transparent 72%
       );
     transition: opacity 0.7s ease;

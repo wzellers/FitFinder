@@ -21,8 +21,10 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** The app's neutral ink: text, and the accent when there's no outfit. */
-export const NEUTRAL_INK = '#1c1917';
+/** The app's dark ink (espresso), for text on light colours. */
+export const NEUTRAL_INK = '#2b211c';
+/** The accent when there's no outfit: a warm mocha. */
+export const NEUTRAL_ACCENT = '#7a5a45';
 const INK = NEUTRAL_INK;
 const PAPER = '#ffffff';
 
@@ -61,8 +63,10 @@ export interface OutfitTheme {
   posterTitle: string;
   /** Readout, script and buttons on the poster (needs 4.5:1). */
   posterFg: string;
-  /** Decorative cutout shape: the shoes' colour if it shows. */
+  /** Decorative cutout shape: the bottom's colour if it shows. */
   cutout: string;
+  /** The small script word: the shoes' colour if it reads (3:1). */
+  script: string;
   /** Primary button / selected toggle on the poster, and its label. */
   accent: string;
   accentInk: string;
@@ -74,12 +78,13 @@ export interface OutfitTheme {
   bottom: string;
   shoes: string;
   /** The accent for buttons, links and selected states on white: the top's
-   * colour, deepened if needed to read as text on white (4.5:1). */
+   * colour (or, when the top is white or nearly, the bottom's or the shoes'),
+   * deepened if needed to read as text on white (4.5:1). */
   uiAccent: string;
   uiAccentInk: string;
   /** A pale tint of the accent, for soft fills. */
   uiTint: string;
-  /** The rating glow: the top's colour, deepened if too pale to see on white. */
+  /** The rating glow: the accent's colour, deepened if too pale to see on white. */
   glow: string;
 }
 
@@ -92,31 +97,36 @@ export function themeFromOutfit(top: string, bottom: string, shoes?: string | nu
   const T = `#${hexOf(top)}`;
   const B = `#${hexOf(bottom)}`;
   const S = shoes ? `#${hexOf(shoes)}` : B;
+  // The banner: the top's colour, then the bottom's (title, cutout), then a
+  // small touch of the shoes' (the script word).
   const posterBg = T;
   const posterFg = readableOn(posterBg);
   const posterTitle = contrast(B, posterBg) >= 3 ? B : posterFg;
-  const cutout = contrast(S, posterBg) >= 1.5 ? S : contrast(B, posterBg) >= 1.5 ? B : posterFg;
+  const cutout = contrast(B, posterBg) >= 1.5 ? B : contrast(S, posterBg) >= 1.5 ? S : posterFg;
+  const script = contrast(S, posterBg) >= 3 ? S : posterFg;
   const accent = contrast(posterTitle, posterBg) >= 3 ? posterTitle : posterFg;
-  // The nav highlight sits on a white pill, so it needs to stand out from white.
-  const pillActive = [T, B, S].find((c) => contrast(c, PAPER) >= 1.6) ?? NEUTRAL_INK;
-  const uiAccent = deepen(T, PAPER, 4.5);
+  // A white or nearly white top would make a grey accent; take the colour
+  // from the bottom or the shoes instead when they have one.
+  const source = [T, B, S].find((c) => contrast(c, PAPER) >= 1.6) ?? T;
+  const uiAccent = deepen(source, PAPER, 4.5);
   const uiTint = mix(uiAccent, PAPER, 0.88);
   return {
     posterBg,
     posterTitle,
     posterFg,
     cutout,
+    script,
     accent,
     accentInk: readableOn(accent),
-    pillActive,
-    pillActiveInk: readableOn(pillActive),
+    pillActive: uiAccent,
+    pillActiveInk: readableOn(uiAccent),
     top: T,
     bottom: B,
     shoes: S,
     uiAccent,
     uiAccentInk: readableOn(uiAccent),
     uiTint,
-    glow: contrast(T, PAPER) >= 1.4 ? T : deepen(T, PAPER, 1.4),
+    glow: contrast(source, PAPER) >= 1.4 ? source : deepen(source, PAPER, 1.4),
   };
 }
 

@@ -5,11 +5,12 @@ import { colorMap, colorPalette } from '@/lib/constants';
 const WHITE = '#ffffff';
 
 describe('themeFromOutfit', () => {
-  it('makes the top the main colour, the bottom the secondary and the shoes the third', () => {
+  it('colours the banner by the top first, then the bottom, then a touch of the shoes', () => {
     const t = themeFromOutfit('navy blue', 'light blue', 'white');
     expect(t.posterBg.toLowerCase()).toBe(colorMap['navy blue']);
     expect(t.posterTitle.toLowerCase()).toBe(colorMap['light blue']);
-    expect(t.cutout.toLowerCase()).toBe(colorMap.white);
+    expect(t.cutout.toLowerCase()).toBe(colorMap['light blue']);
+    expect(t.script.toLowerCase()).toBe(colorMap.white);
     expect(t.uiAccent.toLowerCase()).toBe(colorMap['navy blue']);
     expect(t.glow.toLowerCase()).toBe(colorMap['navy blue']);
     expect([t.top, t.bottom, t.shoes].map((c) => c.toLowerCase())).toEqual([
@@ -41,9 +42,20 @@ describe('themeFromOutfit', () => {
           expect(contrast(t.uiAccentInk, t.uiAccent)).toBeGreaterThanOrEqual(4.5);
           expect(contrast(t.uiAccent, t.uiTint)).toBeGreaterThanOrEqual(3);
           expect(contrast(t.glow, WHITE)).toBeGreaterThanOrEqual(1.4);
+          expect(contrast(t.script, t.posterBg)).toBeGreaterThanOrEqual(3);
         }
       }
     }
+  });
+
+  it('takes the accent from the bottom when the top is white, not a grey', () => {
+    const t = themeFromOutfit('white', 'navy blue', 'white');
+    expect(t.uiAccent.toLowerCase()).toBe(colorMap['navy blue']);
+    expect(t.pillActive).toBe(t.uiAccent);
+    // White everywhere: the top's colour, deepened (there's nothing else).
+    expect(
+      contrast(themeFromOutfit('white', 'white', 'white').uiAccent, WHITE),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   it('uses the bottom for the shoes when they have no colour', () => {

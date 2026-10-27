@@ -69,7 +69,7 @@ export default function PosterHeader({
             {script && (
               <span
                 aria-hidden="true"
-                className="font-script -rotate-6 mb-1 text-[var(--poster-fg)] text-[clamp(1.25rem,2.4vw,1.9rem)] leading-none transition-colors duration-700"
+                className="font-script -rotate-6 mb-1 text-[var(--poster-script)] text-[clamp(1.25rem,2.4vw,1.9rem)] leading-none transition-colors duration-700"
               >
                 {script}
               </span>
@@ -104,7 +104,7 @@ export default function PosterHeader({
         {script && (
           <span
             aria-hidden="true"
-            className="font-script block w-fit -mt-4 sm:-mt-7 mb-3 ml-[18%] -rotate-6 text-[var(--poster-fg)] text-[clamp(2rem,5vw,3.75rem)] leading-none transition-colors duration-700"
+            className="font-script block w-fit -mt-4 sm:-mt-7 mb-3 ml-[18%] -rotate-6 text-[var(--poster-script)] text-[clamp(2rem,5vw,3.75rem)] leading-none transition-colors duration-700"
           >
             {script}
           </span>
