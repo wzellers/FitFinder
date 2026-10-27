@@ -49,6 +49,9 @@ export default function WardrobeStats() {
   const [outfitWears, setOutfitWears] = useState<OutfitWear[]>([]);
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('month');
+  // Only the first load shows skeletons; switching period keeps the page and
+  // fades the new numbers in.
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -80,6 +83,7 @@ export default function WardrobeStats() {
       showToast("Couldn't load your stats. Refresh to try again.", 'error');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [user, timePeriod, showToast]);
 
@@ -184,7 +188,7 @@ export default function WardrobeStats() {
     return items.find((i) => i.id === itemId)?.image_url || null;
   };
 
-  if (loading) {
+  if (loading && !hasLoaded) {
     return (
       <div className="w-full max-w-5xl mx-auto">
         <PosterHeader title="Stats" script="by the numbers" />
@@ -217,7 +221,13 @@ export default function WardrobeStats() {
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[22rem_minmax(0,1fr)] gap-8 items-start">
+      <div
+        key={loading ? 'loading' : timePeriod}
+        aria-busy={loading}
+        className={`grid grid-cols-1 lg:grid-cols-[22rem_minmax(0,1fr)] gap-8 items-start transition-opacity duration-200 ${
+          loading ? 'opacity-50' : 'page-in'
+        }`}
+      >
         {/* ====== Summary ====== */}
         <div className="panel px-6 pt-8 pb-7">
           <div className="flex items-baseline justify-between">

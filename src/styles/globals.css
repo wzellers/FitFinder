@@ -293,6 +293,26 @@
     }
   }
 
+  /* The calendar's month sliding in from the side you're moving toward. */
+  .slide-from-right {
+    animation: slide-from-right 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .slide-from-left {
+    animation: slide-from-left 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  @keyframes slide-from-right {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+  @keyframes slide-from-left {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+  }
+
   /* A tab's content easing in when it's shown (also when un-hidden). */
   .page-in {
     animation: page-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);

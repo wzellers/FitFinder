@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 // Stable, as the real useAuth keeps it (a new object per render reloads data).
@@ -92,5 +92,18 @@ describe('WardrobeStats', () => {
     );
     expect(screen.getByRole('button', { name: 'Month' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText('All time')).toBeTruthy();
+  });
+
+  it('switches period in place, without going back to skeletons', async () => {
+    const { container } = renderWithProviders(<WardrobeStats />);
+    await screen.findByText('Summary');
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    expect(screen.getByText('Summary')).toBeTruthy();
+    expect(container.querySelectorAll('.animate-pulse')).toHaveLength(0);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Week' }).getAttribute('aria-pressed')).toBe(
+        'true',
+      ),
+    );
   });
 });

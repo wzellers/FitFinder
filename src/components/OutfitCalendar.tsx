@@ -30,6 +30,14 @@ export default function OutfitCalendar() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
+  // Which way the month grid slides in: from the right going forward.
+  const [slide, setSlide] = useState<'next' | 'prev' | null>(null);
+  const goToMonth = (date: Date, direction: 'next' | 'prev' | null) => {
+    setSlide(direction);
+    setCurrentDate(date);
+  };
+  // Only the first load shows a skeleton; later months load in place.
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [calendarDays, setCalendarDays] = useState<DayData[]>([]);
   const [outfitWears, setOutfitWears] = useState<OutfitWear[]>([]);
   const [items, setItems] = useState<ClothingItem[]>([]);
@@ -81,6 +89,7 @@ export default function OutfitCalendar() {
       showToast("Couldn't load your wear log. Refresh to try again.", 'error');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [user, currentDate, showToast]);
 
@@ -260,7 +269,7 @@ export default function OutfitCalendar() {
   ];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  if (loading) return <SkeletonCalendar />;
+  if (loading && !hasLoaded) return <SkeletonCalendar />;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -278,7 +287,7 @@ export default function OutfitCalendar() {
         <div className="flex items-center gap-1">
           <button
             onClick={() =>
-              setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+              goToMonth(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1), 'prev')
             }
             className="btn-ghost px-3"
             aria-label="Previous month"
@@ -293,21 +302,37 @@ export default function OutfitCalendar() {
           </span>
           <button
             onClick={() =>
-              setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+              goToMonth(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1), 'next')
             }
             className="btn-ghost px-3"
             aria-label="Next month"
           >
             <ChevronRight size={18} aria-hidden="true" />
           </button>
-          <button onClick={() => setCurrentDate(new Date())} className="btn-secondary ml-1">
+          <button
+            onClick={() => {
+              const now = new Date();
+              const sameMonth =
+                now.getFullYear() === currentDate.getFullYear() &&
+                now.getMonth() === currentDate.getMonth();
+              goToMonth(now, sameMonth ? null : now > currentDate ? 'next' : 'prev');
+            }}
+            className="btn-secondary ml-1"
+          >
             Today
           </button>
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-7 gap-px bg-[var(--border)] rounded-md overflow-hidden border border-[var(--border)]">
+      {/* Grid: slides in from the side you're moving toward; days fill in as
+          the month's log arrives. */}
+      <div
+        key={`${currentDate.getFullYear()}-${currentDate.getMonth()}`}
+        aria-busy={loading}
+        className={`grid grid-cols-7 gap-px bg-[var(--border)] rounded-md overflow-hidden border border-[var(--border)] ${
+          slide === 'next' ? 'slide-from-right' : slide === 'prev' ? 'slide-from-left' : ''
+        }`}
+      >
         {dayNames.map((d) => (
           <div
             key={d}
