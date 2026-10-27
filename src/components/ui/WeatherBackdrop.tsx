@@ -10,10 +10,10 @@ const rand = (i: number, salt: number) => {
   return x - Math.floor(x);
 };
 
-const COUNTS = { stars: 40, clouds: 5, rain: 70, snow: 55 } as const;
+const COUNTS = { stars: 40, clouds: 7, rain: 80, snow: 60 } as const;
 
 /**
- * A faint animated sky behind the Outfits screen that matches today's
+ * A soft animated sky behind the Outfits screen that matches today's
  * weather: a drifting sun glow (or twinkling stars at night), slow clouds,
  * fine rain (with the odd flash in a storm) or falling snow. Decorative and
  * behind everything; users who prefer reduced motion get it still.
@@ -46,6 +46,7 @@ export default function WeatherBackdrop({ scene, night, storm }: SceneChoice) {
       data-scene={night && scene === 'sunny' ? 'night' : scene}
       className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
     >
+      <div className={`wx-sky wx-sky-${night && scene === 'sunny' ? 'night' : scene}`} />
       {scene === 'sunny' && !night && <div className="wx-sun" />}
 
       {scene === 'sunny' &&
@@ -74,8 +75,8 @@ export default function WeatherBackdrop({ scene, night, storm }: SceneChoice) {
               top: `${5 + p.y * 55}%`,
               width: 280 + p.size * 260,
               height: 110 + p.size * 90,
-              animationDelay: `${-p.delay * 120}s`,
-              animationDuration: `${90 + p.speed * 60}s`,
+              animationDelay: `${-p.delay * 60}s`,
+              animationDuration: `${45 + p.speed * 35}s`,
             }}
           />
         ))}

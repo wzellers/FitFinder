@@ -408,7 +408,36 @@
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Weather behind the Outfits screen (WeatherBackdrop). Faint on purpose. */
+/* Weather behind the Outfits screen (WeatherBackdrop). Soft, but visible
+   around and through the screen's frosted cards. */
+.wx-sky {
+  position: absolute;
+  inset: 0;
+}
+.wx-sky-sunny {
+  background: linear-gradient(to bottom, rgba(255, 214, 140, 0.28), transparent 60%);
+}
+.wx-sky-night {
+  background: linear-gradient(to bottom, rgba(70, 85, 130, 0.22), transparent 70%);
+}
+.wx-sky-cloudy {
+  background: linear-gradient(to bottom, rgba(140, 150, 168, 0.26), transparent 65%);
+}
+.wx-sky-rainy {
+  background: linear-gradient(to bottom, rgba(95, 115, 145, 0.3), transparent 75%);
+}
+.wx-sky-snowy {
+  background: linear-gradient(to bottom, rgba(180, 200, 228, 0.35), transparent 75%);
+}
+
+/* Cards on the Outfits screen: frosted, so the weather and the outfit's
+   colours show through softly. */
+.outfit-glass .card,
+.outfit-glass .panel {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
 .wx-sun {
   position: absolute;
   top: -22vmax;
@@ -445,9 +474,9 @@
   position: absolute;
   left: 0;
   border-radius: 9999px;
-  background: rgba(130, 145, 165, 0.14);
-  filter: blur(28px);
-  animation: wx-drift 120s linear infinite;
+  background: rgba(120, 135, 160, 0.3);
+  filter: blur(22px);
+  animation: wx-drift 60s linear infinite;
 }
 @keyframes wx-drift {
   from {
@@ -460,8 +489,8 @@
 .wx-drop {
   position: absolute;
   top: -15vh;
-  width: 1px;
-  background: linear-gradient(to bottom, transparent, rgba(80, 110, 150, 0.35));
+  width: 1.5px;
+  background: linear-gradient(to bottom, transparent, rgba(60, 95, 140, 0.5));
   animation: wx-rain 1.2s linear infinite;
 }
 @keyframes wx-rain {
@@ -492,7 +521,8 @@
   position: absolute;
   top: -3vh;
   border-radius: 9999px;
-  background: rgba(150, 175, 205, 0.6);
+  background: rgba(130, 158, 196, 0.75);
+  box-shadow: 0 0 4px rgba(130, 158, 196, 0.5);
   animation: wx-snow 12s linear infinite;
 }
 @keyframes wx-snow {

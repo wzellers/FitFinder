@@ -838,7 +838,7 @@ export default function OutfitGenerator({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full outfit-glass">
       {/* Today's weather, faintly, behind the screen (off when not dressing for it). */}
       {weather && !ignoreWeather && (
         <WeatherBackdrop {...weatherScene(weather.icon, weather.condition)} />

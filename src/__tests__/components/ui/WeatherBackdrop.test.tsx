@@ -49,4 +49,12 @@ describe('WeatherBackdrop', () => {
     const { container: b } = render(<WeatherBackdrop scene="rainy" night={false} storm={false} />);
     expect(a.innerHTML).toBe(b.innerHTML);
   });
+
+  it('tints the sky for the weather, so it reads even behind the cards', () => {
+    const { unmount } = render(<WeatherBackdrop scene="cloudy" night={false} storm={false} />);
+    expect(count('wx-sky-cloudy')).toBe(1);
+    unmount();
+    render(<WeatherBackdrop scene="sunny" night storm={false} />);
+    expect(count('wx-sky-night')).toBe(1);
+  });
 });
