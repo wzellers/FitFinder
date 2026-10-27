@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # labeled/unlabeled: re-run the tests-added check when no-tests-needed changes.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 jobs:
   test:
@@ -14,6 +16,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history, so the tests-added check can diff against the base.
+          fetch-depth: 0
+
+      - name: Check that app changes come with tests
+        if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-tests-needed')
+        run: node scripts/checkTestsAdded.mjs ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

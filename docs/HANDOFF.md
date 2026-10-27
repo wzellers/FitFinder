@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-27 (ESLint CLI, workspace root pinned)
+**Last updated:** 2026-10-27 (CI requires tests with app changes)
 
 ## What's live
 
@@ -50,14 +50,17 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   user.
 - **GitHub:** `main` is protected. It requires the **Lint, typecheck & test** and
   **End-to-end tests** checks, and blocks force pushes and deletion. Auto-merge
-  is allowed; PRs use the merge-commit method with auto-merge on.
+  is allowed; PRs use the merge-commit method with auto-merge on. The
+  **Lint, typecheck & test** check also fails a PR that changes code under
+  `src/` without changing a test (`scripts/checkTestsAdded.mjs`); the
+  `no-tests-needed` label skips that step.
 - **Actions secrets:** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `E2E_TEST_EMAIL`, `E2E_TEST_PASSWORD`.
 
 ## Tests
 
-- **Vitest:** 360 unit/component tests (`npm run test`).
+- **Vitest:** 365 unit/component tests (`npm run test`).
 - **Playwright:** 46 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
@@ -102,7 +105,5 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   and what happened (`outfit_impressions`). After a few weeks of real use, run
   `select * from recommendation_quality order by user_id, week;` in the SQL
   Editor: if learning works, skip rate falls and ratings rise over the weeks.
-- Nothing automatically checks that a PR _adds_ tests; the rule lives in
-  `CLAUDE.md` and `CONTRIBUTING.md`.
 - An orphaned photo from deleted test data remains in storage (harmless,
   private).

@@ -107,6 +107,12 @@ account and fails on any page error), and check the result survives a reload or
 is in the database. If a change breaks an existing test because the behaviour
 changed on purpose, update the test in the same PR rather than deleting it.
 
+CI checks the basics: a pull request that changes app code under `src/` (outside
+`src/__tests__`) must also change a test, or the **Lint, typecheck & test**
+check fails. Docs, config and migration-only PRs aren't affected, and deleting
+code doesn't count. If a change genuinely needs no test, add the
+`no-tests-needed` label and say why in the description.
+
 ## Tests and coverage
 
 - Unit/component tests run on `jsdom` via Vitest. Each test mocks Supabase and
