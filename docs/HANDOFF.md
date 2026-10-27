@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-27 (Resend domain verified)
+**Last updated:** 2026-10-27 (ESLint CLI, workspace root pinned)
 
 ## What's live
 
@@ -95,7 +95,9 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   outfit until all have been shown, and ties break at random (the daily email
   rotates ties by date); cold-start weights are rating-heavy (color / variety
   / rating 0.25 / 0.25 / 0.5); "Try another" is learned as a weak negative.
-  Ratings from before step 3 aren't retro-trained.
+  Four ratings from before step 3 were never learned; checked 2026-10-27 and
+  not worth replaying (only one has all three pieces, and it's from April, so
+  fading would leave it about a tenth of a rating's weight).
 - **Measuring recommendations:** the generator logs every outfit it shows
   and what happened (`outfit_impressions`). After a few weeks of real use, run
   `select * from recommendation_quality order by user_id, week;` in the SQL
@@ -104,5 +106,3 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   `CLAUDE.md` and `CONTRIBUTING.md`.
 - An orphaned photo from deleted test data remains in storage (harmless,
   private).
-- Next.js warns about multiple lockfiles when run from a git worktree.
-  Harmless.
