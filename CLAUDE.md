@@ -45,7 +45,11 @@ When a change removes or renames something a test relies on, update the test in
 the same PR rather than deleting it.
 
 This applies to every future change, in every session: don't consider a
-feature done, or open its PR, until its tests exist and pass.
+feature done, or open its PR, until its tests exist and pass. CI enforces the
+minimum: a PR that changes code under `src/` must change something in
+`src/__tests__` (`scripts/checkTestsAdded.mjs`). The `no-tests-needed` label
+skips it; use it only for changes that genuinely can't be tested, and say why
+in the PR.
 
 ## Before every commit
 
