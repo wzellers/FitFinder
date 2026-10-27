@@ -400,6 +400,24 @@ export function updateWeights(
   return applyObservation(model, features, reward, +1, dates);
 }
 
+/** "Try another" on an outfit is weak evidence it wasn't wanted: learned as a
+ * low reward, with a fraction of a rating's weight (tuned in the benchmark). */
+export const SKIP_REWARD = 0.1;
+export const SKIP_WEIGHT = 0.25;
+
+/**
+ * Learn from a skipped outfit (shown, then "Try another"). It counts for less
+ * than a rating and isn't counted in `meta.updates`, which counts ratings.
+ */
+export function learnFromSkip(
+  model: BanditModel,
+  features: FeatureVector,
+  dates: ObservationDates = {},
+  { reward = SKIP_REWARD, weight = SKIP_WEIGHT }: { reward?: number; weight?: number } = {},
+): BanditModel {
+  return applyObservation(model, features, reward, weight, dates, false);
+}
+
 /**
  * Undo an earlier `updateWeights(model, features, reward, { on })` exactly,
  * whatever has faded since, e.g. when a rating is changed or its wear deleted.
@@ -418,11 +436,13 @@ function applyObservation(
   model: BanditModel,
   features: FeatureVector,
   reward: number,
-  sign: 1 | -1,
+  /** +1 to learn a rating, −1 to undo one; a fraction for weaker evidence. */
+  weight: number,
   { on, today = todayDate(), halfLifeDays = HALF_LIFE_DAYS }: ObservationDates,
+  countsAsRating = true,
 ): BanditModel {
   const current = fadeTo(model, today, halfLifeDays);
-  const w = sign * fade(on ? daysBetween(on, today) : 0, halfLifeDays);
+  const w = weight * fade(on ? daysBetween(on, today) : 0, halfLifeDays);
   const x = toX(features);
   const s2 = RATING_NOISE * RATING_NOISE;
   const precision = current.posterior.precision.map((row, i) =>
@@ -433,7 +453,10 @@ function applyObservation(
   return {
     params: fromVector(mean),
     posterior: { precision, target, asOf: today },
-    meta: { version: MODEL_VERSION, updates: Math.max(0, model.meta.updates + sign) },
+    meta: {
+      version: MODEL_VERSION,
+      updates: Math.max(0, model.meta.updates + (countsAsRating ? Math.sign(weight) : 0)),
+    },
   };
 }
 
