@@ -21,8 +21,9 @@ vi.mock('@/lib/weatherApi', async (importOriginal) => {
 // Rows a test puts here are returned for that table; every other query
 // resolves empty.
 const mockRows = vi.hoisted(() => ({}) as Record<string, unknown[]>);
-// Every upsert, by table.
+// Every upsert, insert and update, by table.
 const mockUpserts = vi.hoisted(() => [] as { table: string; row: unknown }[]);
+const mockWrites = vi.hoisted(() => [] as { table: string; op: string; row: unknown }[]);
 
 // A chainable builder where any filter or modifier returns the builder,
 // awaiting it gives the table's rows, and maybeSingle/single give null.
@@ -48,8 +49,14 @@ const mockFrom = vi.hoisted(() => {
     b.single = () => Promise.resolve({ data: { id: 'new-outfit' }, error: null });
     b.then = (resolve: (v: unknown) => unknown) =>
       resolve({ data: mockRows[table] ?? [], error: null });
-    b.insert = () => b;
-    b.update = () => b;
+    b.insert = (row: unknown) => {
+      mockWrites.push({ table, op: 'insert', row });
+      return b;
+    };
+    b.update = (row: unknown) => {
+      mockWrites.push({ table, op: 'update', row });
+      return b;
+    };
     b.delete = () => b;
     b.upsert = (row: unknown) => {
       mockUpserts.push({ table, row });
@@ -74,6 +81,7 @@ describe('OutfitGenerator', () => {
     mockFrom.mockClear();
     for (const table of Object.keys(mockRows)) delete mockRows[table];
     mockUpserts.length = 0;
+    mockWrites.length = 0;
   });
 
   it('renders the Generator tab', async () => {
@@ -228,5 +236,27 @@ describe('OutfitGenerator', () => {
     const { feature_meta } = mockUpserts[0].row as { feature_meta: { updates: number } };
     // A skip isn't a rating.
     expect(feature_meta.updates).toBe(0);
+  });
+
+  it('logs each shown outfit, and records a skip as its outcome', async () => {
+    mockRows.clothing_items = [makeTop(), makeTop(), makeBottom(), makeShoes()];
+    renderWithProviders(<OutfitGenerator />);
+    const impressions = () => mockWrites.filter((w) => w.table === 'outfit_impressions');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+    await waitFor(() => expect(impressions()).toHaveLength(1));
+    expect(impressions()[0]).toMatchObject({ op: 'insert', row: { model_ratings: 0 } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try another outfit' }));
+    // The next outfit is logged; the skip is recorded once the first insert's
+    // id is back.
+    await waitFor(() =>
+      expect(
+        impressions()
+          .map((w) => w.op)
+          .sort(),
+      ).toEqual(['insert', 'insert', 'update']),
+    );
+    expect(impressions().find((w) => w.op === 'update')?.row).toMatchObject({ outcome: 'skipped' });
   });
 });
