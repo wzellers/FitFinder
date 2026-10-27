@@ -27,8 +27,11 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 - **Daily outfit email:** a Supabase `pg_cron` job (`send-daily-emails`, every
   15 min) calls `POST /api/email/send-due` with `CRON_SECRET`; the route sends
   through Resend. The URL and secret are in Supabase Vault (`daily_email_url`,
-  `daily_email_cron_secret`). The earlier AWS (CDK/Lambda/SES) version was
-  removed.
+  `daily_email_cron_secret`). The URL must be the app's primary domain
+  (`https://fitfinder.website/api/email/send-due`): the `vercel.app` address
+  redirects there, and the redirect drops the secret, so the route rejects
+  the call with a 401. Each run's reply is in `net._http_response`. The
+  earlier AWS (CDK/Lambda/SES) version was removed.
 
 ## Infrastructure
 
@@ -39,7 +42,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
   `CRON_SECRET`, `EMAIL_FROM`. Optional: `APP_URL`.
 - **Domain:** `fitfinder.website`, bought through Vercel and on Vercel DNS.
-  The app itself is still served at the `vercel.app` address.
+  It's the app's primary domain; `fit-finder-blush.vercel.app` and `www`
+  redirect to it.
 - **Resend:** `mail.fitfinder.website` is verified (DKIM and SPF records on
   Vercel DNS), and `EMAIL_FROM` sends from it, so the daily email reaches any
   user.
@@ -95,8 +99,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   and what happened (`outfit_impressions`). After a few weeks of real use, run
   `select * from recommendation_quality order by user_id, week;` in the SQL
   Editor: if learning works, skip rate falls and ratings rise over the weeks.
-- Optional: point `fitfinder.website` at the app (Vercel project → Domains)
-  and set `APP_URL` so email links use it.
+- Set `APP_URL` to `https://fitfinder.website` in Vercel so email links skip
+  the redirect (they work without it).
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
   `CLAUDE.md` and `CONTRIBUTING.md`.
 - An orphaned photo from deleted test data remains in storage (harmless,
