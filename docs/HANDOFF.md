@@ -16,9 +16,10 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 - **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
   outfits). The Outfits screen centres the outfit as a vertical stack (top,
-  bottom, shoes) under compact occasion and weather cards; reels spin top to
-  bottom, and each piece can be swapped alone with its arrows or a sideways
-  swipe, sliding in the way the user pointed. Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
+  bottom, shoes), with occasion to its left and weather to its right on wide
+  screens (below it on phones); reels spin top to bottom, and each piece can
+  be swapped alone with its arrows or a sideways swipe, sliding in the way the
+  user pointed. Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
   calendar, stats, settings (weather, occasions, colors, email), onboarding,
   rating prompt.
 - **Clothing detection:** Claude Haiku 4.5 through the Anthropic API
