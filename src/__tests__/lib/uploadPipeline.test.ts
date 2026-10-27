@@ -103,6 +103,12 @@ describe('uploadItem', () => {
     expect(row.is_dirty).toBe(false);
   });
 
+  it("returns the new item's id, so the closet can highlight it", async () => {
+    mockRowInsertSelect.mockResolvedValueOnce({ data: [{ id: 'item-9' }], error: null });
+    expect(await uploadItem(baseInput)).toBe('item-9');
+    expect(mockRowInsertSelect).toHaveBeenLastCalledWith('id');
+  });
+
   it('does not write an original_image_url column', async () => {
     await uploadItem(baseInput);
     const row = mockRowInsert.mock.calls[0][0][0];

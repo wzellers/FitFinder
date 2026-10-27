@@ -46,11 +46,13 @@ function saveJson(key: string, value: unknown): void {
 interface ClosetProps {
   onAddItem: () => void;
   onEditItem?: (item: ClothingItem) => void;
+  /** Items just added: they settle into the grid with a short highlight. */
+  highlightIds?: string[];
 }
 
 type LaundryAction = 'clean' | 'dirty' | null;
 
-export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
+export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: ClosetProps) {
   // Opening an item: its photo is named for the view transition just long
   // enough to be snapshotted, then the name passes to the dialog's photo.
   const [morphingId, setMorphingId] = useState<string | null>(null);
@@ -375,6 +377,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                               <ItemCard
                                 item={item}
                                 morphing={morphingId === item.id}
+                                justAdded={highlightIds.includes(item.id)}
                                 onOpen={() => openItem(item)}
                                 onToggleDirty={() => toggleItemDirty(item)}
                               />
@@ -442,15 +445,25 @@ interface ItemCardProps {
   item: ClothingItem;
   /** This card's photo is about to grow into the edit dialog. */
   morphing?: boolean;
+  justAdded?: boolean;
   onOpen: () => void;
   onToggleDirty: () => void;
 }
 
 /** A closet item: photo, type, colors and a clean/dirty toggle. */
-function ItemCard({ item, morphing = false, onOpen, onToggleDirty }: ItemCardProps) {
+function ItemCard({
+  item,
+  morphing = false,
+  justAdded = false,
+  onOpen,
+  onToggleDirty,
+}: ItemCardProps) {
   const name = describeItem(item);
   return (
-    <div className="item-card h-full flex flex-col">
+    <div
+      className={`item-card h-full flex flex-col ${justAdded ? 'just-added' : ''}`}
+      data-just-added={justAdded ? 'true' : undefined}
+    >
       <button onClick={onOpen} className="text-left rounded-sm" aria-label={`Edit ${name}`}>
         <div
           className="item-card-photo aspect-square w-full"

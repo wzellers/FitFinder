@@ -461,3 +461,68 @@
     transform: translate(0, 108vh);
   }
 }
+
+/* Adding items: a scan line while a photo is analysed or cut out. */
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 28%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--sky) 55%, transparent) 85%,
+    var(--carbon)
+  );
+  opacity: 0.55;
+  animation: scan 1.4s ease-in-out infinite;
+}
+@keyframes scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(360%);
+  }
+}
+/* The original photo wiping away to reveal the cut-out. */
+.reveal-wipe {
+  animation: reveal-wipe 0.9s cubic-bezier(0.6, 0, 0.3, 1);
+}
+@keyframes reveal-wipe {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+/* Something small arriving: a chip, a check. */
+.pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+/* A piece just added, settling into the closet grid. */
+.just-added .item-card-photo {
+  animation: just-added 2.4s ease both;
+}
+@keyframes just-added {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) scale(1.15);
+    box-shadow: 0 0 0 0 var(--sky);
+  }
+  25% {
+    opacity: 1;
+    transform: none;
+    box-shadow: 0 0 0 4px var(--sky);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}

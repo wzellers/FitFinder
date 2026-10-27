@@ -273,7 +273,8 @@ async function uploadBlob(userId: string, blob: Blob): Promise<string> {
 
 /**
  * Upload a processed item: store the image, then insert the clothing_items row.
- * Throws on failure so callers can surface per-item errors.
+ * Returns the new item's id (null if the row didn't come back). Throws on
+ * failure so callers can surface per-item errors.
  */
 export async function uploadItem({
   userId,
@@ -281,16 +282,17 @@ export async function uploadItem({
   type,
   colors,
   isDirty,
-}: UploadItemInput): Promise<void> {
+}: UploadItemInput): Promise<string | null> {
   const path = await uploadBlob(userId, blob);
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('clothing_items')
     .insert([{ user_id: userId, type, colors, image_url: path, is_dirty: isDirty }])
-    .select();
+    .select('id');
   if (error) {
     // Don't leave the uploaded image behind; a retry uploads a fresh copy.
     await removeClothingImages([path]);
     throw error;
   }
+  return (data as { id: string }[] | null)?.[0]?.id ?? null;
 }

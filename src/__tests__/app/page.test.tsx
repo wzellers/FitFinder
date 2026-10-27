@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 // Mock all the heavy child components
@@ -168,6 +168,23 @@ describe('Page — Logged In Navigation', () => {
     expect(wash.style.opacity).toBe('1');
     fireEvent.click(screen.getByRole('button', { name: 'Closet' }));
     expect(wash.style.opacity).toBe('0');
+  });
+
+  it('opens Add items with photos dropped on the Closet screen', async () => {
+    const ImageUpload = vi.mocked((await import('@/components/ImageUpload')).default);
+    renderWithProviders(<Page />);
+    await waitFor(() => screen.getByTestId('closet'), { timeout: 3000 });
+    const photo = new File(['x'], 'tee.png', { type: 'image/png' });
+    const drag = (type: string) => {
+      const e = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(e, 'dataTransfer', { value: { types: ['Files'], files: [photo] } });
+      window.dispatchEvent(e);
+    };
+    act(() => drag('dragenter'));
+    expect(screen.getByText('Drop photos to add them')).toBeTruthy();
+    act(() => drag('drop'));
+    expect(screen.queryByText('Drop photos to add them')).toBeNull();
+    expect(ImageUpload.mock.lastCall?.[0]).toMatchObject({ isOpen: true, initialFiles: [photo] });
   });
 
   it('navigates to Calendar tab on click', async () => {

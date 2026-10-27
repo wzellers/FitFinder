@@ -87,6 +87,14 @@ describe('Closet', () => {
     expect(onEditItem).toHaveBeenCalledWith(expect.objectContaining({ id: 't1' }));
   });
 
+  it('highlights items that were just added', async () => {
+    renderWithProviders(<Closet onAddItem={vi.fn()} highlightIds={['t2']} />);
+    const added = await screen.findByRole('button', { name: 'Edit Red T-Shirt' });
+    expect(added.closest('[data-just-added]')).toBeTruthy();
+    const other = screen.getByRole('button', { name: 'Edit Blue T-Shirt' });
+    expect(other.closest('[data-just-added]')).toBeNull();
+  });
+
   it('shows Clear filters once a filter is active', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Dirty' }));
