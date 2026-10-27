@@ -40,7 +40,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
-  `CRON_SECRET`, `EMAIL_FROM`. Optional: `APP_URL`.
+  `CRON_SECRET`, `EMAIL_FROM`, `APP_URL` (`https://fitfinder.website`, used
+  for links in the email).
 - **Domain:** `fitfinder.website`, bought through Vercel and on Vercel DNS.
   It's the app's primary domain; `fit-finder-blush.vercel.app` and `www`
   redirect to it.
@@ -99,8 +100,6 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   and what happened (`outfit_impressions`). After a few weeks of real use, run
   `select * from recommendation_quality order by user_id, week;` in the SQL
   Editor: if learning works, skip rate falls and ratings rise over the weeks.
-- Set `APP_URL` to `https://fitfinder.website` in Vercel so email links skip
-  the redirect (they work without it).
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in
   `CLAUDE.md` and `CONTRIBUTING.md`.
 - An orphaned photo from deleted test data remains in storage (harmless,
