@@ -33,7 +33,9 @@ export default function SwipeArea({ onSwipe, disabled, className, children }: Sw
   return (
     <div
       className={className}
-      style={{ touchAction: 'pan-y' }}
+      // pan-y: vertical touch scrolling still works; sideways goes to us. No
+      // text selection, so a mouse swipe doesn't highlight the page.
+      style={{ touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none' }}
       onPointerDown={(e) => {
         start.current = { x: e.clientX, y: e.clientY };
         swiped.current = false;

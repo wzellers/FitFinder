@@ -20,6 +20,8 @@ async function generate(page: Page) {
 
 test('generates a full outfit from clean items only', async ({ page }) => {
   await openApp(page, 'Outfits');
+  // The outfit is the focus: on a laptop-sized screen it starts above the fold.
+  await expect(page.getByRole('button', { name: 'Choose a top' })).toBeInViewport();
   await expect(page.getByText('{ 5 clean items to pick from }')).toBeVisible();
 
   const tops = new Set<string>();
@@ -158,6 +160,7 @@ test('swipes a piece sideways to swap it, without opening the picker', async ({ 
   await generate(page);
   const top = await currentPiece(page, 'top');
 
+  await slot(page, 'top').scrollIntoViewIfNeeded();
   const box = (await slot(page, 'top').boundingBox())!;
   const y = box.y + box.height / 2;
   await page.mouse.move(box.x + box.width * 0.8, y);
@@ -167,6 +170,8 @@ test('swipes a piece sideways to swap it, without opening the picker', async ({ 
 
   await expect(slot(page, 'top')).not.toHaveAttribute('aria-label', `Change top: ${top}`);
   await expect(page.getByRole('dialog', { name: 'Choose a top' })).toHaveCount(0);
+  // The drag didn't select the page's text.
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
 });
 
 test("a kept piece can't be swapped", async ({ page }) => {

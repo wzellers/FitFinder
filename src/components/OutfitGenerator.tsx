@@ -744,92 +744,43 @@ export default function OutfitGenerator({
       />
 
       {activeTab === 'generator' && (
-        <div className="mx-auto w-full max-w-3xl flex flex-col items-center gap-8">
-          {/* ====== Conditions: compact, above the outfit ====== */}
-          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <section aria-labelledby="occasion-heading" className="card p-4">
-              <h3 id="occasion-heading" className="panel-label mb-2">
-                Occasion
-              </h3>
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Occasion">
+        <div className="mx-auto w-full max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
+          {/* ====== Occasion: left of the outfit (below it on phones) ====== */}
+          <section
+            aria-labelledby="occasion-heading"
+            className="card p-4 order-2 lg:order-1 lg:sticky lg:top-6"
+          >
+            <h3 id="occasion-heading" className="panel-label mb-2">
+              Occasion
+            </h3>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Occasion">
+              <button
+                onClick={() => setOccasion(null)}
+                aria-pressed={occasion === null}
+                className={chip(occasion === null)}
+              >
+                Any
+              </button>
+              {occasions.map((o) => (
                 <button
-                  onClick={() => setOccasion(null)}
-                  aria-pressed={occasion === null}
-                  className={chip(occasion === null)}
+                  key={o}
+                  onClick={() => setOccasion(o)}
+                  aria-pressed={occasion === o}
+                  className={chip(occasion === o)}
                 >
-                  Any
+                  {o}
                 </button>
-                {occasions.map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => setOccasion(o)}
-                    aria-pressed={occasion === o}
-                    className={chip(occasion === o)}
-                  >
-                    {o}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-2">
-                Only items that suit the occasion are used. Change what fits in Settings.
-              </p>
-            </section>
-
-            <section aria-labelledby="weather-heading" className="card p-4">
-              <h3 id="weather-heading" className="panel-label mb-2">
-                Weather
-              </h3>
-              {weatherLoading && (
-                <div className="h-16 rounded-md bg-[var(--muted)] animate-pulse" />
-              )}
-
-              {weather && !weatherLoading && (
-                <>
-                  <div className="flex items-center gap-3">
-                    <img src={getWeatherIconUrl(weather.icon)} alt="" className="w-11 h-11 -my-1" />
-                    <div className="min-w-0">
-                      <div className="tabular font-bold text-2xl leading-tight">
-                        {weather.temperature}°F
-                      </div>
-                      <div className="text-xs text-[var(--text-secondary)] truncate">
-                        {weather.condition}, high of {weather.highTemperature}°F ·{' '}
-                        <span className={ignoreWeather ? 'line-through' : ''}>{tempLabel}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <label className="mt-2 flex items-center justify-between gap-3 min-h-[44px] cursor-pointer">
-                    <span className="text-sm font-semibold flex items-center gap-2">
-                      {ignoreWeather ? (
-                        <CloudOff size={16} aria-hidden="true" />
-                      ) : (
-                        <CloudSun size={16} aria-hidden="true" />
-                      )}
-                      Dress for the weather
-                    </span>
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      checked={!ignoreWeather}
-                      onChange={() => setIgnoreWeather(!ignoreWeather)}
-                      className="w-5 h-5 accent-[var(--carbon)]"
-                    />
-                  </label>
-                </>
-              )}
-
-              {!weather && !weatherLoading && (
-                <p className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
-                  <CloudSun size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>Add your ZIP code in Settings to get outfits picked for the weather.</span>
-                </p>
-              )}
-            </section>
-          </div>
+              ))}
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] mt-2">
+              Only items that suit the occasion are used. Change what fits in Settings.
+            </p>
+          </section>
 
           {/* ====== The outfit: the centre of the screen ====== */}
           <section
             aria-labelledby="outfit-heading"
-            className="panel w-full max-w-md px-4 sm:px-6 pt-7 pb-7"
+            className="panel w-full max-w-md mx-auto px-4 sm:px-6 pt-7 pb-7 order-1 lg:order-2"
           >
             <div className="text-center">
               <h3 id="outfit-heading" className="text-lg">
@@ -1003,9 +954,61 @@ export default function OutfitGenerator({
             )}
           </section>
 
-          <button onClick={onNavigateToCalendar} className="btn-ghost">
-            <Calendar size={16} aria-hidden="true" /> See what you&apos;ve worn
-          </button>
+          {/* ====== Weather: right of the outfit (below it on phones) ====== */}
+          <div className="order-3 flex flex-col gap-3 lg:sticky lg:top-6">
+            <section aria-labelledby="weather-heading" className="card p-4">
+              <h3 id="weather-heading" className="panel-label mb-2">
+                Weather
+              </h3>
+              {weatherLoading && (
+                <div className="h-16 rounded-md bg-[var(--muted)] animate-pulse" />
+              )}
+
+              {weather && !weatherLoading && (
+                <>
+                  <div className="flex items-center gap-3">
+                    <img src={getWeatherIconUrl(weather.icon)} alt="" className="w-11 h-11 -my-1" />
+                    <div className="min-w-0">
+                      <div className="tabular font-bold text-2xl leading-tight">
+                        {weather.temperature}°F
+                      </div>
+                      <div className="text-xs text-[var(--text-secondary)] truncate">
+                        {weather.condition}, high of {weather.highTemperature}°F ·{' '}
+                        <span className={ignoreWeather ? 'line-through' : ''}>{tempLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <label className="mt-2 flex items-center justify-between gap-3 min-h-[44px] cursor-pointer">
+                    <span className="text-sm font-semibold flex items-center gap-2">
+                      {ignoreWeather ? (
+                        <CloudOff size={16} aria-hidden="true" />
+                      ) : (
+                        <CloudSun size={16} aria-hidden="true" />
+                      )}
+                      Dress for the weather
+                    </span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={!ignoreWeather}
+                      onChange={() => setIgnoreWeather(!ignoreWeather)}
+                      className="w-5 h-5 accent-[var(--carbon)]"
+                    />
+                  </label>
+                </>
+              )}
+
+              {!weather && !weatherLoading && (
+                <p className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
+                  <CloudSun size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>Add your ZIP code in Settings to get outfits picked for the weather.</span>
+                </p>
+              )}
+            </section>
+            <button onClick={onNavigateToCalendar} className="btn-ghost justify-start">
+              <Calendar size={16} aria-hidden="true" /> See what you&apos;ve worn
+            </button>
+          </div>
         </div>
       )}
 
