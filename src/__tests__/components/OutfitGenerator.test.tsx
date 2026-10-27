@@ -483,4 +483,46 @@ describe('OutfitGenerator', () => {
     renderWithProviders(<OutfitGenerator />);
     expect(await screen.findByText("Couldn't load the weather for 10001 right now.")).toBeTruthy();
   });
+
+  it('keeps a rated outfit on screen with its rating, until you try another', async () => {
+    mockRows.clothing_items = [
+      makeTop({ colors: ['red'] }),
+      makeTop({ colors: ['green'] }),
+      makeBottom(),
+      makeShoes(),
+    ];
+    renderWithProviders(<OutfitGenerator />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+    const top = () =>
+      screen.getByRole('button', { name: /^Change top: / }).getAttribute('aria-label');
+    const rated = top();
+
+    fireEvent.click(await screen.findByRole('button', { name: '8 out of 10' }));
+    expect(await screen.findByText(/You rated this 8\/10/)).toBeTruthy();
+    expect(top()).toBe(rated);
+    expect(
+      (screen.getByRole('button', { name: '8 out of 10' }) as HTMLButtonElement).closest(
+        'fieldset',
+      )!.disabled,
+    ).toBe(true);
+
+    // Moving on isn't a skip: it was rated.
+    fireEvent.click(screen.getByRole('button', { name: 'Try another outfit' }));
+    await waitFor(() => expect(top()).not.toBe(rated));
+    expect(screen.queryByText(/You rated this/)).toBeNull();
+    const outcomes = mockWrites
+      .filter((w) => w.table === 'outfit_impressions' && w.op === 'update')
+      .map((w) => (w.row as { outcome: string }).outcome);
+    expect(outcomes).toEqual(['rated']);
+  });
+
+  it('shows Save, Wear today and Share beside the outfit, and Generate under it', async () => {
+    renderWithProviders(<OutfitGenerator />);
+    const generate = await screen.findByRole('button', { name: 'Generate outfit' });
+    expect(generate.closest('section')?.getAttribute('aria-labelledby')).toBe('outfit-heading');
+    const actions = screen.getByRole('region', { name: 'This outfit' });
+    for (const name of [/Save outfit/, /Wear today/, 'Share outfit']) {
+      expect(actions.contains(screen.getByRole('button', { name }))).toBe(true);
+    }
+  });
 });

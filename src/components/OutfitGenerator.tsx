@@ -555,8 +555,12 @@ export default function OutfitGenerator({
     }
   };
 
-  // Rate the shown outfit without wearing it, then show the next one.
+  // Rate the shown outfit without wearing it. It stays on screen with its
+  // rating until the user moves on.
   const [ratingSaving, setRatingSaving] = useState(false);
+  const [lastRating, setLastRating] = useState<{ key: string; rating: number } | null>(null);
+  const shownKey = top && bottom && shoes ? outfitKey({ top, bottom, shoes }) : '';
+  const shownRating = lastRating?.key === shownKey ? lastRating.rating : 0;
   // The rating being pointed at: the outfit's glow warms with it.
   const [ratingPreview, setRatingPreview] = useState(0);
   const rateShownOutfit = async (rating: number) => {
@@ -586,8 +590,9 @@ export default function OutfitGenerator({
       ];
       setRatedOutfits(rated);
       settleShownPick('rated', rating);
-      showToast(`Rated ${rating}/10. Here's another.`, 'success');
-      pickOutfit({ model: updated, ratedOutfits: rated });
+      setLastRating({ key: outfitKey({ top, bottom, shoes }), rating });
+      setRatingPreview(0);
+      showToast(`Rated ${rating}/10. Try another when you're ready.`, 'success');
     } catch {
       showToast("Couldn't save your rating. Try again.", 'error');
     } finally {
@@ -1015,7 +1020,10 @@ export default function OutfitGenerator({
                   >
                     <div className="min-w-0 text-right">
                       <div className="panel-label">{label}</div>
-                      <div className="text-sm font-semibold tracking-tight truncate">
+                      <div
+                        className="text-sm font-semibold tracking-tight leading-snug line-clamp-3 break-words"
+                        title={item ? describeItem(item) : undefined}
+                      >
                         {item ? <ScrambleText text={describeItem(item)} /> : 'Not picked yet'}
                       </div>
                     </div>
@@ -1091,57 +1099,63 @@ export default function OutfitGenerator({
               </p>
             )}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={tryAnother}
-                disabled={loading}
-                className="btn-primary flex-1 min-w-[12rem] text-base min-h-[48px]"
-              >
-                <Sparkles size={18} aria-hidden="true" />
-                {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
-              </button>
+            <button
+              onClick={tryAnother}
+              disabled={loading}
+              className="btn-primary w-full mt-5 text-base min-h-[52px]"
+            >
+              <Sparkles size={18} aria-hidden="true" />
+              {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
+            </button>
+          </section>
+
+          {/* ====== Right: rating and history (below the outfit on phones) ====== */}
+          <div className="order-2 lg:order-3 flex flex-col gap-4 lg:sticky lg:top-24">
+            <section aria-label="This outfit" className="card p-4 flex flex-col gap-2">
+              <h3 className="panel-label mb-1">This outfit</h3>
               <button
                 onClick={openSaveModal}
                 disabled={!hasOutfit}
-                className="btn-secondary min-h-[48px]"
+                className="btn-secondary w-full"
               >
                 <Save size={16} aria-hidden="true" /> Save outfit
               </button>
-              <button
-                onClick={wearToday}
-                disabled={!hasOutfit}
-                className="btn-secondary min-h-[48px]"
-              >
+              <button onClick={wearToday} disabled={!hasOutfit} className="btn-secondary w-full">
                 <CalendarPlus size={16} aria-hidden="true" /> Wear today
               </button>
               <button
                 onClick={shareOutfit}
                 disabled={!hasOutfit || sharing}
                 aria-label="Share outfit"
-                className="btn-secondary min-h-[48px]"
+                className="btn-secondary w-full"
               >
                 <Share2 size={16} aria-hidden="true" /> Share
               </button>
-            </div>
-          </section>
-
-          {/* ====== Right: rating and history (below the outfit on phones) ====== */}
-          <div className="order-2 lg:order-3 flex flex-col gap-4 lg:sticky lg:top-24">
+            </section>
             <section aria-label="Rate this outfit" className="card p-4">
               {hasOutfit ? (
                 <RatingPicker
-                  value={0}
+                  value={shownRating}
                   onChange={rateShownOutfit}
                   clearable={false}
-                  disabled={ratingSaving}
+                  disabled={ratingSaving || shownRating > 0}
                   onPreview={setRatingPreview}
                   legend={
-                    <>
-                      Rate this outfit{' '}
-                      <span className="font-normal text-[var(--text-secondary)]">
-                        (no need to wear it; helps FitFinder learn your taste)
-                      </span>
-                    </>
+                    shownRating > 0 ? (
+                      <>
+                        You rated this {shownRating}/10{' '}
+                        <span className="font-normal text-[var(--text-secondary)]">
+                          (Try another for the next one)
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        Rate this outfit{' '}
+                        <span className="font-normal text-[var(--text-secondary)]">
+                          (no need to wear it; helps FitFinder learn your taste)
+                        </span>
+                      </>
+                    )
                   }
                 />
               ) : (
@@ -1280,7 +1294,7 @@ export default function OutfitGenerator({
         <Modal
           label={`Choose a ${pickerSlot}`}
           onClose={() => setPickerSlot(null)}
-          className="max-w-md"
+          className="max-w-3xl"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl">Choose a {pickerSlot}</h3>
@@ -1298,23 +1312,23 @@ export default function OutfitGenerator({
               some in the Closet, or mark a few clean.
             </p>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[65vh] overflow-y-auto p-1">
               {pickerItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handlePickItem(item)}
                   aria-label={describeItem(item)}
-                  className="flex flex-col items-center gap-1 p-2 rounded-md border border-[var(--border)] hover:border-[var(--line-strong)] bg-white transition-colors"
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-[var(--border)] hover:border-[var(--accent)] bg-white transition-colors"
                 >
-                  <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
+                  <div className="w-full aspect-square rounded-lg bg-[var(--muted)] overflow-hidden">
                     <ClothingImage
                       src={item.image_url}
                       alt=""
                       className="w-full h-full object-contain p-1"
                     />
                   </div>
-                  <span className="text-xs text-[var(--text-secondary)] truncate w-full text-center">
-                    {item.type}
+                  <span className="text-xs text-[var(--text-secondary)] line-clamp-2 w-full text-center">
+                    {describeItem(item)}
                   </span>
                 </button>
               ))}

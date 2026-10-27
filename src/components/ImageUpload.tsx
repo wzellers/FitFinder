@@ -425,7 +425,7 @@ export default function ImageUpload({
     <Modal
       label={isGrid ? `Add ${drafts.length} items` : 'Add a clothing item'}
       onClose={closeModal}
-      className={isGrid ? 'max-w-3xl' : 'max-w-xl'}
+      className={isGrid ? 'max-w-5xl' : 'max-w-2xl'}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -485,7 +485,7 @@ export default function ImageUpload({
       {stage === 'review' && drafts.length > 0 && (
         <>
           {isGrid ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
               {drafts.map((draft) => (
                 <DraftCard
                   key={draft.id}
@@ -801,7 +801,7 @@ function DraftPreview({ draft, large = false }: { draft: ItemDraft; large?: bool
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div
-        className={`${large ? 'w-44 h-44' : 'w-28 h-28'} relative rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]`}
+        className={`${large ? 'w-56 h-56' : 'w-36 h-36'} relative rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--muted)]`}
       >
         <img
           src={draft.previewUrl}

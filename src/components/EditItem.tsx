@@ -111,7 +111,7 @@ export default function EditItem({
 
   return (
     <>
-      <Modal label={`Edit ${describeItem(item)}`} onClose={onClose} className="max-w-xl">
+      <Modal label={`Edit ${describeItem(item)}`} onClose={onClose} className="max-w-2xl">
         <div className="flex items-start justify-between gap-3 mb-5">
           <div>
             <h2 className="text-2xl">Edit item</h2>

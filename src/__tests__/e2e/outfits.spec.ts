@@ -268,7 +268,9 @@ test("logs today's outfit once, and it shows in the calendar", async ({ page }) 
   ).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('rates an outfit without wearing it, learns from it, and shows the next', async ({ page }) => {
+test('rates an outfit without wearing it, learns from it, and keeps it on screen', async ({
+  page,
+}) => {
   const { db, userId } = await testDb();
   await openApp(page, 'Outfits');
   await generate(page);
@@ -279,7 +281,11 @@ test('rates an outfit without wearing it, learns from it, and shows the next', a
 
   const rating = page.getByRole('group', { name: /Rate this outfit/ });
   await rating.getByRole('button', { name: '8 out of 10' }).click();
-  await expect(toast(page, "Rated 8/10. Here's another.")).toBeVisible();
+  await expect(toast(page, "Rated 8/10. Try another when you're ready.")).toBeVisible();
+  // The rated outfit stays, showing its rating.
+  await expect(page.getByRole('group', { name: /You rated this 8\/10/ })).toBeVisible();
+  expect(await slot(page, 'top').getAttribute('aria-label')).toBe(shown.top);
+  expect(await slot(page, 'bottom').getAttribute('aria-label')).toBe(shown.bottom);
 
   // Saved for exactly the shown outfit, with the features it was learned from.
   const rows = ok(
@@ -305,25 +311,25 @@ test('rates an outfit without wearing it, learns from it, and shows the next', a
     ok(await db.from('outfit_wears').select('id').eq('user_id', userId), 'wears'),
   ).toHaveLength(0);
 
-  // Both shown outfits were logged for measuring recommendations, the rated
-  // one with its outcome.
+  // Logged for measuring recommendations, with its outcome.
+  const impressions = async () => {
+    const { data } = await db
+      .from('outfit_impressions')
+      .select('outcome, rating, top_id')
+      .eq('user_id', userId)
+      .order('shown_at');
+    return data ?? [];
+  };
   await expect
-    .poll(async () => {
-      const { data } = await db
-        .from('outfit_impressions')
-        .select('outcome, rating, top_id, predicted')
-        .eq('user_id', userId)
-        .order('shown_at');
-      return data ?? [];
-    })
-    .toMatchObject([
-      { outcome: 'rated', rating: 8, top_id: rows![0].top_id },
-      { outcome: null, rating: null },
-    ]);
+    .poll(impressions)
+    .toMatchObject([{ outcome: 'rated', rating: 8, top_id: rows![0].top_id }]);
 
-  // A next outfit is shown (the reels spin again; with a small closet it may
-  // repeat), and rating stays available.
-  await expect(slot(page, 'top')).toBeVisible();
-  expect(shown.top).toBeTruthy();
-  await expect(rating.getByRole('button', { name: '8 out of 10' })).toBeEnabled();
+  // Try another moves on (not counted as a skip), and rating is open again.
+  await generate(page);
+  await expect.poll(impressions).toMatchObject([{ outcome: 'rated' }, { outcome: null }]);
+  await expect(
+    page
+      .getByRole('group', { name: /Rate this outfit/ })
+      .getByRole('button', { name: '8 out of 10' }),
+  ).toBeEnabled();
 });
