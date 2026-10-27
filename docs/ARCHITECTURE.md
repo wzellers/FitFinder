@@ -111,7 +111,9 @@ The score is a weighted sum with fixed `FEATURE_WEIGHTS`
 (color / variety / rating `0.25 / 0.25 / 0.5`, summing to 1.0). Generation scores every valid
 `top × bottom × shoes` combination, sorts descending, and samples among the top
 results so repeated "generate" clicks stay fresh while favoring good outfits.
-Locked slots constrain the candidate pool before scoring.
+Locked slots constrain the candidate pool before scoring. Swapping one piece
+(its arrows, or a sideways swipe) keeps the other two and picks among
+candidates that differ only in that slot.
 
 ### 3. Contextual bandit (learning)
 
@@ -168,6 +170,8 @@ user, behind the same interface:
   hasn't saved, worn, rated or changed) is weak evidence against it:
   `learnFromSkip` learns a reward of 0.1 (`SKIP_REWARD`) with a quarter of a
   rating's weight (`SKIP_WEIGHT`), and doesn't count it in `meta.updates`.
+  Swapping one piece of that outfit counts the same way, but only when there
+  is another piece to swap in.
 - **Persistence.** `outfit_model_weights` holds one row per user: `weights` is
   the posterior mean (enough for readers like the daily email, which takes the
   best expected outfit) and `feature_meta` carries the posterior and version.

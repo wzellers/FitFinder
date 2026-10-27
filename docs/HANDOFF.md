@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-27 (CI requires tests with app changes)
+**Last updated:** 2026-10-27 (centred outfit stage, swapping one piece)
 
 ## What's live
 
@@ -15,7 +15,10 @@ Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.1
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 - **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
-  outfits). Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
+  outfits). The Outfits screen centres the outfit as a vertical stack (top,
+  bottom, shoes) under compact occasion and weather cards; reels spin top to
+  bottom, and each piece can be swapped alone with its arrows or a sideways
+  swipe, sliding in the way the user pointed. Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
   calendar, stats, settings (weather, occasions, colors, email), onboarding,
   rating prompt.
 - **Clothing detection:** Claude Haiku 4.5 through the Anthropic API
@@ -60,8 +63,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 365 unit/component tests (`npm run test`).
-- **Playwright:** 46 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 379 unit/component tests (`npm run test`).
+- **Playwright:** 49 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a
