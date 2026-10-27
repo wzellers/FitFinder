@@ -80,11 +80,16 @@ interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
   /** Changes when closet items change, so the generator reloads its data. */
   refreshKey?: number;
+  /** Whether the Outfits tab is showing. The generator stays mounted while
+   * hidden, so coming back re-reads settings that may have changed (ZIP code,
+   * weather and occasion preferences). */
+  active?: boolean;
 }
 
 export default function OutfitGenerator({
   onNavigateToCalendar,
   refreshKey = 0,
+  active = true,
 }: OutfitGeneratorProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -103,6 +108,8 @@ export default function OutfitGenerator({
   // Weather
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
+  // The ZIP code the weather is for (null: none saved).
+  const [zip, setZip] = useState<string | null>(null);
   const [tempCategory, setTempCategory] = useState<TemperatureCategory | null>(null);
   const [ignoreWeather, setIgnoreWeather] = useState(false);
   const [userWeatherPrefs, setUserWeatherPrefs] = useState<UserWeatherPreferences | null>(null);
@@ -207,14 +214,7 @@ export default function OutfitGenerator({
           : null;
         setUserWeatherPrefs(userWP);
 
-        // Fetch weather
-        if (profileData?.zip_code) {
-          setWeatherLoading(true);
-          const wd = await fetchWeather(profileData.zip_code);
-          setWeather(wd);
-          if (wd) setTempCategory(getTemperatureCategory(wd.highTemperature, userWP?.thresholds));
-          setWeatherLoading(false);
-        }
+        await loadWeather(profileData?.zip_code ?? null, userWP);
       } catch {
         setError("Couldn't load your closet. Refresh to try again.");
       } finally {
@@ -223,6 +223,69 @@ export default function OutfitGenerator({
     };
     fetchAll();
   }, [user, refreshKey]);
+
+  /** Fetch the weather for `zipCode` (or clear it when there's none). */
+  const loadWeather = async (zipCode: string | null, prefs: UserWeatherPreferences | null) => {
+    setZip(zipCode);
+    if (!zipCode) {
+      setWeather(null);
+      return;
+    }
+    setWeatherLoading(true);
+    try {
+      const wd = await fetchWeather(zipCode);
+      setWeather(wd);
+      if (wd) setTempCategory(getTemperatureCategory(wd.highTemperature, prefs?.thresholds));
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  // Back on the tab: pick up settings changed meanwhile (a new ZIP code,
+  // weather or occasion preferences) without reloading the closet.
+  const wasActive = useRef(active);
+  useEffect(() => {
+    const returned = active && !wasActive.current;
+    wasActive.current = active;
+    if (!returned || !user) return;
+    (async () => {
+      try {
+        const [{ data: profileData }, { data: weatherPrefsData }, { data: occPrefsData }] =
+          throwIfAnyError(
+            await Promise.all([
+              supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+              supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+              supabase
+                .from('occasion_preferences')
+                .select('rules')
+                .eq('user_id', user.id)
+                .maybeSingle(),
+            ]),
+          );
+        const userWP: UserWeatherPreferences | null = weatherPrefsData
+          ? {
+              thresholds: weatherPrefsData.thresholds ?? {
+                cold: TEMPERATURE_THRESHOLDS.COLD,
+                cool: TEMPERATURE_THRESHOLDS.COOL,
+                warm: TEMPERATURE_THRESHOLDS.WARM,
+              },
+              clothingRules: weatherPrefsData.clothing_rules ?? null,
+            }
+          : null;
+        setUserWeatherPrefs(userWP);
+        setUserOccasionRules((occPrefsData?.rules ?? null) as OccasionRules | null);
+        const nextZip = profileData?.zip_code ?? null;
+        if (nextZip !== zip || (nextZip && !weather)) await loadWeather(nextZip, userWP);
+        else if (weather) {
+          setTempCategory(getTemperatureCategory(weather.highTemperature, userWP?.thresholds));
+        }
+      } catch {
+        // Keep what's on screen; the next visit tries again.
+      }
+    })();
+    // Runs when the tab is shown again; the rest is read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   // Generate outfit — featurize candidates, then let the bandit select via
   // ε-greedy (explore/exploit) using the user's learned weights. Locked slots
@@ -873,7 +936,11 @@ export default function OutfitGenerator({
               {!weather && !weatherLoading && (
                 <p className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
                   <CloudSun size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>Add your ZIP code in Settings to get outfits picked for the weather.</span>
+                  <span>
+                    {zip
+                      ? `Couldn't load the weather for ${zip} right now.`
+                      : 'Add your ZIP code in Settings to get outfits picked for the weather.'}
+                  </span>
                 </p>
               )}
             </section>

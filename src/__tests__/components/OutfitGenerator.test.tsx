@@ -452,4 +452,36 @@ describe('OutfitGenerator', () => {
     );
     expect(await screen.findByText('Saved an image of your outfit.')).toBeTruthy();
   });
+
+  it('picks up a ZIP code saved in Settings when the tab is shown again', async () => {
+    const { rerender } = renderWithProviders(<OutfitGenerator active />);
+    expect(await screen.findByText(/Add your ZIP code in Settings/)).toBeTruthy();
+
+    // Away in Settings, the user saves a ZIP code.
+    rerender(<OutfitGenerator active={false} />);
+    mockSingle.profiles = { zip_code: '10001' };
+    vi.mocked(fetchWeather).mockResolvedValueOnce({
+      temperature: 61,
+      highTemperature: 64,
+      condition: 'Clear',
+      description: 'clear sky',
+      icon: '01d',
+      humidity: 40,
+      windSpeed: 3,
+      timestamp: 0,
+      zipCode: '10001',
+    });
+    rerender(<OutfitGenerator active />);
+
+    expect(await screen.findByText('61°F')).toBeTruthy();
+    expect(screen.queryByText(/Add your ZIP code in Settings/)).toBeNull();
+    expect(fetchWeather).toHaveBeenLastCalledWith('10001');
+  });
+
+  it("says when the weather can't be loaded for a saved ZIP code", async () => {
+    mockSingle.profiles = { zip_code: '10001' };
+    vi.mocked(fetchWeather).mockResolvedValueOnce(null);
+    renderWithProviders(<OutfitGenerator />);
+    expect(await screen.findByText("Couldn't load the weather for 10001 right now.")).toBeTruthy();
+  });
 });

@@ -27,6 +27,26 @@ test('saves a ZIP code, and Outfits shows live weather for it', async ({ page })
   await expect(weather.getByRole('switch', { name: /Dress for the weather/ })).toBeChecked();
 });
 
+test('a ZIP code saved in Settings shows on Outfits without reloading', async ({ page }) => {
+  // Outfits opened first, so it's already loaded (and kept) when the ZIP changes.
+  await openApp(page, 'Outfits');
+  const weather = page.locator('section[aria-labelledby="weather-heading"]');
+  await expect(weather.getByText(/Add your ZIP code/)).toBeVisible();
+
+  await goToTab(page, 'Settings');
+  await page
+    .getByRole('navigation', { name: 'Preference sections' })
+    .getByRole('button', { name: 'Weather' })
+    .click();
+  await page.getByLabel('US ZIP code').fill('10001');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(toast(page, 'ZIP code saved.')).toBeVisible();
+
+  await goToTab(page, 'Outfits');
+  await expect(weather.getByText(/^-?\d+°F$/)).toBeVisible();
+  await expect(weather.getByText(/Add your ZIP code/)).toHaveCount(0);
+});
+
 test('adds a liked color combination and deletes it', async ({ page }) => {
   await openSection(page, 'Colors');
   await page.getByRole('button', { name: 'Top Color' }).click();

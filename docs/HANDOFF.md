@@ -78,8 +78,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 444 unit/component tests (`npm run test`).
-- **Playwright:** 51 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 446 unit/component tests (`npm run test`).
+- **Playwright:** 52 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a

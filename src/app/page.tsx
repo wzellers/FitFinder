@@ -233,6 +233,7 @@ export default function Page() {
             // page-in replays each time the tab is un-hidden.
             <div hidden={activeTab !== 'generator'} className="page-in">
               <OutfitGenerator
+                active={activeTab === 'generator'}
                 onNavigateToCalendar={() => setActiveTab('calendar')}
                 refreshKey={closetRefreshKey}
               />
