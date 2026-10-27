@@ -65,6 +65,9 @@ export default function SwipeArea({ onSwipe, disabled, className, children }: Sw
           w.quietUntil = now + WHEEL_COOLDOWN_MS;
         }
       }}
+      // Dragging a photo would start the browser's own image drag and cancel
+      // the swipe.
+      onDragStart={(e) => e.preventDefault()}
       onClickCapture={(e) => {
         if (swiped.current) {
           e.preventDefault();

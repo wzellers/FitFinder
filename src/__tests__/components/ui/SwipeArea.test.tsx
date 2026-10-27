@@ -83,4 +83,9 @@ describe('SwipeArea', () => {
     fireEvent.wheel(button, { deltaX: 200, deltaY: 0 });
     expect(onSwipe).not.toHaveBeenCalled();
   });
+
+  it("stops the browser's own image drag, which would cancel a mouse swipe", () => {
+    const { button } = setup();
+    expect(fireEvent.dragStart(button)).toBe(false); // default prevented
+  });
 });
