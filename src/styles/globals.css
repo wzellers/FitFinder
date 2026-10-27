@@ -297,10 +297,11 @@
   .page-in {
     animation: page-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+  /* Opacity only: a transform would briefly re-anchor the fixed weather
+     backdrop inside the tab. */
   @keyframes page-in {
     from {
       opacity: 0;
-      transform: translateY(6px);
     }
   }
   .btn-secondary {
@@ -357,4 +358,106 @@
 ::view-transition-group(item-photo) {
   animation-duration: 0.38s;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Weather behind the Outfits screen (WeatherBackdrop). Faint on purpose. */
+.wx-sun {
+  position: absolute;
+  top: -22vmax;
+  right: -14vmax;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 200, 90, 0.32),
+    rgba(255, 180, 70, 0.12) 40%,
+    transparent 70%
+  );
+  animation: wx-sun 18s ease-in-out infinite alternate;
+}
+@keyframes wx-sun {
+  to {
+    transform: translate(-4vmax, 3vmax) scale(1.08);
+    opacity: 0.8;
+  }
+}
+.wx-star {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgba(70, 90, 140, 0.55);
+  animation: wx-twinkle 4s ease-in-out infinite;
+}
+@keyframes wx-twinkle {
+  50% {
+    opacity: 0.15;
+  }
+}
+.wx-cloud {
+  position: absolute;
+  left: 0;
+  border-radius: 9999px;
+  background: rgba(130, 145, 165, 0.14);
+  filter: blur(28px);
+  animation: wx-drift 120s linear infinite;
+}
+@keyframes wx-drift {
+  from {
+    transform: translateX(-40vw);
+  }
+  to {
+    transform: translateX(110vw);
+  }
+}
+.wx-drop {
+  position: absolute;
+  top: -15vh;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(80, 110, 150, 0.35));
+  animation: wx-rain 1.2s linear infinite;
+}
+@keyframes wx-rain {
+  to {
+    transform: translate(-12vh, 125vh);
+  }
+}
+.wx-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.6);
+  opacity: 0;
+  animation: wx-flash 11s linear infinite;
+}
+@keyframes wx-flash {
+  0%,
+  91%,
+  93.5%,
+  100% {
+    opacity: 0;
+  }
+  92%,
+  94% {
+    opacity: 0.5;
+  }
+}
+.wx-flake {
+  position: absolute;
+  top: -3vh;
+  border-radius: 9999px;
+  background: rgba(150, 175, 205, 0.6);
+  animation: wx-snow 12s linear infinite;
+}
+@keyframes wx-snow {
+  25% {
+    transform: translate(1.5vw, 27vh);
+  }
+  50% {
+    transform: translate(-1vw, 55vh);
+  }
+  75% {
+    transform: translate(1vw, 82vh);
+  }
+  to {
+    transform: translate(0, 108vh);
+  }
 }

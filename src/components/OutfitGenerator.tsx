@@ -26,6 +26,8 @@ import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import SlotReel, { type ReelDirection } from '@/components/ui/SlotReel';
 import SwipeArea, { type SwipeDirection } from '@/components/ui/SwipeArea';
 import WornStamp from '@/components/ui/WornStamp';
+import WeatherBackdrop from '@/components/ui/WeatherBackdrop';
+import { weatherScene } from '@/lib/weatherScene';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -732,6 +734,10 @@ export default function OutfitGenerator({
 
   return (
     <div className="w-full outfit-scope">
+      {/* Today's weather, faintly, behind the screen (off when not dressing for it). */}
+      {weather && !ignoreWeather && (
+        <WeatherBackdrop {...weatherScene(weather.icon, weather.condition)} />
+      )}
       {wornStamp && <WornStamp pieces={wornStamp} date={new Date()} onDone={clearWornStamp} />}
       <PosterHeader
         compact

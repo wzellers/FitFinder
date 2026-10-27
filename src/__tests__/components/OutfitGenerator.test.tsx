@@ -19,8 +19,9 @@ vi.mock('@/lib/weatherApi', async (importOriginal) => {
 });
 
 // Rows a test puts here are returned for that table; every other query
-// resolves empty.
+// resolves empty. `mockSingle` is what maybeSingle gives for a table.
 const mockRows = vi.hoisted(() => ({}) as Record<string, unknown[]>);
+const mockSingle = vi.hoisted(() => ({}) as Record<string, unknown>);
 // Every upsert, insert and update, by table.
 const mockUpserts = vi.hoisted(() => [] as { table: string; row: unknown }[]);
 const mockWrites = vi.hoisted(() => [] as { table: string; op: string; row: unknown }[]);
@@ -45,7 +46,7 @@ const mockFrom = vi.hoisted(() => {
     ]) {
       b[m] = () => b;
     }
-    b.maybeSingle = () => Promise.resolve({ data: null, error: null });
+    b.maybeSingle = () => Promise.resolve({ data: mockSingle[table] ?? null, error: null });
     b.single = () => Promise.resolve({ data: { id: 'new-outfit' }, error: null });
     b.then = (resolve: (v: unknown) => unknown) =>
       resolve({ data: mockRows[table] ?? [], error: null });
@@ -74,12 +75,14 @@ vi.mock('@/lib/supabaseClient', () => ({
 }));
 
 import OutfitGenerator from '@/components/OutfitGenerator';
+import { fetchWeather } from '@/lib/weatherApi';
 import { makeBottom, makeShoes, makeTop } from '../factories/clothingItem';
 
 describe('OutfitGenerator', () => {
   beforeEach(() => {
     mockFrom.mockClear();
     for (const table of Object.keys(mockRows)) delete mockRows[table];
+    for (const table of Object.keys(mockSingle)) delete mockSingle[table];
     mockUpserts.length = 0;
     mockWrites.length = 0;
   });
@@ -383,5 +386,31 @@ describe('OutfitGenerator', () => {
     fireEvent.click(screen.getByRole('button', { name: /Wear today/ }));
     expect(await screen.findByTestId('worn-stamp')).toBeTruthy();
     expect(mockWrites.some((w) => w.table === 'outfit_wears' && w.op === 'insert')).toBe(true);
+  });
+
+  it("shows today's weather behind the screen, until you stop dressing for it", async () => {
+    mockSingle.profiles = { zip_code: '10001' };
+    vi.mocked(fetchWeather).mockResolvedValueOnce({
+      temperature: 48,
+      highTemperature: 52,
+      condition: 'Rain',
+      description: 'light rain',
+      icon: '10d',
+      humidity: 80,
+      windSpeed: 5,
+      timestamp: 0,
+      zipCode: '10001',
+    });
+    renderWithProviders(<OutfitGenerator />);
+    const backdrop = await screen.findByTestId('weather-backdrop');
+    expect(backdrop.dataset.scene).toBe('rainy');
+    fireEvent.click(screen.getByRole('switch', { name: /Dress for the weather/ }));
+    expect(screen.queryByTestId('weather-backdrop')).toBeNull();
+  });
+
+  it('shows no weather backdrop without a ZIP code', async () => {
+    renderWithProviders(<OutfitGenerator />);
+    await screen.findByText(/Add your ZIP code/);
+    expect(screen.queryByTestId('weather-backdrop')).toBeNull();
   });
 });
