@@ -55,8 +55,9 @@ where possible, so the interesting logic can be unit-tested in isolation.
 Adding an item should feel like "pick a photo, glance, confirm." The pipeline in
 `src/lib/uploadPipeline.ts` and `src/components/ImageUpload.tsx` makes that happen:
 
-1. **Select.** The user picks one or many photos. Each becomes an in-memory
-   _draft_ with its own preview, form fields, and status.
+1. **Select.** The user picks one or many photos, drops them anywhere on the
+   Closet screen or pastes them (`usePhotoDrop`), or takes one on a phone. Each
+   becomes an in-memory _draft_ with its own preview, form fields, and status.
 2. **Auto-detect** (`detectItem`). For each draft, two things run:
    - **Type** — the image is POSTed to `/api/detect-clothing`, which asks Claude
      Vision to classify it into one of the known clothing types and pick a
@@ -66,11 +67,16 @@ Adding an item should feel like "pick a photo, glance, confirm." The pipeline in
      colors by coverage.
      Detection runs with a small concurrency limit (`runWithConcurrency`) to respect
      Claude rate limits. The image itself is **never modified** by detection.
-3. **Review & correct.** The user sees the pre-filled type and colors and can
-   override any of them. A single photo gets a detailed view; several photos get a
-   compact review grid.
-4. **Remove background (optional).** A one-click step runs
-   `@imgly/background-removal` on-device. The model's output is uploaded
+3. **Review & correct.** The user sees the pre-filled type and colors as chips
+   and can open the editors to override any of them (they open by themselves
+   while something required is missing). Once the user has changed a field, a
+   later detection doesn't overwrite it. A single photo gets a detailed view;
+   several photos get a compact review grid. `findLookalike` notes an item
+   already in the closet with the same type and main color.
+4. **Remove background** (automatic unless switched off; the choice is kept in
+   `localStorage`). `@imgly/background-removal` runs on-device, one photo at a
+   time, then detection re-runs on the cut-out; a slider compares it with the
+   original. The model's output is uploaded
    **untouched** — no thresholding or reframing — which keeps the soft,
    anti-aliased edge clean. (An earlier auto-framing approach was dropped because
    thresholding roughened edges.)
@@ -81,7 +87,8 @@ Adding an item should feel like "pick a photo, glance, confirm." The pipeline in
    is written to `clothing_items`. Photos are shown through short-lived signed
    URLs, batched per render (`clothingImages.ts`). Batches upload with the same
    concurrency helper and report per-item success/failure so partial failures can
-   be retried.
+   be retried. `uploadItem` returns the new id, so the closet can highlight what
+   was just added.
 
 ## Outfit generation and learning
 
@@ -250,6 +257,15 @@ All per-user tables use the same Row-Level-Security pattern established in
 - **Single API surface for detection.** `/api/detect-clothing` is the only
   place a model is called and the only place the Anthropic key is used,
   keeping the secret off the client. It requires a signed-in user.
+- **Outfit colours as animatable CSS.** `OutfitThemeProvider` sets
+  `--outfit-top`, `--outfit-bottom` and `--outfit-accent` (registered with
+  `@property` in `globals.css`), so the Outfits screen's background wash, button
+  accent (`.outfit-scope`) and loading placeholders fade between outfits.
+  `uiAccent` is always readable on white.
+- **Motion respects the user.** The reels, swipes, weather backdrop, stamps and
+  view transitions all fall back to an instant change under
+  `prefers-reduced-motion` (a global rule in `globals.css` shortens CSS
+  animations; JS-driven ones check the media query).
 - **Constants as one source of truth.** Clothing types, sections, color palette,
   and occasion rules all live in `src/lib/constants.ts`; the detection route
   validates Claude's output against these same lists.

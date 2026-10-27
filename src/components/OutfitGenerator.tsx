@@ -15,7 +15,11 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Share2,
 } from 'lucide-react';
+import { getClothingImageUrl } from '@/lib/clothingImages';
+import { renderShareCard, shareOrDownload } from '@/lib/shareCard';
+import { themeFromPairing } from '@/lib/outfitTheme';
 import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
@@ -32,7 +36,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
-import { typeToSection } from '@/lib/constants';
+import { colorMap, typeToSection } from '@/lib/constants';
 import {
   fetchWeather,
   getTemperatureCategory,
@@ -572,6 +576,39 @@ export default function OutfitGenerator({
     }
   };
 
+  // Share: an image of the outfit, shared (phones) or downloaded.
+  const [sharing, setSharing] = useState(false);
+  const shareOutfit = async () => {
+    if (!top || !bottom || !shoes) return;
+    setSharing(true);
+    try {
+      const pieces = [top, bottom, shoes];
+      const images = await Promise.all(pieces.map((p) => getClothingImageUrl(p.image_url)));
+      const blob = await renderShareCard({
+        images,
+        palette: pieces.map((p) => colorMap[p.colors[0]] ?? '#e8e4e3'),
+        dateLabel: new Date().toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        }),
+        accent:
+          top.colors[0] && bottom.colors[0]
+            ? themeFromPairing(top.colors[0], bottom.colors[0]).uiAccent
+            : '#5c1a26',
+      });
+      const how = await shareOrDownload(blob, `fitfinder-outfit-${toLocalDateString()}.png`);
+      if (how === 'downloaded') showToast('Saved an image of your outfit.', 'success');
+    } catch (err) {
+      // Closing the share sheet isn't an error.
+      if ((err as Error)?.name !== 'AbortError') {
+        showToast("Couldn't make an image of this outfit. Try again.", 'error');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   // Delete saved outfit
   const requestDeleteOutfit = (outfitId: string) => {
     setPendingDeleteId(outfitId);
@@ -1008,6 +1045,14 @@ export default function OutfitGenerator({
                 className="btn-secondary min-h-[48px]"
               >
                 <CalendarPlus size={16} aria-hidden="true" /> Wear today
+              </button>
+              <button
+                onClick={shareOutfit}
+                disabled={!hasOutfit || sharing}
+                aria-label="Share outfit"
+                className="btn-secondary min-h-[48px]"
+              >
+                <Share2 size={16} aria-hidden="true" /> Share
               </button>
             </div>
           </section>

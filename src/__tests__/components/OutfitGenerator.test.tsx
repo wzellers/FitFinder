@@ -74,6 +74,17 @@ vi.mock('@/lib/supabaseClient', () => ({
   },
 }));
 
+// The share card is drawn on a canvas, which jsdom lacks.
+const mockShare = vi.hoisted(() => ({
+  renderShareCard: vi.fn(() => Promise.resolve(new Blob(['png']))),
+  shareOrDownload: vi.fn(() => Promise.resolve('downloaded')),
+}));
+vi.mock('@/lib/shareCard', () => mockShare);
+vi.mock('@/lib/clothingImages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/clothingImages')>()),
+  getClothingImageUrl: vi.fn((url: string) => Promise.resolve(`signed:${url}`)),
+}));
+
 import OutfitGenerator from '@/components/OutfitGenerator';
 import { fetchWeather } from '@/lib/weatherApi';
 import { makeBottom, makeShoes, makeTop } from '../factories/clothingItem';
@@ -412,5 +423,33 @@ describe('OutfitGenerator', () => {
     renderWithProviders(<OutfitGenerator />);
     await screen.findByText(/Add your ZIP code/);
     expect(screen.queryByTestId('weather-backdrop')).toBeNull();
+  });
+
+  it('shares an image of the outfit: its photos, palette and the date', async () => {
+    mockRows.clothing_items = [
+      makeTop({ colors: ['navy blue'], image_url: 'u1/top.png' }),
+      makeBottom({ colors: ['beige'], image_url: 'u1/bottom.png' }),
+      makeShoes({ colors: ['white'], image_url: 'u1/shoes.png' }),
+    ];
+    renderWithProviders(<OutfitGenerator />);
+    const share = await screen.findByRole('button', { name: 'Share outfit' });
+    expect((share as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Generate outfit' }));
+    fireEvent.click(share);
+    await waitFor(() => expect(mockShare.shareOrDownload).toHaveBeenCalled());
+    const card = (mockShare.renderShareCard.mock.calls[0] as unknown[])[0] as {
+      images: string[];
+      palette: string[];
+    };
+    expect(card.images).toEqual([
+      'signed:u1/top.png',
+      'signed:u1/bottom.png',
+      'signed:u1/shoes.png',
+    ]);
+    expect(card.palette).toEqual(['#1f2a4a', expect.any(String), '#fafaf7']);
+    expect((mockShare.shareOrDownload.mock.calls[0] as unknown[])[1]).toMatch(
+      /^fitfinder-outfit-\d{4}-\d{2}-\d{2}\.png$/,
+    );
+    expect(await screen.findByText('Saved an image of your outfit.')).toBeTruthy();
   });
 });

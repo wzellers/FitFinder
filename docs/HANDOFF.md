@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-27 (centred outfit stage, swapping one piece)
+**Last updated:** 2026-10-27 (Outfits screen and adding-clothes redesign)
 
 ## What's live
 
@@ -15,13 +15,27 @@ Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.1
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 - **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
-  outfits). The Outfits screen has a slim header and centres the outfit as a
-  vertical stack (top, bottom, shoes) with its actions below; occasion and weather sit to its left and rating to its right on wide
-  screens (below it on phones). Reels spin top to bottom, and each piece can
-  be swapped alone with its arrows or a sideways swipe, sliding in the way the
-  user pointed. Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
-  calendar, stats, settings (weather, occasions, colors, email), onboarding,
-  rating prompt.
+  outfits). Closet, outfit generator (weather and occasion filter; a per-user
+  Bayesian bandit ranks on color, variety and rating, by Thompson sampling,
+  `MODEL_VERSION` 3), calendar, stats, settings (weather, occasions, colors,
+  email), onboarding, rating prompt.
+- **Outfits screen:** a slim header; the outfit centred as a vertical stack
+  (top, bottom, shoes) with Try another, Save, Wear today and Share below;
+  occasion and weather to its left, rating to its right (below it on phones).
+  Reels spin top to bottom; one piece can be swapped with its arrows or a
+  sideways swipe, sliding the way the user pointed. The screen takes today's
+  outfit colours (a background wash, the button accent and a palette strip;
+  registered CSS properties fade between outfits) and shows the weather
+  faintly behind it (`WeatherBackdrop`). Pointing at a rating warms the
+  outfit's glow; Wear today stamps the pieces into a calendar tile; Share
+  draws a PNG card (`lib/shareCard.ts`), shared on phones and downloaded on
+  desktop.
+- **Adding clothes:** drop photos on the Closet screen or paste them; a scan
+  line runs while Claude analyses each, results show as chips, backgrounds
+  are removed automatically (a remembered switch turns it off; a slider
+  compares with the original), a lookalike note warns about likely
+  duplicates, and new pieces get a short highlight in the grid. Opening a
+  closet item morphs its photo into the edit dialog (View Transitions).
 - **Clothing detection:** Claude Haiku 4.5 through the Anthropic API
   (`/api/detect-clothing`, signed-in users only). Amazon Bedrock was tried and
   removed. Don't reintroduce it unless asked.
@@ -64,8 +78,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 385 unit/component tests (`npm run test`).
-- **Playwright:** 49 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 444 unit/component tests (`npm run test`).
+- **Playwright:** 51 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a

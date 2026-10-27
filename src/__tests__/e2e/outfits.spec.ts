@@ -185,6 +185,20 @@ test("a kept piece can't be swapped", async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Swap bottom (slide left)' })).toBeEnabled();
 });
 
+test('shares an image of the outfit (a download on desktop)', async ({ page }) => {
+  await openApp(page, 'Outfits');
+  await generate(page);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Share outfit' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^fitfinder-outfit-\d{4}-\d{2}-\d{2}\.png$/);
+  // A real card with the photos drawn in (cross-origin images didn't taint
+  // the canvas), not an empty export.
+  const { size } = (await import('fs')).statSync((await file.path())!);
+  expect(size).toBeGreaterThan(20_000);
+  await expect(toast(page, 'Saved an image of your outfit.')).toBeVisible();
+});
+
 test('saves an outfit, reopens it, and deletes it', async ({ page }) => {
   await openApp(page, 'Outfits');
   await generate(page);
