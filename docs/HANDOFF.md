@@ -33,7 +33,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`021` are all applied. Vault holds the two daily-email secrets.
+  `001`–`022` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -52,7 +52,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 355 unit/component tests (`npm run test`).
+- **Vitest:** 360 unit/component tests (`npm run test`).
 - **Playwright:** 46 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
@@ -91,6 +91,10 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   rotates ties by date); cold-start weights are rating-heavy (color / variety
   / rating 0.25 / 0.25 / 0.5); "Try another" is learned as a weak negative.
   Ratings from before step 3 aren't retro-trained.
+- **Measuring recommendations:** the generator logs every outfit it shows
+  and what happened (`outfit_impressions`). After a few weeks of real use, run
+  `select * from recommendation_quality order by user_id, week;` in the SQL
+  Editor: if learning works, skip rate falls and ratings rise over the weeks.
 - Optional: point `fitfinder.website` at the app (Vercel project → Domains)
   and set `APP_URL` so email links use it.
 - Nothing automatically checks that a PR _adds_ tests; the rule lives in

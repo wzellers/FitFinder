@@ -201,6 +201,18 @@ functions, so it doubles as a living spec for the learning behavior — it print
 convergence histogram and also asserts the model learns within a bound. It runs as
 part of the normal Vitest suite.
 
+**Measuring real users.** The generator logs every outfit it picks to
+`outfit_impressions` (`src/lib/impressions.ts`, best-effort): the model's
+predicted score, how many ratings it had learned from, and what happened next
+(`skipped`, `rated` with the rating, `worn` or `saved`). The
+`recommendation_quality` view summarizes it per user and week: outfits shown,
+skip rate, kept, average rating. If learning works, skip rate falls and
+ratings rise as `model_ratings` grows. In the Supabase SQL Editor:
+
+```sql
+select * from recommendation_quality order by user_id, week;
+```
+
 ## Data model
 
 Schema lives in [`supabase/migrations/`](../supabase/migrations) as numbered SQL
@@ -212,6 +224,7 @@ files applied in order. Each is immutable; changes are made by adding a new file
 | `saved_outfits`        | Saved `{ top, bottom, shoes }` combinations, optionally named                                                    |
 | `outfit_wears`         | Daily wear log (one per day): rating (1–10), occasion, and what the model learned (`features`, `learned_rating`) |
 | `outfit_ratings`       | Outfits rated without wearing them (Outfits tab): items, rating 1–10, features                                   |
+| `outfit_impressions`   | Outfits the generator showed: items, predicted score, and the outcome (skipped, rated, worn, saved)              |
 | `color_preferences`    | Liked color combinations                                                                                         |
 | `weather_preferences`  | The user's temperature ranges and per-type weather rules                                                         |
 | `occasion_preferences` | Which clothing types suit each occasion                                                                          |
