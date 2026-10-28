@@ -117,8 +117,18 @@ describe('RatingPrompt', () => {
         onMinimize={vi.fn()}
       />,
     );
+    // Nothing chosen yet: Save waits for a rating.
+    expect(
+      (screen.getByRole('button', { name: 'Save rating' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    // The same 1–10 buttons as the Outfits screen, not a slider.
+    expect(screen.queryByRole('slider')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '9 out of 10' }));
+    expect(screen.getByRole('button', { name: '9 out of 10' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
     fireEvent.click(screen.getByText('Save rating'));
-    expect(onSubmit).toHaveBeenCalledWith('wear-1', 5);
+    expect(onSubmit).toHaveBeenCalledWith('wear-1', 9);
   });
 
   it('loads items from supabase', async () => {
