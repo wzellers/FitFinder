@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-27 (CI requires tests with app changes)
+**Last updated:** 2026-10-28 (Tag F app icon, dirty pieces in the Calendar)
 
 ## What's live
 
@@ -14,10 +14,62 @@ Production is `main`, deployed by Vercel on every push.
 Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.118
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
-- **App:** the burgundy/sky redesign (pill nav, poster headers, slot-reel
-  outfits). Closet, outfit generator (weather and occasion filter; a per-user Bayesian bandit ranks on color, variety and rating, by Thompson sampling, `MODEL_VERSION` 3),
-  calendar, stats, settings (weather, occasions, colors, email), onboarding,
-  rating prompt.
+- **App:** pill nav, poster headers, slot-reel outfits. Fog & slate
+  (cool grey-white page, misty blue-grey surfaces, slate ink and accent)
+  until an outfit is generated; then the whole app takes its colours (`themeFromOutfit`): the
+  banner is the top's colour with the bottom's for its title and cutout and a
+  touch of the shoes'; the accent (buttons, links, selected states, nav,
+  rating glow) is the top's colour, or the bottom's when the top is white,
+  deepened to stay readable. Shared UI: `ModalHeader` for dialogs,
+  `Dropdown` instead of native selects, `SettingsCard`, `.toggle-pill`. The
+  clock is 12-hour; clicking it switches to 24-hour.
+- **Settings:** sections in a tab bar across the top; weather rules as
+  Cold/Cool/Warm/Hot chips per type; occasions edited one at a time; colour
+  pairings from two swatch rows.
+- **Stats:** highlights (streak, go-to pairing, busiest day, repeats),
+  weekday and category-use charts (`lib/stats.ts`); Customize chooses which
+  cards show (kept in `localStorage`).
+- **Daily email:** coloured from the outfit it recommends; the unsubscribe
+  page uses the neutral colours. Closet, outfit generator (weather and occasion filter; a per-user
+  Bayesian bandit ranks on color, variety and rating, by Thompson sampling,
+  `MODEL_VERSION` 3), calendar, stats, settings (weather, occasions, colors,
+  email), onboarding, rating prompt.
+- **Outfits screen:** a slim header; the outfit centred as a vertical stack
+  (top, bottom, shoes) with Try another under it; occasion and weather to its
+  left; Save, Wear today, Share and rating to its right (below it on phones).
+  A rated outfit stays on screen with its rating until Try another.
+  Reels spin top to bottom; one piece can be swapped with its arrows or a
+  sideways swipe, sliding the way the user pointed. The screen takes today's
+  outfit colours (a background wash, the button accent and a palette strip;
+  registered CSS properties fade between outfits) and shows the weather
+  behind it (`WeatherBackdrop`: a sky tint plus sun or stars, clouds, rain
+  or snow, seen through the screen's frosted cards). Coming back to the tab
+  re-reads the ZIP code and weather settings. Pointing at a rating warms the
+  outfit's glow; Wear today stamps the pieces into a calendar tile; Share
+  draws a PNG card (`lib/shareCard.ts`), shared on phones and downloaded on
+  desktop.
+- **Closet order:** pieces can be dragged into order within their type
+  (`SortableGrid` on dnd-kit: mouse, press-and-hold on touch, or the grip
+  with the keyboard); the order is `clothing_items.position`. Dirty pieces
+  always sort last and can't be dragged; reordering pauses while a filter
+  is on (`lib/closetOrder.ts`).
+- **Calendar:** logging or editing a day offers every piece, including ones
+  in the wash (badged "Dirty"); rating or editing a past day re-learns it.
+- **App icon:** the Tag F (a fog-white clothing tag with a slate F on a
+  slate square): `src/app/icon.svg`, and `src/app/apple-icon.tsx` draws the
+  180px Home Screen / Dock PNG.
+- **Adding clothes:** drop photos on the Closet screen or paste them; a scan
+  line runs while Claude analyses each, results show as chips, backgrounds
+  are removed automatically (a remembered switch turns it off; a slider
+  compares with the original), a lookalike note warns about likely
+  duplicates, and new pieces get a short highlight in the grid. Opening a
+  closet item morphs its photo into the edit dialog (View Transitions); its
+  photo can be re-cropped and tilted there. Its original, the photo before any crop
+  (background still removed), is kept in `<userId>/originals/<itemId>` (same
+  bucket, covered by the own-folder policies): uploaded when it's added if it
+  was cropped then, else kept on its first re-crop. Later crops start from it, and Restore original photo
+  copies it back. Deleting the item deletes its original too. The cropper's
+  crop box starts at the photo's own shape, so nothing is cut by default.
 - **Clothing detection:** Claude Haiku 4.5 through the Anthropic API
   (`/api/detect-clothing`, signed-in users only). Amazon Bedrock was tried and
   removed. Don't reintroduce it unless asked.
@@ -36,7 +88,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`022` are all applied. Vault holds the two daily-email secrets.
+  `001`–`023` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -60,8 +112,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 365 unit/component tests (`npm run test`).
-- **Playwright:** 46 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 517 unit/component tests (`npm run test`).
+- **Playwright:** 55 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a

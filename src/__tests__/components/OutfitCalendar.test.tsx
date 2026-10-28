@@ -95,4 +95,15 @@ describe('OutfitCalendar', () => {
       });
     }
   });
+
+  it('moves between months in place, sliding the new month in', async () => {
+    const { container } = renderWithProviders(<OutfitCalendar />);
+    await screen.findByRole('button', { name: 'Next month' });
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+    // No skeleton flash: the calendar stays, and the new month slides in.
+    expect(screen.getByRole('button', { name: 'Next month' })).toBeTruthy();
+    expect(container.querySelector('.slide-from-right')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    expect(container.querySelector('.slide-from-left')).toBeTruthy();
+  });
 });

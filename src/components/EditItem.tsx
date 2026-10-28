@@ -1,11 +1,17 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
-import React, { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Trash2, Crop, RotateCcw } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import ClothingImage from '@/components/ui/ClothingImage';
-import { imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
+import Dropdown from '@/components/ui/Dropdown';
+import ImageCropper from '@/components/ui/ImageCropper';
+import { originalImagePath, replaceItemImage, restoreOriginalImage } from '@/lib/uploadPipeline';
+import { useAuth } from '@/hooks/useAuth';
+import { ITEM_PHOTO_TRANSITION } from '@/lib/viewTransition';
+import { getClothingImageUrl, imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
 import { useToast } from '@/components/ToastProvider';
 import { clothingTypes } from '@/lib/constants';
 import { describeItem } from '@/lib/itemLabels';
@@ -35,6 +41,12 @@ export default function EditItem({
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // The photo shown (it changes after a re-crop) and the cropper's source.
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  // The photo as it was before its first re-crop, if it has been re-cropped.
+  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (item) {
@@ -45,8 +57,68 @@ export default function EditItem({
         clothingTypes[c].includes(item.type),
       );
       setSelectedCategory(cat || '');
+      setImageUrl(item.image_url);
     }
   }, [item]);
+
+  // Is there a kept original (from an earlier re-crop)?
+  const findOriginal = useCallback(async () => {
+    if (!item || !user) return null;
+    const url = await getClothingImageUrl(originalImagePath(user.id, item.id));
+    setOriginalUrl(url);
+    return url;
+  }, [item, user]);
+  useEffect(() => {
+    setOriginalUrl(null);
+    if (isOpen) void findOriginal();
+  }, [isOpen, findOriginal]);
+
+  // Re-crop or zoom the photo of an item already in the closet.
+  const openCropper = async () => {
+    // Crop from the whole original, so an earlier crop can be redone.
+    const url = originalUrl ?? (await getClothingImageUrl(imageUrl));
+    if (url) setCropSrc(url);
+    else showToast("Couldn't load the photo. Try again.", 'error');
+  };
+  const applyCrop = async (blob: Blob) => {
+    if (!item || !user) return;
+    setCropSrc(null);
+    setUpdating(true);
+    try {
+      const path = await replaceItemImage({
+        userId: user.id,
+        itemId: item.id,
+        oldImageUrl: imageUrl,
+        blob,
+      });
+      setImageUrl(path);
+      void findOriginal();
+      showToast('Photo updated.', 'success');
+      onItemUpdated?.();
+    } catch {
+      showToast("Couldn't save the new crop. Try again.", 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+  const restoreOriginal = async () => {
+    if (!item || !user) return;
+    setUpdating(true);
+    try {
+      const path = await restoreOriginalImage({
+        userId: user.id,
+        itemId: item.id,
+        currentImageUrl: imageUrl,
+      });
+      setImageUrl(path);
+      showToast('Original photo restored.', 'success');
+      onItemUpdated?.();
+    } catch {
+      showToast("Couldn't restore the original photo. Try again.", 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const handleUpdate = async () => {
     if (!item || !selectedType || selectedColors.length === 0) {
@@ -77,7 +149,10 @@ export default function EditItem({
     try {
       const { error } = await supabase.from('clothing_items').delete().eq('id', item.id);
       if (error) throw error;
-      await removeClothingImages([imagePathFromUrl(item.image_url)]);
+      await removeClothingImages([
+        imagePathFromUrl(imageUrl),
+        user ? originalImagePath(user.id, item.id) : null,
+      ]);
       showToast('Item deleted.', 'success');
       onItemDeleted?.();
       setTimeout(onClose, 800);
@@ -110,25 +185,37 @@ export default function EditItem({
 
   return (
     <>
-      <Modal label={`Edit ${describeItem(item)}`} onClose={onClose} className="max-w-xl">
-        <div className="flex items-start justify-between gap-3 mb-5">
-          <div>
-            <h2 className="text-2xl">Edit item</h2>
-          </div>
-          <button onClick={onClose} className="btn-ghost px-2" aria-label="Close">
-            <X size={18} aria-hidden="true" />
-          </button>
-        </div>
+      <Modal label={`Edit ${describeItem(item)}`} onClose={onClose} className="max-w-2xl">
+        <ModalHeader title="Edit item" subtitle={describeItem(item)} onClose={onClose} />
 
         <div className="flex items-center gap-5 mb-6">
           <div className="item-card w-36 shrink-0">
-            <div className="item-card-photo aspect-square">
+            <div
+              className="item-card-photo aspect-square"
+              style={{ viewTransitionName: ITEM_PHOTO_TRANSITION }}
+            >
               <ClothingImage
-                src={item.image_url}
+                src={imageUrl}
                 alt={describeItem(item)}
                 className="w-full h-full object-contain p-2"
               />
             </div>
+            <button
+              onClick={openCropper}
+              disabled={updating}
+              className="btn-ghost w-full mt-2 text-sm"
+            >
+              <Crop size={14} aria-hidden="true" /> Adjust / crop
+            </button>
+            {originalUrl && (
+              <button
+                onClick={restoreOriginal}
+                disabled={updating}
+                className="btn-ghost w-full text-sm"
+              >
+                <RotateCcw size={14} aria-hidden="true" /> Restore original photo
+              </button>
+            )}
           </div>
           <div className="flex flex-col items-start gap-3">
             <span className={isDirty ? 'badge-dirty' : 'badge-clean'}>
@@ -142,42 +229,37 @@ export default function EditItem({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="edit-item-category" className="text-sm font-semibold">
-              Category
-            </label>
-            <select
-              id="edit-item-category"
+            <span className="text-sm font-semibold">Category</span>
+            <Dropdown
+              label="Category"
               value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value);
+              onChange={(c) => {
+                setSelectedCategory(c);
                 setSelectedType('');
               }}
-              className="min-h-[44px]"
-            >
-              <option value="">Choose a category</option>
-              <option value="Tops">Tops</option>
-              <option value="Bottoms">Bottoms</option>
-              <option value="Shoes">Shoes</option>
-            </select>
+              options={[
+                { value: '', label: 'Choose a category' },
+                { value: 'Tops', label: 'Tops' },
+                { value: 'Bottoms', label: 'Bottoms' },
+                { value: 'Shoes', label: 'Shoes' },
+              ]}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="edit-item-type" className="text-sm font-semibold">
-              Type
-            </label>
-            <select
-              id="edit-item-type"
+            <span className="text-sm font-semibold">Type</span>
+            <Dropdown
+              label="Type"
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
+              onChange={setSelectedType}
               disabled={!selectedCategory}
-              className="min-h-[44px]"
-            >
-              <option value="">Choose a type</option>
-              {clothingTypes[selectedCategory as ClothingSection]?.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Choose a type' },
+                ...(clothingTypes[selectedCategory as ClothingSection] ?? []).map((t) => ({
+                  value: t,
+                  label: t,
+                })),
+              ]}
+            />
           </div>
         </div>
 
@@ -200,7 +282,6 @@ export default function EditItem({
                   <span className="font-normal text-[var(--text-secondary)]">(optional)</span>
                 </>
               }
-              size="sm"
               allowNone
               value={selectedColors[1] ?? null}
               disabledColor={selectedColors[0] ?? null}
@@ -238,6 +319,13 @@ export default function EditItem({
             <Trash2 size={16} aria-hidden="true" /> Delete item
           </button>
         </div>
+        {cropSrc && (
+          <ImageCropper
+            imageSrc={cropSrc}
+            onCancel={() => setCropSrc(null)}
+            onCropComplete={applyCrop}
+          />
+        )}
       </Modal>
 
       {/* Confirm delete dialog */}

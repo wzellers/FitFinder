@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 // Stable, as the real useAuth keeps it (a new object per render reloads data).
@@ -83,21 +83,46 @@ describe('ColorPreferences', () => {
     );
   });
 
-  it('shows color combination section when Colors tab is clicked', async () => {
+  it('shows the colour pairing section when Colors is chosen', async () => {
     renderWithProviders(<ColorPreferences />);
-    await waitFor(
-      () => {
-        expect(screen.queryAllByText(/Colors/).length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
+    fireEvent.click(await screen.findByRole('button', { name: 'Colors' }));
+    expect(await screen.findByText('Add a colour pairing you like')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Top color' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Bottom color' })).toBeTruthy();
+  });
+
+  it('lays the sections out as tabs across the top', async () => {
+    renderWithProviders(<ColorPreferences />);
+    const nav = await screen.findByRole('navigation', { name: 'Preference sections' });
+    const names = Array.from(nav.querySelectorAll('button')).map((b) => b.textContent);
+    expect(names).toEqual(['Weather', 'Occasions', 'Colors', 'Email']);
+    expect(screen.getByRole('button', { name: 'Weather' }).getAttribute('aria-current')).toBe(
+      'page',
     );
-    fireEvent.click(screen.queryAllByText(/Colors/)[0]);
-    await waitFor(
-      () => {
-        expect(screen.queryAllByText(/Add Color Combination/).length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
+  });
+
+  it('edits an occasion by picking it, then toggling pieces', async () => {
+    renderWithProviders(<ColorPreferences />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Occasions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Work' }));
+    const jeans = screen.getByRole('button', { name: 'Jeans for Work' });
+    const before = jeans.getAttribute('aria-pressed');
+    fireEvent.click(jeans);
+    expect(jeans.getAttribute('aria-pressed')).not.toBe(before);
+  });
+
+  it('sets weather rules with tappable chips', async () => {
+    renderWithProviders(<ColorPreferences />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Add a clothing type: Add a clothing type…' }),
     );
+    fireEvent.click(screen.getByRole('option', { name: 'Shorts' }));
+    const cold = screen.getByRole('button', { name: 'Shorts in cold weather' });
+    const before = cold.getAttribute('aria-pressed');
+    fireEvent.click(cold);
+    expect(cold.getAttribute('aria-pressed')).not.toBe(before);
+    fireEvent.click(screen.getByRole('button', { name: 'Stop customizing Shorts' }));
+    expect(screen.queryByRole('button', { name: 'Shorts in cold weather' })).toBeNull();
   });
 
   it('weather section defaults to no custom rules', async () => {
@@ -112,12 +137,12 @@ describe('ColorPreferences', () => {
 
   it('saves a liked combination with only the columns that exist', async () => {
     renderWithProviders(<ColorPreferences />);
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Colors' }))[0]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Top Color' }));
-    fireEvent.click(screen.getByRole('button', { name: 'navy blue' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Bottom Color' }));
-    fireEvent.click(screen.getByRole('button', { name: 'beige' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add to Liked' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Colors' }));
+    const top = await screen.findByRole('group', { name: 'Top color' });
+    fireEvent.click(within(top).getByRole('button', { name: 'Navy Blue' }));
+    const bottom = screen.getByRole('group', { name: 'Bottom color' });
+    fireEvent.click(within(bottom).getByRole('button', { name: 'Beige' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to liked' }));
 
     await waitFor(() => expect(mockUpsert).toHaveBeenCalled());
     // Exactly these keys: dropped columns (e.g. disliked_combinations) must not

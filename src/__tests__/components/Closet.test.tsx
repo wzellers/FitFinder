@@ -87,20 +87,36 @@ describe('Closet', () => {
     expect(onEditItem).toHaveBeenCalledWith(expect.objectContaining({ id: 't1' }));
   });
 
+  it('highlights items that were just added', async () => {
+    renderWithProviders(<Closet onAddItem={vi.fn()} highlightIds={['t2']} />);
+    const added = await screen.findByRole('button', { name: 'Edit Red T-Shirt' });
+    expect(added.closest('[data-just-added]')).toBeTruthy();
+    const other = screen.getByRole('button', { name: 'Edit Blue T-Shirt' });
+    expect(other.closest('[data-just-added]')).toBeNull();
+  });
+
   it('shows Clear filters once a filter is active', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Dirty' }));
     expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
   });
 
-  it('labels the filter dropdowns', async () => {
+  it('filters with dropdowns in the app style', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
-    expect(await screen.findByLabelText('Category')).toBeTruthy();
-    expect(screen.getByLabelText('Color')).toBeTruthy();
-  });
-});
+    fireEvent.click(await screen.findByRole('button', { name: 'Category: All categories' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Bottoms' }));
+    expect(screen.getByRole('button', { name: 'Category: Bottoms' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit Blue T-Shirt' })).toBeNull();
 
-describe('Closet sections', () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Color: All colors' }));
+    // Colours show their swatch.
+    const navy = screen.getByRole('option', { name: 'Navy Blue' });
+    expect(navy.querySelector('[aria-hidden="true"]')).toBeTruthy();
+    fireEvent.click(navy);
+    expect(screen.getByRole('button', { name: /^Edit .*Jeans$/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Edit .*Shorts$/ })).toBeNull();
+  });
+
   it('collapses and expands a section, exposing aria-expanded', async () => {
     renderWithProviders(<Closet onAddItem={vi.fn()} />);
     await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });
@@ -185,5 +201,59 @@ describe('Closet helpers', () => {
     expect(describeItem(makeTop({ type: 'Polo', colors: ['navy blue', 'white'] }))).toBe(
       'Navy blue and white Polo',
     );
+  });
+
+  describe('ordering', () => {
+    const tees = [
+      makeTop({ id: 'a', type: 'T-Shirt', colors: ['white'], is_dirty: true, position: 1 }),
+      makeTop({ id: 'b', type: 'T-Shirt', colors: ['red'], is_dirty: false, position: 3 }),
+      makeTop({ id: 'c', type: 'T-Shirt', colors: ['blue'], is_dirty: false, position: 2 }),
+    ];
+    beforeEach(() => {
+      mockSelectFn.mockReturnValue({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => Promise.resolve({ data: tees, error: null })),
+        })),
+      });
+    });
+
+    const tileOrder = () =>
+      screen
+        .getAllByRole('button', { name: /^Edit .*T-Shirt$/ })
+        .map((b) => b.getAttribute('aria-label'));
+
+    it('shows pieces in the saved order, with dirty ones at the end', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });
+      expect(tileOrder()).toEqual(['Edit Blue T-Shirt', 'Edit Red T-Shirt', 'Edit White T-Shirt']);
+    });
+
+    it('lets clean pieces be dragged, but not dirty ones', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      expect(await screen.findByRole('button', { name: 'Reorder Blue T-Shirt' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Reorder Red T-Shirt' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Reorder White T-Shirt' })).toBeNull();
+    });
+
+    it('moves a piece to the end when it gets dirty', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });
+      const blue = screen.getByRole('button', { name: 'Edit Blue T-Shirt' }).closest('li')!;
+      fireEvent.click(within(blue).getByRole('button', { name: /Mark .* dirty/ }));
+      await waitFor(() =>
+        expect(tileOrder()).toEqual([
+          'Edit Red T-Shirt',
+          'Edit White T-Shirt',
+          'Edit Blue T-Shirt',
+        ]),
+      );
+    });
+
+    it('pauses reordering while a filter shows only part of a group', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      await screen.findByRole('button', { name: 'Reorder Blue T-Shirt' });
+      fireEvent.click(screen.getByRole('button', { name: 'Clean' }));
+      expect(screen.queryByRole('button', { name: /^Reorder / })).toBeNull();
+    });
   });
 });

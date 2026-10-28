@@ -1,7 +1,8 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Lock,
   Unlock,
@@ -10,10 +11,15 @@ import {
   CloudSun,
   CalendarPlus,
   CloudOff,
-  X,
   Calendar,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Share2,
 } from 'lucide-react';
+import { getClothingImageUrl } from '@/lib/clothingImages';
+import { renderShareCard, shareOrDownload } from '@/lib/shareCard';
+import { NEUTRAL_ACCENT, themeFromOutfit } from '@/lib/outfitTheme';
 import { describeItem } from '@/lib/itemLabels';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
@@ -21,12 +27,16 @@ import PosterHeader from '@/components/ui/PosterHeader';
 import ScrambleText from '@/components/ui/ScrambleText';
 import { useOutfitTheme } from '@/components/OutfitTheme';
 import { getColorName, getColorStyle } from '@/lib/colorUtils';
-import SlotReel from '@/components/ui/SlotReel';
+import SlotReel, { type ReelDirection } from '@/components/ui/SlotReel';
+import SwipeArea, { type SwipeDirection } from '@/components/ui/SwipeArea';
+import WornStamp from '@/components/ui/WornStamp';
+import WeatherBackdrop from '@/components/ui/WeatherBackdrop';
+import { weatherScene } from '@/lib/weatherScene';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
 import { useToast } from '@/components/ToastProvider';
-import { typeToSection } from '@/lib/constants';
+import { colorMap, typeToSection } from '@/lib/constants';
 import {
   fetchWeather,
   getTemperatureCategory,
@@ -62,15 +72,24 @@ import { loadRatedOutfits } from '@/lib/ratedOutfits';
 import { rateOutfitWithoutWearing } from '@/lib/outfitLearning';
 import { logImpression, recordOutcome, type ImpressionOutcome } from '@/lib/impressions';
 
+type Slot = 'top' | 'bottom' | 'shoes';
+const SLOTS: Slot[] = ['top', 'bottom', 'shoes'];
+const SLOT_LABEL: Record<Slot, string> = { top: 'top', bottom: 'bottom', shoes: 'pair of shoes' };
+
 interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
   /** Changes when closet items change, so the generator reloads its data. */
   refreshKey?: number;
+  /** Whether the Outfits tab is showing. The generator stays mounted while
+   * hidden, so coming back re-reads settings that may have changed (ZIP code,
+   * weather and occasion preferences). */
+  active?: boolean;
 }
 
 export default function OutfitGenerator({
   onNavigateToCalendar,
   refreshKey = 0,
+  active = true,
 }: OutfitGeneratorProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -89,6 +108,8 @@ export default function OutfitGenerator({
   // Weather
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
+  // The ZIP code the weather is for (null: none saved).
+  const [zip, setZip] = useState<string | null>(null);
   const [tempCategory, setTempCategory] = useState<TemperatureCategory | null>(null);
   const [ignoreWeather, setIgnoreWeather] = useState(false);
   const [userWeatherPrefs, setUserWeatherPrefs] = useState<UserWeatherPreferences | null>(null);
@@ -113,7 +134,7 @@ export default function OutfitGenerator({
   const [activeTab, setActiveTab] = useState<'generator' | 'saved'>('generator');
 
   // Item picker modal
-  const [pickerSlot, setPickerSlot] = useState<'top' | 'bottom' | 'shoes' | null>(null);
+  const [pickerSlot, setPickerSlot] = useState<Slot | null>(null);
 
   // Save modal
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -193,14 +214,7 @@ export default function OutfitGenerator({
           : null;
         setUserWeatherPrefs(userWP);
 
-        // Fetch weather
-        if (profileData?.zip_code) {
-          setWeatherLoading(true);
-          const wd = await fetchWeather(profileData.zip_code);
-          setWeather(wd);
-          if (wd) setTempCategory(getTemperatureCategory(wd.highTemperature, userWP?.thresholds));
-          setWeatherLoading(false);
-        }
+        await loadWeather(profileData?.zip_code ?? null, userWP);
       } catch {
         setError("Couldn't load your closet. Refresh to try again.");
       } finally {
@@ -210,13 +224,84 @@ export default function OutfitGenerator({
     fetchAll();
   }, [user, refreshKey]);
 
+  /** Fetch the weather for `zipCode` (or clear it when there's none). */
+  const loadWeather = async (zipCode: string | null, prefs: UserWeatherPreferences | null) => {
+    setZip(zipCode);
+    if (!zipCode) {
+      setWeather(null);
+      return;
+    }
+    setWeatherLoading(true);
+    try {
+      const wd = await fetchWeather(zipCode);
+      setWeather(wd);
+      if (wd) setTempCategory(getTemperatureCategory(wd.highTemperature, prefs?.thresholds));
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  // Back on the tab: pick up settings changed meanwhile (a new ZIP code,
+  // weather or occasion preferences) without reloading the closet.
+  const wasActive = useRef(active);
+  useEffect(() => {
+    const returned = active && !wasActive.current;
+    wasActive.current = active;
+    if (!returned || !user) return;
+    (async () => {
+      try {
+        const [{ data: profileData }, { data: weatherPrefsData }, { data: occPrefsData }] =
+          throwIfAnyError(
+            await Promise.all([
+              supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+              supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
+              supabase
+                .from('occasion_preferences')
+                .select('rules')
+                .eq('user_id', user.id)
+                .maybeSingle(),
+            ]),
+          );
+        const userWP: UserWeatherPreferences | null = weatherPrefsData
+          ? {
+              thresholds: weatherPrefsData.thresholds ?? {
+                cold: TEMPERATURE_THRESHOLDS.COLD,
+                cool: TEMPERATURE_THRESHOLDS.COOL,
+                warm: TEMPERATURE_THRESHOLDS.WARM,
+              },
+              clothingRules: weatherPrefsData.clothing_rules ?? null,
+            }
+          : null;
+        setUserWeatherPrefs(userWP);
+        setUserOccasionRules((occPrefsData?.rules ?? null) as OccasionRules | null);
+        const nextZip = profileData?.zip_code ?? null;
+        if (nextZip !== zip || (nextZip && !weather)) await loadWeather(nextZip, userWP);
+        else if (weather) {
+          setTempCategory(getTemperatureCategory(weather.highTemperature, userWP?.thresholds));
+        }
+      } catch {
+        // Keep what's on screen; the next visit tries again.
+      }
+    })();
+    // Runs when the tab is shown again; the rest is read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
   // Generate outfit — featurize candidates, then let the bandit select via
   // ε-greedy (explore/exploit) using the user's learned weights. Locked slots
   // constrain the candidate pool to the frozen item before scoring.
   // Bumped per slot on each generate so its reel spins (kept slots don't).
   const [spins, setSpins] = useState({ top: 0, bottom: 0, shoes: 0 });
   const lastSpinAt = useRef(0);
-  const reelDuration = { top: 700, bottom: 950, shoes: 1200 } as const;
+  const reelDuration = { top: 1100, bottom: 1500, shoes: 1900 } as const;
+  // A full spin travels down; swapping one piece slides it the way the user
+  // pointed (arrow or swipe), and is quicker.
+  const [directions, setDirections] = useState<Record<Slot, ReelDirection>>({
+    top: 'down',
+    bottom: 'down',
+    shoes: 'down',
+  });
+  const SWAP_DURATION = 1100;
   const sectionFor = { top: 'Tops', bottom: 'Bottoms', shoes: 'Shoes' } as const;
 
   // Outfits shown since the generator opened, so "Try another" and rating move
@@ -241,10 +326,10 @@ export default function OutfitGenerator({
 
   // `latest` lets a caller that just updated the model or ratings use them
   // before React state catches up (e.g. right after rating an outfit).
-  const pickOutfit = (latest: { model?: BanditModel; ratedOutfits?: OutfitWear[] } = {}) => {
-    setError('');
-    const rated = latest.ratedOutfits ?? ratedOutfits;
-
+  // `swap` changes only that piece, keeping the other two, and slides the new
+  // one in from `direction`.
+  // The outfits that can be shown next, or why there are none.
+  const outfitCandidates = (rated: OutfitWear[], swapSlot?: Slot) => {
     let candidates = buildCandidates(items, {
       likedCombinations: liked,
       weather: ignoreWeather ? null : tempCategory,
@@ -262,15 +347,43 @@ export default function OutfitGenerator({
     if (lockedTop && top) candidates = candidates.filter((c) => c.top.id === top.id);
     if (lockedBottom && bottom) candidates = candidates.filter((c) => c.bottom.id === bottom.id);
     if (lockedShoes && shoes) candidates = candidates.filter((c) => c.shoes.id === shoes.id);
-
+    if (swapSlot && top && bottom && shoes) {
+      const current = { top, bottom, shoes };
+      candidates = candidates.filter((c) =>
+        SLOTS.every((s) =>
+          s === swapSlot ? c[s].id !== current[s].id : c[s].id === current[s].id,
+        ),
+      );
+      if (candidates.length === 0) {
+        return {
+          candidates,
+          error: `No other ${SLOT_LABEL[swapSlot]} goes with the rest of this outfit right now.`,
+        };
+      }
+    }
     if (candidates.length === 0) {
-      setError(
-        occasion
+      return {
+        candidates,
+        error: occasion
           ? `Nothing clean in your closet suits ${occasion.toLowerCase()} right now. Try another occasion, or change what fits in Settings.`
           : 'No outfit fits right now. You need at least one clean top, bottom and pair of shoes that suit the weather.',
-      );
+      };
+    }
+    return { candidates, error: null };
+  };
+
+  const pickOutfit = (
+    latest: { model?: BanditModel; ratedOutfits?: OutfitWear[] } = {},
+    swap?: { slot: Slot; direction: SwipeDirection },
+  ) => {
+    setError('');
+    const rated = latest.ratedOutfits ?? ratedOutfits;
+    const found = outfitCandidates(rated, swap?.slot);
+    if (found.error) {
+      setError(found.error);
       return;
     }
+    let { candidates } = found;
 
     // Skip outfits already shown (and the one on screen), starting over once
     // they all have been.
@@ -298,14 +411,25 @@ export default function OutfitGenerator({
         ? logImpression(user.id, pick, score, shownModel.meta.updates)
         : Promise.resolve(null),
     };
-    if (!lockedTop) setTop(pick.top);
-    if (!lockedBottom) setBottom(pick.bottom);
-    if (!lockedShoes) setShoes(pick.shoes);
+    const spinning = {
+      top: swap ? swap.slot === 'top' : !lockedTop,
+      bottom: swap ? swap.slot === 'bottom' : !lockedBottom,
+      shoes: swap ? swap.slot === 'shoes' : !lockedShoes,
+    };
+    if (spinning.top) setTop(pick.top);
+    if (spinning.bottom) setBottom(pick.bottom);
+    if (spinning.shoes) setShoes(pick.shoes);
     lastSpinAt.current = Date.now();
+    setDirections({
+      top: 'down',
+      bottom: 'down',
+      shoes: 'down',
+      ...(swap ? { [swap.slot]: swap.direction } : {}),
+    });
     setSpins((prev) => ({
-      top: lockedTop ? prev.top : prev.top + 1,
-      bottom: lockedBottom ? prev.bottom : prev.bottom + 1,
-      shoes: lockedShoes ? prev.shoes : prev.shoes + 1,
+      top: spinning.top ? prev.top + 1 : prev.top,
+      bottom: spinning.bottom ? prev.bottom + 1 : prev.bottom,
+      shoes: spinning.shoes ? prev.shoes + 1 : prev.shoes,
     }));
   };
 
@@ -357,6 +481,23 @@ export default function OutfitGenerator({
       return;
     }
     pickOutfit();
+  };
+  // Swapping one piece (arrow or swipe) passes on the outfit as shown, so it is
+  // learned like "Try another"; then only that piece changes.
+  const swapPiece = (slot: Slot, direction: SwipeDirection) => {
+    if (!top || !bottom || !shoes) return;
+    // Nothing to swap in: say so without counting it as a pass.
+    const { error: none } = outfitCandidates(ratedOutfits, slot);
+    if (none) {
+      setError(none);
+      return;
+    }
+    let updated: BanditModel | undefined;
+    if (isShownPick()) {
+      settleShownPick('skipped');
+      updated = learnFromSkipAndSave({ top, bottom, shoes });
+    }
+    pickOutfit({ model: updated }, { slot, direction });
   };
   const learnFromSkipAndSave = (outfit: {
     top: ClothingItem;
@@ -414,8 +555,14 @@ export default function OutfitGenerator({
     }
   };
 
-  // Rate the shown outfit without wearing it, then show the next one.
+  // Rate the shown outfit without wearing it. It stays on screen with its
+  // rating until the user moves on.
   const [ratingSaving, setRatingSaving] = useState(false);
+  const [lastRating, setLastRating] = useState<{ key: string; rating: number } | null>(null);
+  const shownKey = top && bottom && shoes ? outfitKey({ top, bottom, shoes }) : '';
+  const shownRating = lastRating?.key === shownKey ? lastRating.rating : 0;
+  // The rating being pointed at: the outfit's glow warms with it.
+  const [ratingPreview, setRatingPreview] = useState(0);
   const rateShownOutfit = async (rating: number) => {
     if (!user || !top || !bottom || !shoes || rating < 1) return;
     setRatingSaving(true);
@@ -443,8 +590,9 @@ export default function OutfitGenerator({
       ];
       setRatedOutfits(rated);
       settleShownPick('rated', rating);
-      showToast(`Rated ${rating}/10. Here's another.`, 'success');
-      pickOutfit({ model: updated, ratedOutfits: rated });
+      setLastRating({ key: outfitKey({ top, bottom, shoes }), rating });
+      setRatingPreview(0);
+      showToast(`Rated ${rating}/10. Try another when you're ready.`, 'success');
     } catch {
       showToast("Couldn't save your rating. Try again.", 'error');
     } finally {
@@ -453,6 +601,8 @@ export default function OutfitGenerator({
   };
 
   // Wear today
+  const [wornStamp, setWornStamp] = useState<ClothingItem[] | null>(null);
+  const clearWornStamp = useCallback(() => setWornStamp(null), []);
   const wearToday = async () => {
     if (!user || !top || !bottom || !shoes) return;
     const today = toLocalDateString();
@@ -487,9 +637,43 @@ export default function OutfitGenerator({
       }
       if (insertError) throw insertError;
       showToast("Logged as today's outfit.", 'success');
+      setWornStamp([top, bottom, shoes]);
       settleShownPick('worn');
     } catch {
       showToast("Couldn't log today's outfit. Try again.", 'error');
+    }
+  };
+
+  // Share: an image of the outfit, shared (phones) or downloaded.
+  const [sharing, setSharing] = useState(false);
+  const shareOutfit = async () => {
+    if (!top || !bottom || !shoes) return;
+    setSharing(true);
+    try {
+      const pieces = [top, bottom, shoes];
+      const images = await Promise.all(pieces.map((p) => getClothingImageUrl(p.image_url)));
+      const blob = await renderShareCard({
+        images,
+        palette: pieces.map((p) => colorMap[p.colors[0]] ?? '#e8e4e3'),
+        dateLabel: new Date().toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        }),
+        accent:
+          top.colors[0] && bottom.colors[0]
+            ? themeFromOutfit(top.colors[0], bottom.colors[0], shoes.colors[0]).uiAccent
+            : NEUTRAL_ACCENT,
+      });
+      const how = await shareOrDownload(blob, `fitfinder-outfit-${toLocalDateString()}.png`);
+      if (how === 'downloaded') showToast('Saved an image of your outfit.', 'success');
+    } catch (err) {
+      // Closing the share sheet isn't an error.
+      if ((err as Error)?.name !== 'AbortError') {
+        showToast("Couldn't make an image of this outfit. Try again.", 'error');
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -593,20 +777,22 @@ export default function OutfitGenerator({
 
   // The outfit's colour pairing: the top's and the bottom's main colours.
   // After a spin it is revealed once the last reel lands, as the payoff.
-  const currentPairing: [string, string] | null =
-    top?.colors[0] && bottom?.colors[0] ? [top.colors[0], bottom.colors[0]] : null;
-  const pairingKey = currentPairing ? currentPairing.join('|') : '';
-  const [pairing, setPairing] = useState<[string, string] | null>(null);
+  // The palette strip shows every piece's main colour the same way.
+  const currentPalette =
+    top && bottom && shoes ? [top, bottom, shoes].map((i) => i.colors[0] ?? null) : null;
+  const pairingKey = currentPalette ? currentPalette.map((c) => c ?? '').join('|') : '';
+  const [palette, setPalette] = useState<(string | null)[] | null>(null);
   const { setPairing: setThemePairing } = useOutfitTheme();
   useEffect(() => {
     const justSpun = Date.now() - lastSpinAt.current < 300;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const delay = justSpun && !reduce ? reelDuration.shoes : 0;
+    const swapped = SLOTS.some((s) => directions[s] !== 'down');
+    const delay = justSpun && !reduce ? (swapped ? SWAP_DURATION : reelDuration.shoes) : 0;
     const t = setTimeout(() => {
-      const next = pairingKey ? (pairingKey.split('|') as [string, string]) : null;
-      setPairing(next);
-      // Today's outfit restyles the app (headers, nav highlight).
-      if (next) setThemePairing(next);
+      const next = pairingKey ? pairingKey.split('|').map((c) => c || null) : null;
+      setPalette(next);
+      // Today's outfit restyles the app (headers, nav, buttons, background).
+      if (next?.[0] && next[1]) setThemePairing([next[0], next[1], next[2]]);
     }, delay);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -636,13 +822,6 @@ export default function OutfitGenerator({
     },
   ];
 
-  const chip = (active: boolean) =>
-    `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
-      active
-        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
-        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
-    }`;
-
   if (loading && items.length === 0) {
     return (
       <div className="w-full">
@@ -652,8 +831,14 @@ export default function OutfitGenerator({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full outfit-glass">
+      {/* Today's weather, faintly, behind the screen (off when not dressing for it). */}
+      {weather && !ignoreWeather && (
+        <WeatherBackdrop {...weatherScene(weather.icon, weather.condition)} />
+      )}
+      {wornStamp && <WornStamp pieces={wornStamp} date={new Date()} onDone={clearWornStamp} />}
       <PosterHeader
+        compact
         title="Today's fit"
         script="get dressed"
         readout={`{ ${items.length} clean ${items.length === 1 ? 'item' : 'items'} to pick from }`}
@@ -673,164 +858,18 @@ export default function OutfitGenerator({
       />
 
       {activeTab === 'generator' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,36rem)_320px] lg:justify-center gap-8 lg:gap-14 items-start">
-          {/* ====== The outfit ====== */}
-          <div className="panel w-full max-w-xl mx-auto px-5 sm:px-7 pt-7 pb-7">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-lg">Your outfit</h3>
-              {pairing && (
-                <span className="readout flex items-center gap-1.5">
-                  <span className="flex -space-x-1" aria-hidden="true">
-                    {pairing.map((c, i) => (
-                      <span
-                        key={i}
-                        className="w-3.5 h-3.5 rounded-full border border-white"
-                        style={getColorStyle(c)}
-                      />
-                    ))}
-                  </span>
-                  {pairing[0] === pairing[1]
-                    ? `${getColorName(pairing[0])} · tonal`
-                    : `${getColorName(pairing[0])} × ${getColorName(pairing[1])}`}
-                </span>
-              )}
-            </div>
-            <p className="readout mt-1.5">
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-              })}
-              {instructions && <> · {instructions}</>}
-            </p>
-
-            <ul className="mt-5">
-              {slots.map(({ key, label, item, locked, toggle }) => (
-                <li key={key} className="divider flex items-center gap-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setPickerSlot(key)}
-                    aria-label={
-                      item
-                        ? `Change ${label.toLowerCase()}: ${describeItem(item)}`
-                        : `Choose a ${label.toLowerCase()}`
-                    }
-                    className={`w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-md overflow-hidden flex items-center justify-center ${
-                      item
-                        ? 'bg-white border border-[var(--border)] hover:border-[var(--line-strong)]'
-                        : 'border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    {item ? (
-                      <SlotReel
-                        item={item}
-                        pool={items.filter((i) => typeToSection[i.type] === sectionFor[key])}
-                        spinKey={spins[key]}
-                        durationMs={reelDuration[key]}
-                        spinOnMount={Date.now() - lastSpinAt.current < 300}
-                      />
-                    ) : (
-                      <span className="text-sm font-semibold">Choose</span>
-                    )}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <div className="panel-label">{label}</div>
-                    <div className="text-lg font-semibold tracking-tight truncate">
-                      {item ? <ScrambleText text={item.type} /> : 'Not picked yet'}
-                    </div>
-                    {item && (
-                      <div className="readout truncate mt-0.5">
-                        <ScrambleText
-                          text={describeItem(item).slice(0, -item.type.length).trim()}
-                          frames={10}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={toggle}
-                    disabled={!item}
-                    aria-pressed={locked}
-                    aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
-                    className={`min-h-[44px] px-3 rounded-md border text-sm font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-40 ${
-                      locked
-                        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
-                        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    {locked ? (
-                      <Lock size={14} aria-hidden="true" />
-                    ) : (
-                      <Unlock size={14} aria-hidden="true" />
-                    )}
-                    <span className="hidden sm:inline">{locked ? 'Kept' : 'Keep'}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            {error && (
-              <p
-                role="status"
-                className="text-sm text-[var(--warning)] bg-[#fdf4e3] rounded-md px-3 py-2 mt-2"
-              >
-                {error}
-              </p>
-            )}
-
-            <div className="divider pt-5 flex flex-col gap-3">
-              <button
-                onClick={tryAnother}
-                disabled={loading}
-                className="btn-primary w-full text-base min-h-[52px]"
-              >
-                <Sparkles size={18} aria-hidden="true" />
-                {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
-              </button>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={openSaveModal} disabled={!hasOutfit} className="btn-secondary">
-                  <Save size={16} aria-hidden="true" /> Save outfit
-                </button>
-                <button onClick={wearToday} disabled={!hasOutfit} className="btn-secondary">
-                  <CalendarPlus size={16} aria-hidden="true" /> Wear today
-                </button>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] text-center">
-                Keep a piece to build the rest of the outfit around it.
-              </p>
-            </div>
-
-            {hasOutfit && (
-              <div className="divider pt-5 mt-5">
-                <RatingPicker
-                  value={0}
-                  onChange={rateShownOutfit}
-                  clearable={false}
-                  disabled={ratingSaving}
-                  legend={
-                    <>
-                      Rate this outfit{' '}
-                      <span className="font-normal text-[var(--text-secondary)]">
-                        (no need to wear it; helps FitFinder learn your taste)
-                      </span>
-                    </>
-                  }
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ====== Conditions ====== */}
-          <div className="space-y-6">
-            <section aria-labelledby="occasion-heading">
-              <h3 id="occasion-heading" className="text-lg mb-2">
+        <div className="mx-auto w-full max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
+          {/* ====== Left: what the outfit is for (below it on phones) ====== */}
+          <div className="order-3 lg:order-1 flex flex-col gap-4 lg:sticky lg:top-24">
+            <section aria-labelledby="occasion-heading" className="card p-4">
+              <h3 id="occasion-heading" className="panel-label mb-2">
                 Occasion
               </h3>
               <div className="flex flex-wrap gap-2" role="group" aria-label="Occasion">
                 <button
                   onClick={() => setOccasion(null)}
                   aria-pressed={occasion === null}
-                  className={chip(occasion === null)}
+                  className="toggle-pill"
                 >
                   Any
                 </button>
@@ -839,42 +878,40 @@ export default function OutfitGenerator({
                     key={o}
                     onClick={() => setOccasion(o)}
                     aria-pressed={occasion === o}
-                    className={chip(occasion === o)}
+                    className="toggle-pill"
                   >
                     {o}
                   </button>
                 ))}
               </div>
-              <p className="text-sm text-[var(--text-secondary)] mt-2">
+              <p className="text-xs text-[var(--text-secondary)] mt-2">
                 Only items that suit the occasion are used. Change what fits in Settings.
               </p>
             </section>
 
-            <section aria-labelledby="weather-heading">
-              <h3 id="weather-heading" className="text-lg mb-2">
+            <section aria-labelledby="weather-heading" className="card p-4">
+              <h3 id="weather-heading" className="panel-label mb-2">
                 Weather
               </h3>
-              {weatherLoading && <div className="card h-28 animate-pulse" />}
+              {weatherLoading && (
+                <div className="h-16 rounded-md bg-[var(--muted)] animate-pulse" />
+              )}
 
               {weather && !weatherLoading && (
-                <div className="card p-4">
+                <>
                   <div className="flex items-center gap-3">
-                    <img src={getWeatherIconUrl(weather.icon)} alt="" className="w-12 h-12 -my-1" />
-                    <div>
-                      <div className="tabular font-semibold text-3xl font-bold">
+                    <img src={getWeatherIconUrl(weather.icon)} alt="" className="w-11 h-11 -my-1" />
+                    <div className="min-w-0">
+                      <div className="tabular font-bold text-2xl leading-tight">
                         {weather.temperature}°F
                       </div>
-                      <div className="text-sm text-[var(--text-secondary)]">
-                        {weather.condition}, high of {weather.highTemperature}°F
+                      <div className="text-xs text-[var(--text-secondary)] truncate">
+                        {weather.condition}, high of {weather.highTemperature}°F ·{' '}
+                        <span className={ignoreWeather ? 'line-through' : ''}>{tempLabel}</span>
                       </div>
                     </div>
                   </div>
-                  <p
-                    className={`text-sm font-semibold mt-3 ${ignoreWeather ? 'text-[var(--text-secondary)] line-through' : ''}`}
-                  >
-                    {tempLabel}
-                  </p>
-                  <label className="mt-3 flex items-center justify-between gap-3 min-h-[44px] cursor-pointer">
+                  <label className="mt-2 flex items-center justify-between gap-3 min-h-[44px] cursor-pointer">
                     <span className="text-sm font-semibold flex items-center gap-2">
                       {ignoreWeather ? (
                         <CloudOff size={16} aria-hidden="true" />
@@ -891,18 +928,241 @@ export default function OutfitGenerator({
                       className="w-5 h-5 accent-[var(--carbon)]"
                     />
                   </label>
-                </div>
+                </>
               )}
 
               {!weather && !weatherLoading && (
-                <div className="card p-4 text-sm text-[var(--text-secondary)] flex items-start gap-2">
+                <p className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
                   <CloudSun size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>Add your ZIP code in Settings to get outfits picked for the weather.</span>
-                </div>
+                  <span>
+                    {zip
+                      ? `Couldn't load the weather for ${zip} right now.`
+                      : 'Add your ZIP code in Settings to get outfits picked for the weather.'}
+                  </span>
+                </p>
               )}
             </section>
+          </div>
 
-            <button onClick={onNavigateToCalendar} className="btn-ghost w-full justify-start">
+          {/* ====== The outfit: the centre of the screen ====== */}
+          <section
+            aria-labelledby="outfit-heading"
+            className="panel w-full px-4 sm:px-6 py-5 order-1 lg:order-2 transition-shadow duration-300"
+            style={
+              ratingPreview > 0
+                ? {
+                    // The top's colour, stronger the higher the rating.
+                    boxShadow: `0 24px 60px -20px color-mix(in srgb, var(--outfit-glow) ${Math.round(20 + (60 * (ratingPreview - 1)) / 9)}%, transparent)`,
+                  }
+                : undefined
+            }
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h3 id="outfit-heading" className="text-base">
+                Your outfit
+              </h3>
+              <p className="readout">
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+                {instructions && <> · {instructions}</>}
+              </p>
+              {palette && (
+                <div className="w-full mt-2">
+                  <div className="flex gap-1.5" aria-hidden="true">
+                    {palette.map((c, i) => (
+                      <span
+                        key={i}
+                        className="h-2 flex-1 rounded-full border border-black/5 transition-colors duration-700"
+                        style={c ? getColorStyle(c) : { backgroundColor: 'var(--muted)' }}
+                      />
+                    ))}
+                  </div>
+                  <p className="readout mt-1.5">
+                    <span className="sr-only">Palette: </span>
+                    {palette.map((c) => (c ? getColorName(c) : 'No colour')).join(' · ')}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <ul className="mt-4 flex flex-col gap-3">
+              {slots.map(({ key, label, item, locked, toggle }) => {
+                const canSwap = hasOutfit && !locked && !loading;
+                const arrow = (direction: SwipeDirection) => (
+                  <button
+                    type="button"
+                    onClick={() => swapPiece(key, direction)}
+                    disabled={!canSwap}
+                    aria-label={`Swap ${label.toLowerCase()} (${direction === 'left' ? 'slide left' : 'slide right'})`}
+                    className="w-9 h-9 shrink-0 rounded-full border border-[var(--line-strong)] bg-white text-[var(--text-secondary)] hover:text-[var(--text)] flex items-center justify-center transition-opacity disabled:opacity-30"
+                  >
+                    {direction === 'left' ? (
+                      <ChevronLeft size={16} aria-hidden="true" />
+                    ) : (
+                      <ChevronRight size={16} aria-hidden="true" />
+                    )}
+                  </button>
+                );
+                return (
+                  <li
+                    key={key}
+                    className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3"
+                  >
+                    <div className="min-w-0 text-right">
+                      <div className="panel-label">{label}</div>
+                      <div
+                        className="text-sm font-semibold tracking-tight leading-snug line-clamp-3 break-words"
+                        title={item ? describeItem(item) : undefined}
+                      >
+                        {item ? <ScrambleText text={describeItem(item)} /> : 'Not picked yet'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {arrow('left')}
+                      <SwipeArea
+                        onSwipe={(direction) => swapPiece(key, direction)}
+                        disabled={!canSwap}
+                        className="shrink-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setPickerSlot(key)}
+                          aria-label={
+                            item
+                              ? `Change ${label.toLowerCase()}: ${describeItem(item)}`
+                              : `Choose a ${label.toLowerCase()}`
+                          }
+                          className={`w-[7.5rem] h-[7.5rem] [@media(min-height:880px)]:w-36 [@media(min-height:880px)]:h-36 rounded-xl overflow-hidden flex items-center justify-center transition-shadow ${
+                            item
+                              ? 'bg-white border border-[var(--border)] hover:border-[var(--line-strong)]'
+                              : 'border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)]'
+                          } ${locked ? 'ring-2 ring-[var(--accent)] ring-offset-2' : ''}`}
+                        >
+                          {item ? (
+                            <SlotReel
+                              item={item}
+                              pool={items.filter((i) => typeToSection[i.type] === sectionFor[key])}
+                              spinKey={spins[key]}
+                              durationMs={
+                                directions[key] === 'down' ? reelDuration[key] : SWAP_DURATION
+                              }
+                              direction={directions[key]}
+                              spinOnMount={Date.now() - lastSpinAt.current < 300}
+                            />
+                          ) : (
+                            <span className="text-sm font-semibold">Choose</span>
+                          )}
+                        </button>
+                      </SwipeArea>
+                      {arrow('right')}
+                    </div>
+                    <div className="justify-self-start">
+                      <button
+                        onClick={toggle}
+                        disabled={!item}
+                        aria-pressed={locked}
+                        aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
+                        className={`min-h-[40px] px-3 rounded-full border text-sm font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-40 ${
+                          locked
+                            ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]'
+                            : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {locked ? (
+                          <Lock size={14} aria-hidden="true" />
+                        ) : (
+                          <Unlock size={14} aria-hidden="true" />
+                        )}
+                        <span className="hidden sm:inline">{locked ? 'Kept' : 'Keep'}</span>
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {error && (
+              <p
+                role="status"
+                className="text-sm text-[var(--warning)] bg-[#fdf4e3] rounded-md px-3 py-2 mt-4"
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              onClick={tryAnother}
+              disabled={loading}
+              className="btn-primary w-full mt-5 text-base min-h-[52px]"
+            >
+              <Sparkles size={18} aria-hidden="true" />
+              {hasOutfit ? 'Try another outfit' : 'Generate outfit'}
+            </button>
+          </section>
+
+          {/* ====== Right: rating and history (below the outfit on phones) ====== */}
+          <div className="order-2 lg:order-3 flex flex-col gap-4 lg:sticky lg:top-24">
+            <section aria-label="This outfit" className="card p-4 flex flex-col gap-2">
+              <h3 className="panel-label mb-1">This outfit</h3>
+              <button
+                onClick={openSaveModal}
+                disabled={!hasOutfit}
+                className="btn-secondary w-full"
+              >
+                <Save size={16} aria-hidden="true" /> Save outfit
+              </button>
+              <button onClick={wearToday} disabled={!hasOutfit} className="btn-secondary w-full">
+                <CalendarPlus size={16} aria-hidden="true" /> Wear today
+              </button>
+              <button
+                onClick={shareOutfit}
+                disabled={!hasOutfit || sharing}
+                aria-label="Share outfit"
+                className="btn-secondary w-full"
+              >
+                <Share2 size={16} aria-hidden="true" /> Share
+              </button>
+            </section>
+            <section aria-label="Rate this outfit" className="card p-4">
+              {hasOutfit ? (
+                <RatingPicker
+                  value={shownRating}
+                  onChange={rateShownOutfit}
+                  clearable={false}
+                  disabled={ratingSaving || shownRating > 0}
+                  onPreview={setRatingPreview}
+                  legend={
+                    shownRating > 0 ? (
+                      <>
+                        You rated this {shownRating}/10{' '}
+                        <span className="font-normal text-[var(--text-secondary)]">
+                          (Try another for the next one)
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        Rate this outfit{' '}
+                        <span className="font-normal text-[var(--text-secondary)]">
+                          (no need to wear it; helps FitFinder learn your taste)
+                        </span>
+                      </>
+                    )
+                  }
+                />
+              ) : (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Generate an outfit, then rate it here. No need to wear it; it helps FitFinder
+                  learn your taste.
+                </p>
+              )}
+            </section>
+            <p className="text-xs text-[var(--text-secondary)] px-1">
+              Swipe a piece or use its arrows to swap just that piece. Keep a piece to build around
+              it.
+            </p>
+            <button onClick={onNavigateToCalendar} className="btn-ghost justify-start">
               <Calendar size={16} aria-hidden="true" /> See what you&apos;ve worn
             </button>
           </div>
@@ -995,7 +1255,7 @@ export default function OutfitGenerator({
       {/* Save name modal */}
       {showSaveModal && (
         <Modal label="Save outfit" onClose={() => setShowSaveModal(false)} className="max-w-sm">
-          <h3 className="text-xl mb-4">Save outfit</h3>
+          <ModalHeader title="Save outfit" onClose={() => setShowSaveModal(false)} />
           <label htmlFor="save-outfit-name" className="text-sm font-semibold mb-1.5 block">
             Name
           </label>
@@ -1027,41 +1287,36 @@ export default function OutfitGenerator({
         <Modal
           label={`Choose a ${pickerSlot}`}
           onClose={() => setPickerSlot(null)}
-          className="max-w-md"
+          className="max-w-3xl"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl">Choose a {pickerSlot}</h3>
-            <button
-              onClick={() => setPickerSlot(null)}
-              className="btn-ghost px-2"
-              aria-label="Close"
-            >
-              <X size={16} />
-            </button>
-          </div>
+          <ModalHeader
+            title={`Choose a ${pickerSlot}`}
+            subtitle="Clean pieces only. Picking one keeps it in the outfit."
+            onClose={() => setPickerSlot(null)}
+          />
           {pickerItems.length === 0 ? (
             <p className="text-sm text-[var(--text-secondary)] text-center py-6">
               No clean {pickerSlot === 'shoes' ? 'shoes' : `${pickerSlot}s`} in your closet. Add
               some in the Closet, or mark a few clean.
             </p>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[65vh] overflow-y-auto p-1">
               {pickerItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handlePickItem(item)}
                   aria-label={describeItem(item)}
-                  className="flex flex-col items-center gap-1 p-2 rounded-md border border-[var(--border)] hover:border-[var(--line-strong)] bg-white transition-colors"
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-[var(--border)] hover:border-[var(--accent)] bg-white transition-colors"
                 >
-                  <div className="w-16 h-16 rounded-lg bg-white overflow-hidden">
+                  <div className="w-full aspect-square rounded-lg bg-[var(--muted)] overflow-hidden">
                     <ClothingImage
                       src={item.image_url}
                       alt=""
                       className="w-full h-full object-contain p-1"
                     />
                   </div>
-                  <span className="text-xs text-[var(--text-secondary)] truncate w-full text-center">
-                    {item.type}
+                  <span className="text-xs text-[var(--text-secondary)] line-clamp-2 w-full text-center">
+                    {describeItem(item)}
                   </span>
                 </button>
               ))}

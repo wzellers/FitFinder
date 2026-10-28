@@ -101,12 +101,28 @@ const seedPath = (userId: string, file: string) => `${userId}/e2e-${file}`;
 
 /**
  * Make sure every seed photo is in storage, and remove any other file in the
- * test user's folder (e.g. photos uploaded by a previous run's tests).
+ * test user's folder (e.g. photos uploaded, or originals kept by re-crops, in
+ * a previous run's tests).
  */
 async function syncSeedPhotos(): Promise<void> {
   const { db, userId } = await testDb();
   const listed = ok(await db.storage.from(BUCKET).list(userId, { limit: 1000 }), 'list photos');
-  const existing = new Set((listed ?? []).map((f) => `${userId}/${f.name}`));
+  // Folders (like originals/) list with no id; they aren't photos.
+  const existing = new Set(
+    (listed ?? []).filter((f) => f.id !== null).map((f) => `${userId}/${f.name}`),
+  );
+
+  // Originals kept from re-crops belong to items the reset just deleted.
+  const originals = ok(
+    await db.storage.from(BUCKET).list(`${userId}/originals`, { limit: 1000 }),
+    'list originals',
+  );
+  if (originals?.length) {
+    ok(
+      await db.storage.from(BUCKET).remove(originals.map((f) => `${userId}/originals/${f.name}`)),
+      'remove originals',
+    );
+  }
   const wanted = new Set(Object.values(SEED_ITEMS).map((i) => seedPath(userId, i.file)));
 
   const stale = [...existing].filter((p) => !wanted.has(p));

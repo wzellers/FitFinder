@@ -10,7 +10,11 @@
 // fills the corresponding field in manually.
 
 import { supabase } from '@/lib/supabaseClient';
-import { CLOTHING_BUCKET as BUCKET, removeClothingImages } from '@/lib/clothingImages';
+import {
+  CLOTHING_BUCKET as BUCKET,
+  imagePathFromUrl,
+  removeClothingImages,
+} from '@/lib/clothingImages';
 import { typeToSection } from '@/lib/constants';
 import { detectColors } from '@/lib/imageColor';
 import type { ClothingSection } from '@/lib/types';
@@ -195,6 +199,9 @@ export interface UploadItemInput {
   type: string;
   colors: string[];
   isDirty: boolean;
+  /** The photo before it was cropped while adding (background still removed),
+   * kept as the item's original so Restore original photo can undo the crop. */
+  original?: Blob;
 }
 
 /** An upload failure with a message that can be shown to the user as-is. */
@@ -259,10 +266,10 @@ export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
 }
 
 /** Upload a blob to the bucket and return its storage path. */
-async function uploadBlob(userId: string, blob: Blob): Promise<string> {
+async function uploadBlob(userId: string, blob: Blob, path?: string): Promise<string> {
   const prepared = await prepareImageForUpload(blob);
   const contentType = EXTENSIONS[prepared.type] ? prepared.type : 'image/png';
-  const fileName = newImagePath(userId, contentType);
+  const fileName = path ?? newImagePath(userId, contentType);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(fileName, prepared, { contentType });
@@ -272,8 +279,93 @@ async function uploadBlob(userId: string, blob: Blob): Promise<string> {
 }
 
 /**
+ * Where an item's photo is kept as it was before its first re-crop, so later
+ * crops start from the whole photo and it can be restored. Inside the user's
+ * folder, so the bucket's own-folder policies cover it.
+ */
+export function originalImagePath(userId: string, itemId: string): string {
+  return `${userId}/originals/${itemId}`;
+}
+
+/** Keep the item's current photo as its original, unless one is kept already. */
+async function keepOriginal(userId: string, itemId: string, currentImageUrl: string | null) {
+  const current = imagePathFromUrl(currentImageUrl);
+  if (!current) return;
+  // Fails when an original already exists, which is what we want: the first
+  // photo stays the original.
+  await supabase.storage.from(BUCKET).copy(current, originalImagePath(userId, itemId));
+}
+
+/** Point an item at `path`, then delete its previous photo. Removes `path`
+ * again if the item can't be updated. */
+async function repointItem(
+  userId: string,
+  itemId: string,
+  oldImageUrl: string | null,
+  path: string,
+) {
+  const { error } = await supabase
+    .from('clothing_items')
+    .update({ image_url: path })
+    .eq('id', itemId)
+    .eq('user_id', userId);
+  if (error) {
+    await removeClothingImages([path]);
+    throw error;
+  }
+  // Best-effort: a leftover old file is harmless (private, unreferenced).
+  await removeClothingImages([imagePathFromUrl(oldImageUrl)]).catch(() => {});
+}
+
+/**
+ * Replace an item's photo (e.g. after re-cropping it): keep the photo it had
+ * before its first re-crop as its original, upload the new image, point the
+ * row at it, then delete the previous file. If the row can't be updated, the
+ * new file is removed and the previous photo stays. Returns the new path.
+ */
+export async function replaceItemImage({
+  userId,
+  itemId,
+  oldImageUrl,
+  blob,
+}: {
+  userId: string;
+  itemId: string;
+  oldImageUrl: string | null;
+  blob: Blob;
+}): Promise<string> {
+  await keepOriginal(userId, itemId, oldImageUrl);
+  const path = await uploadBlob(userId, blob);
+  await repointItem(userId, itemId, oldImageUrl, path);
+  return path;
+}
+
+/**
+ * Put an item's original photo back (undoing its crops). The original is
+ * copied, so it stays available for later crops. Returns the new path.
+ */
+export async function restoreOriginalImage({
+  userId,
+  itemId,
+  currentImageUrl,
+}: {
+  userId: string;
+  itemId: string;
+  currentImageUrl: string | null;
+}): Promise<string> {
+  const path = newImagePath(userId, 'image/png');
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .copy(originalImagePath(userId, itemId), path);
+  if (error) throw error;
+  await repointItem(userId, itemId, currentImageUrl, path);
+  return path;
+}
+
+/**
  * Upload a processed item: store the image, then insert the clothing_items row.
- * Throws on failure so callers can surface per-item errors.
+ * Returns the new item's id (null if the row didn't come back). Throws on
+ * failure so callers can surface per-item errors.
  */
 export async function uploadItem({
   userId,
@@ -281,16 +373,26 @@ export async function uploadItem({
   type,
   colors,
   isDirty,
-}: UploadItemInput): Promise<void> {
+  original,
+}: UploadItemInput): Promise<string | null> {
   const path = await uploadBlob(userId, blob);
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('clothing_items')
     .insert([{ user_id: userId, type, colors, image_url: path, is_dirty: isDirty }])
-    .select();
+    .select('id');
   if (error) {
     // Don't leave the uploaded image behind; a retry uploads a fresh copy.
     await removeClothingImages([path]);
     throw error;
   }
+  const id = (data as { id: string }[] | null)?.[0]?.id ?? null;
+  // Best-effort: without it, the item is fine; its first saved photo is then
+  // the original.
+  if (id && original) {
+    await uploadBlob(userId, original, originalImagePath(userId, id)).catch((err) =>
+      console.warn('Could not keep the uncropped photo', err),
+    );
+  }
+  return id;
 }

@@ -137,6 +137,32 @@ test('logs a past day by picking items, edits it, and deletes it', async ({ page
   await expect.poll(modelUpdates).toBe(0);
 });
 
+test('logs a day with a piece that is in the wash now', async ({ page, seeded }) => {
+  const { db, userId } = await testDb();
+  await openApp(page, 'Calendar');
+  await showMonthOf(page, 2);
+  await dayCell(page, 2).click();
+  const dialog = page.getByRole('dialog', { name: /^Log outfit for / });
+  // The black sweatshirt is dirty, but you may well have worn it that day.
+  const sweatshirt = dialog
+    .getByRole('group', { name: 'Tops' })
+    .getByRole('button', { name: 'Black Sweatshirt (dirty)' });
+  await expect(sweatshirt).toBeVisible();
+  await sweatshirt.click();
+  await dialog
+    .getByRole('group', { name: 'Bottoms' })
+    .getByRole('button', { name: 'Denim Jeans' })
+    .click();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+
+  const wears = ok(
+    await db.from('outfit_wears').select('top_id, bottom_id').eq('user_id', userId),
+    'wears',
+  );
+  expect(wears).toEqual([{ top_id: seeded.blackSweatshirt, bottom_id: seeded.denimJeans }]);
+});
+
 test('logs a day from a saved outfit', async ({ page, seeded }) => {
   const { db, userId } = await testDb();
   ok(
@@ -157,7 +183,8 @@ test('logs a day from a saved outfit', async ({ page, seeded }) => {
   await dayCell(page, 2).click();
   const dialog = page.getByRole('dialog', { name: /^Log outfit for / });
   await dialog.getByRole('button', { name: 'From a saved outfit' }).click();
-  await dialog.getByLabel('Saved outfit').selectOption({ label: 'E2E Work' });
+  await dialog.getByRole('button', { name: /^Saved outfit: / }).click();
+  await page.getByRole('option', { name: 'E2E Work' }).click();
   await dialog.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(dialog).toHaveCount(0);
 

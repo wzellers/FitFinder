@@ -1,10 +1,12 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { Minus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import RatingPicker from '@/components/ui/RatingPicker';
 import { describeItem } from '@/lib/itemLabels';
 import { supabase } from '@/lib/supabaseClient';
 import type { PendingRating, ClothingItem } from '@/lib/types';
@@ -23,7 +25,8 @@ export default function RatingPrompt({
   onMinimize,
 }: RatingPromptProps) {
   const { user } = useAuth();
-  const [rating, setRating] = useState<number>(5);
+  // 0 until the user picks a number.
+  const [rating, setRating] = useState<number>(0);
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,17 +73,13 @@ export default function RatingPrompt({
   return (
     <Modal label="Rate yesterday's outfit" onClose={onMinimize} className="max-w-sm">
       {/* Header */}
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-xl">How was yesterday&apos;s outfit?</h3>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            {formatDate(pendingRating.worn_date)}
-          </p>
-        </div>
-        <button onClick={onMinimize} className="btn-ghost px-2" aria-label="Remind me later">
-          <Minus size={14} />
-        </button>
-      </div>
+      <ModalHeader
+        title="How was yesterday's outfit?"
+        subtitle={formatDate(pendingRating.worn_date)}
+        onClose={onMinimize}
+        closeLabel="Remind me later"
+        closeIcon={<Minus size={16} aria-hidden="true" />}
+      />
 
       {/* Outfit Preview */}
       <div className="flex justify-center gap-2 mb-5 flex-wrap">
@@ -105,30 +104,15 @@ export default function RatingPrompt({
         )}
       </div>
 
-      {/* Overall Rating */}
+      {/* Overall Rating: the same 1–10 buttons as on the Outfits screen. */}
       <div className="mb-5">
-        <label htmlFor="rating-slider" className="text-sm font-semibold block mb-2">
-          How did it feel?
-        </label>
-        <div className="flex items-center gap-3">
-          <input
-            id="rating-slider"
-            aria-valuetext={`${rating} out of 10`}
-            type="range"
-            min="1"
-            max="10"
-            value={rating}
-            onChange={(e) => setRating(Number(e.target.value))}
-            className="flex-1 h-2 accent-[var(--accent)] cursor-pointer bg-[var(--muted)] rounded-full border-0 p-0 ring-0"
-          />
-          <span
-            className="tabular font-semibold text-2xl font-bold min-w-[40px] text-center"
-            aria-hidden="true"
-          >
-            {rating}
-          </span>
-        </div>
-        <div className="flex justify-between text-xs text-[var(--text-secondary)] mt-1">
+        <RatingPicker
+          value={rating}
+          onChange={setRating}
+          clearable={false}
+          legend="How did it feel?"
+        />
+        <div className="flex justify-between text-xs text-[var(--text-secondary)] mt-2 max-w-[27rem]">
           <span>Not great</span>
           <span>Amazing</span>
         </div>
@@ -139,7 +123,7 @@ export default function RatingPrompt({
         <button onClick={onSkip} className="btn-secondary flex-1">
           Skip
         </button>
-        <button onClick={handleSubmit} className="btn-primary flex-[2]">
+        <button onClick={handleSubmit} disabled={rating < 1} className="btn-primary flex-[2]">
           Save rating
         </button>
       </div>

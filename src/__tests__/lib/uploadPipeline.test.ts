@@ -4,9 +4,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockUpload = vi.fn();
 const mockGetPublicUrl = vi.fn();
 const mockRemove = vi.fn();
+const mockCopy = vi.fn();
 const mockRowInsertSelect = vi.fn();
 const mockRowInsert = vi.fn((_rows: Array<Record<string, unknown>>) => ({
   select: mockRowInsertSelect,
+}));
+const mockRowUpdateResult = vi.fn();
+const mockRowUpdate = vi.fn((_patch: Record<string, unknown>) => ({
+  eq: () => ({ eq: mockRowUpdateResult }),
 }));
 
 vi.mock('@/lib/supabaseClient', () => ({
@@ -16,15 +21,24 @@ vi.mock('@/lib/supabaseClient', () => ({
         upload: mockUpload,
         getPublicUrl: mockGetPublicUrl,
         remove: mockRemove,
+        copy: mockCopy,
       })),
     },
     from: vi.fn(() => ({
       insert: mockRowInsert,
+      update: mockRowUpdate,
     })),
   },
 }));
 
-import { runWithConcurrency, uploadItem, prepareImageForUpload } from '@/lib/uploadPipeline';
+import {
+  runWithConcurrency,
+  uploadItem,
+  prepareImageForUpload,
+  replaceItemImage,
+  restoreOriginalImage,
+  originalImagePath,
+} from '@/lib/uploadPipeline';
 
 describe('runWithConcurrency', () => {
   it('runs every item and preserves result order', async () => {
@@ -103,6 +117,37 @@ describe('uploadItem', () => {
     expect(row.is_dirty).toBe(false);
   });
 
+  it("returns the new item's id, so the closet can highlight it", async () => {
+    mockRowInsertSelect.mockResolvedValueOnce({ data: [{ id: 'item-9' }], error: null });
+    expect(await uploadItem(baseInput)).toBe('item-9');
+    expect(mockRowInsertSelect).toHaveBeenLastCalledWith('id');
+  });
+
+  it('keeps the uncropped photo as the original when one is given', async () => {
+    mockRowInsertSelect.mockResolvedValueOnce({ data: [{ id: 'item-9' }], error: null });
+    const original = new Blob(['uncropped'], { type: 'image/png' });
+    await uploadItem({ ...baseInput, original });
+    expect(mockUpload).toHaveBeenCalledTimes(2);
+    expect(mockUpload.mock.calls[1][0]).toBe('u1/originals/item-9');
+    expect(mockUpload.mock.calls[1][1]).toBe(original);
+  });
+
+  it('keeps no original without one, and still adds the item if keeping it fails', async () => {
+    await uploadItem(baseInput);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+
+    mockUpload.mockClear();
+    mockRowInsertSelect.mockResolvedValueOnce({ data: [{ id: 'item-9' }], error: null });
+    mockUpload
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: 'storage down' } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(
+      uploadItem({ ...baseInput, original: new Blob(['x'], { type: 'image/png' }) }),
+    ).resolves.toBe('item-9');
+    warn.mockRestore();
+  });
+
   it('does not write an original_image_url column', async () => {
     await uploadItem(baseInput);
     const row = mockRowInsert.mock.calls[0][0][0];
@@ -150,5 +195,80 @@ describe('uploadItem cleanup', () => {
       }),
     ).rejects.toBeTruthy();
     expect(mockRemove).toHaveBeenCalledWith([mockUpload.mock.calls[0][0]]);
+  });
+});
+
+describe('replaceItemImage', () => {
+  const input = {
+    userId: 'u1',
+    itemId: 'item-1',
+    oldImageUrl: 'u1/old.png',
+    blob: new Blob(['img'], { type: 'image/png' }),
+  };
+
+  beforeEach(() => {
+    mockUpload.mockReset().mockResolvedValue({ error: null });
+    mockRemove.mockReset().mockResolvedValue({ error: null });
+    mockCopy.mockReset().mockResolvedValue({ error: null });
+    mockRowUpdate.mockClear();
+    mockRowUpdateResult.mockReset().mockResolvedValue({ error: null });
+  });
+
+  it('uploads the new photo, points the item at it, then removes the old one', async () => {
+    const path = await replaceItemImage(input);
+    expect(path).toBe(mockUpload.mock.calls[0][0]);
+    expect(path).toMatch(/^u1\/.+\.png$/);
+    expect(mockRowUpdate).toHaveBeenCalledWith({ image_url: path });
+    expect(mockRemove).toHaveBeenCalledWith(['u1/old.png']);
+  });
+
+  it('keeps the photo it had before its first re-crop as its original', async () => {
+    await replaceItemImage(input);
+    expect(mockCopy).toHaveBeenCalledWith('u1/old.png', originalImagePath('u1', 'item-1'));
+    expect(originalImagePath('u1', 'item-1')).toBe('u1/originals/item-1');
+    // The original is never the file that gets deleted.
+    expect(mockRemove).not.toHaveBeenCalledWith(['u1/originals/item-1']);
+  });
+
+  it('still saves the crop when an original is already kept (the copy is refused)', async () => {
+    mockCopy.mockResolvedValueOnce({ error: { message: 'The resource already exists' } });
+    await expect(replaceItemImage(input)).resolves.toMatch(/^u1\//);
+  });
+
+  it('keeps the old photo, and removes the new upload, when the item fails to update', async () => {
+    mockRowUpdateResult.mockResolvedValueOnce({ error: { message: 'nope' } });
+    await expect(replaceItemImage(input)).rejects.toBeTruthy();
+    const uploaded = mockUpload.mock.calls[0][0];
+    expect(mockRemove).toHaveBeenCalledWith([uploaded]);
+    expect(mockRemove).not.toHaveBeenCalledWith(['u1/old.png']);
+  });
+});
+
+describe('restoreOriginalImage', () => {
+  beforeEach(() => {
+    mockRemove.mockReset().mockResolvedValue({ error: null });
+    mockCopy.mockReset().mockResolvedValue({ error: null });
+    mockRowUpdateResult.mockReset().mockResolvedValue({ error: null });
+    mockRowUpdate.mockClear();
+  });
+
+  it('copies the original back as the photo, keeping the original for later', async () => {
+    const path = await restoreOriginalImage({
+      userId: 'u1',
+      itemId: 'item-1',
+      currentImageUrl: 'u1/cropped.png',
+    });
+    expect(mockCopy).toHaveBeenCalledWith('u1/originals/item-1', path);
+    expect(mockRowUpdate).toHaveBeenCalledWith({ image_url: path });
+    expect(mockRemove).toHaveBeenCalledWith(['u1/cropped.png']);
+    expect(mockRemove).not.toHaveBeenCalledWith(['u1/originals/item-1']);
+  });
+
+  it('changes nothing when there is no original to restore', async () => {
+    mockCopy.mockResolvedValueOnce({ error: { message: 'Object not found' } });
+    await expect(
+      restoreOriginalImage({ userId: 'u1', itemId: 'item-1', currentImageUrl: 'u1/cropped.png' }),
+    ).rejects.toBeTruthy();
+    expect(mockRowUpdate).not.toHaveBeenCalled();
   });
 });

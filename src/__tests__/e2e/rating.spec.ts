@@ -23,7 +23,7 @@ test("asks for a rating of yesterday's outfit, and the model learns from it", as
   await expect(prompt.getByRole('img', { name: 'Navy blue Button-Up Shirt' })).toBeVisible();
   await expectImagesLoaded(page, '[role="dialog"] img', 3);
 
-  await prompt.getByLabel('How did it feel?').fill('9');
+  await prompt.getByRole('button', { name: '9 out of 10' }).click();
   await prompt.getByRole('button', { name: 'Save rating' }).click();
   await expect(prompt).toHaveCount(0);
 

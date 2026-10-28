@@ -1,5 +1,7 @@
 'use client';
 
+import SettingsCard from '@/components/ui/SettingsCard';
+import Dropdown from '@/components/ui/Dropdown';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Mail } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -93,15 +95,11 @@ export default function DailyEmailSettings() {
   };
 
   return (
-    <div className="card p-5 mb-6">
-      <h3 className="text-sm font-semibold text-[var(--text)] mb-1 flex items-center gap-2">
-        <Mail size={16} className="text-[var(--accent)]" aria-hidden="true" /> Daily outfit email
-      </h3>
-      <p className="text-sm text-[var(--text-secondary)] mb-4">
-        Each morning: an outfit picked for the day&apos;s forecast, plus the pieces you haven&apos;t
-        worn yet this week.
-      </p>
-
+    <SettingsCard
+      icon={Mail}
+      title="Daily outfit email"
+      description="Each morning: an outfit picked for the day's forecast, in its colours, plus the pieces you haven't worn yet this week."
+    >
       {state === 'loading' && <p className="text-sm text-[var(--text-secondary)]">Loading…</p>}
       {state === 'unavailable' && (
         <p className="text-sm text-[var(--text-secondary)]">
@@ -129,7 +127,7 @@ export default function DailyEmailSettings() {
               disabled={saving}
               className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors ${
                 enabled
-                  ? 'bg-[var(--burgundy)] border-[var(--burgundy)]'
+                  ? 'bg-[var(--accent)] border-[var(--accent)]'
                   : 'bg-[var(--muted)] border-[var(--line-strong)]'
               }`}
             >
@@ -157,21 +155,13 @@ export default function DailyEmailSettings() {
               />
             </div>
             <div className="flex flex-col gap-1.5 min-w-0 flex-1 basis-48">
-              <label htmlFor="daily-email-zone" className="text-sm font-semibold">
-                Time zone
-              </label>
-              <select
-                id="daily-email-zone"
+              <span className="text-sm font-semibold">Time zone</span>
+              <Dropdown
+                label="Time zone"
                 value={timeZone}
-                onChange={(e) => setTimeZone(e.target.value)}
-                className="min-h-[44px] max-w-full"
-              >
-                {zones.map((z) => (
-                  <option key={z} value={z}>
-                    {z.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
+                onChange={setTimeZone}
+                options={zones.map((z) => ({ value: z, label: z.replace(/_/g, ' ') }))}
+              />
             </div>
             <button onClick={() => save()} disabled={saving} className="btn-primary">
               {saving ? 'Saving…' : 'Save'}
@@ -189,6 +179,6 @@ export default function DailyEmailSettings() {
           )}
         </>
       )}
-    </div>
+    </SettingsCard>
   );
 }

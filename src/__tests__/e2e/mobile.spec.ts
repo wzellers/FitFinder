@@ -25,7 +25,7 @@ test('every page fits the screen and the nav stays reachable', async ({ page }) 
 
 test('settings sections fit as tabs without truncation', async ({ page }) => {
   await openApp(page, 'Settings');
-  const tabs = page.getByRole('group', { name: 'Preference section' });
+  const tabs = page.getByRole('navigation', { name: 'Preference sections' });
   for (const name of ['Weather', 'Occasions', 'Colors', 'Email']) {
     const button = tabs.getByRole('button', { name });
     await expect(button).toBeVisible();
@@ -42,6 +42,8 @@ test('settings sections fit as tabs without truncation', async ({ page }) => {
 
 test('generates an outfit on a phone', async ({ page }) => {
   await openApp(page, 'Outfits');
+  // Visible straight away, without scrolling.
+  await expect(page.getByRole('button', { name: 'Generate outfit' })).toBeInViewport();
   await page.getByRole('button', { name: 'Generate outfit' }).click();
   await expect(page.getByRole('button', { name: /^Change top: / })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Change shoes: / })).toBeVisible();

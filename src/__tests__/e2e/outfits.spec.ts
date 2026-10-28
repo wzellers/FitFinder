@@ -20,6 +20,10 @@ async function generate(page: Page) {
 
 test('generates a full outfit from clean items only', async ({ page }) => {
   await openApp(page, 'Outfits');
+  // The outfit is the focus: on a laptop-sized screen it and the Generate
+  // button start above the fold.
+  await expect(page.getByRole('button', { name: 'Generate outfit' })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Choose a top' })).toBeInViewport();
   await expect(page.getByText('{ 5 clean items to pick from }')).toBeVisible();
 
   const tops = new Set<string>();
@@ -118,6 +122,83 @@ test('picks a piece by hand', async ({ page }) => {
   expect(await currentPiece(page, 'top')).toBe('Navy blue Button-Up Shirt');
 });
 
+async function impressionOutcomes(db: Awaited<ReturnType<typeof testDb>>['db'], userId: string) {
+  const { data } = await db
+    .from('outfit_impressions')
+    .select('outcome')
+    .eq('user_id', userId)
+    .order('shown_at');
+  return (data ?? []).map((r) => r.outcome);
+}
+
+test('swaps just one piece with its arrow, and learns it as a skip', async ({ page }) => {
+  const { db, userId } = await testDb();
+  await openApp(page, 'Outfits');
+  await generate(page);
+  const before = {
+    top: await currentPiece(page, 'top'),
+    bottom: await currentPiece(page, 'bottom'),
+    shoes: await currentPiece(page, 'shoes'),
+  };
+
+  // The seeded closet has two clean tops, so the other one comes in.
+  await page.getByRole('button', { name: 'Swap top (slide right)' }).click();
+  await expect(slot(page, 'top')).not.toHaveAttribute('aria-label', `Change top: ${before.top}`);
+  expect(await currentPiece(page, 'bottom')).toBe(before.bottom);
+  expect(await currentPiece(page, 'shoes')).toBe(before.shoes);
+
+  // Only one pair of shoes is clean: there's nothing to swap them for.
+  await page.getByRole('button', { name: 'Swap shoes (slide left)' }).click();
+  await expect(
+    page.getByText('No other pair of shoes goes with the rest of this outfit right now.'),
+  ).toBeVisible();
+
+  // The first outfit was passed on; the swapped one is still on screen.
+  await expect.poll(() => impressionOutcomes(db, userId)).toEqual(['skipped', null]);
+});
+
+test('swipes a piece sideways to swap it, without opening the picker', async ({ page }) => {
+  await openApp(page, 'Outfits');
+  await generate(page);
+  const top = await currentPiece(page, 'top');
+
+  await slot(page, 'top').scrollIntoViewIfNeeded();
+  const box = (await slot(page, 'top').boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width * 0.8, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.2, y, { steps: 6 });
+  await page.mouse.up();
+
+  await expect(slot(page, 'top')).not.toHaveAttribute('aria-label', `Change top: ${top}`);
+  await expect(page.getByRole('dialog', { name: 'Choose a top' })).toHaveCount(0);
+  // The drag didn't select the page's text.
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
+});
+
+test("a kept piece can't be swapped", async ({ page }) => {
+  await openApp(page, 'Outfits');
+  await generate(page);
+  await page.getByRole('button', { name: 'Lock top' }).click();
+  await expect(page.getByRole('button', { name: 'Swap top (slide left)' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Swap top (slide right)' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Swap bottom (slide left)' })).toBeEnabled();
+});
+
+test('shares an image of the outfit (a download on desktop)', async ({ page }) => {
+  await openApp(page, 'Outfits');
+  await generate(page);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Share outfit' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^fitfinder-outfit-\d{4}-\d{2}-\d{2}\.png$/);
+  // A real card with the photos drawn in (cross-origin images didn't taint
+  // the canvas), not an empty export.
+  const { size } = (await import('fs')).statSync((await file.path())!);
+  expect(size).toBeGreaterThan(20_000);
+  await expect(toast(page, 'Saved an image of your outfit.')).toBeVisible();
+});
+
 test('saves an outfit, reopens it, and deletes it', async ({ page }) => {
   await openApp(page, 'Outfits');
   await generate(page);
@@ -187,7 +268,9 @@ test("logs today's outfit once, and it shows in the calendar", async ({ page }) 
   ).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('rates an outfit without wearing it, learns from it, and shows the next', async ({ page }) => {
+test('rates an outfit without wearing it, learns from it, and keeps it on screen', async ({
+  page,
+}) => {
   const { db, userId } = await testDb();
   await openApp(page, 'Outfits');
   await generate(page);
@@ -198,7 +281,11 @@ test('rates an outfit without wearing it, learns from it, and shows the next', a
 
   const rating = page.getByRole('group', { name: /Rate this outfit/ });
   await rating.getByRole('button', { name: '8 out of 10' }).click();
-  await expect(toast(page, "Rated 8/10. Here's another.")).toBeVisible();
+  await expect(toast(page, "Rated 8/10. Try another when you're ready.")).toBeVisible();
+  // The rated outfit stays, showing its rating.
+  await expect(page.getByRole('group', { name: /You rated this 8\/10/ })).toBeVisible();
+  expect(await slot(page, 'top').getAttribute('aria-label')).toBe(shown.top);
+  expect(await slot(page, 'bottom').getAttribute('aria-label')).toBe(shown.bottom);
 
   // Saved for exactly the shown outfit, with the features it was learned from.
   const rows = ok(
@@ -224,25 +311,25 @@ test('rates an outfit without wearing it, learns from it, and shows the next', a
     ok(await db.from('outfit_wears').select('id').eq('user_id', userId), 'wears'),
   ).toHaveLength(0);
 
-  // Both shown outfits were logged for measuring recommendations, the rated
-  // one with its outcome.
+  // Logged for measuring recommendations, with its outcome.
+  const impressions = async () => {
+    const { data } = await db
+      .from('outfit_impressions')
+      .select('outcome, rating, top_id')
+      .eq('user_id', userId)
+      .order('shown_at');
+    return data ?? [];
+  };
   await expect
-    .poll(async () => {
-      const { data } = await db
-        .from('outfit_impressions')
-        .select('outcome, rating, top_id, predicted')
-        .eq('user_id', userId)
-        .order('shown_at');
-      return data ?? [];
-    })
-    .toMatchObject([
-      { outcome: 'rated', rating: 8, top_id: rows![0].top_id },
-      { outcome: null, rating: null },
-    ]);
+    .poll(impressions)
+    .toMatchObject([{ outcome: 'rated', rating: 8, top_id: rows![0].top_id }]);
 
-  // A next outfit is shown (the reels spin again; with a small closet it may
-  // repeat), and rating stays available.
-  await expect(slot(page, 'top')).toBeVisible();
-  expect(shown.top).toBeTruthy();
-  await expect(rating.getByRole('button', { name: '8 out of 10' })).toBeEnabled();
+  // Try another moves on (not counted as a skip), and rating is open again.
+  await generate(page);
+  await expect.poll(impressions).toMatchObject([{ outcome: 'rated' }, { outcome: null }]);
+  await expect(
+    page
+      .getByRole('group', { name: /Rate this outfit/ })
+      .getByRole('button', { name: '8 out of 10' }),
+  ).toBeEnabled();
 });

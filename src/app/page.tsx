@@ -17,6 +17,7 @@ import Onboarding from '@/components/Onboarding';
 import ImageUpload from '@/components/ImageUpload';
 import EditItem from '@/components/EditItem';
 import { useAuth } from '@/hooks/useAuth';
+import { usePhotoDrop } from '@/hooks/usePhotoDrop';
 import { useToast } from '@/components/ToastProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { toLocalDateString } from '@/lib/dates';
@@ -44,6 +45,15 @@ export default function Page() {
   const [showEditItem, setShowEditItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
   const [closetRefreshKey, setClosetRefreshKey] = useState(0);
+  // Photos dropped or pasted on the Closet screen, handed to the upload dialog.
+  const [uploadFiles, setUploadFiles] = useState<File[] | undefined>(undefined);
+  // Items just added, highlighted in the closet for a moment.
+  const [justAdded, setJustAdded] = useState<string[]>([]);
+  useEffect(() => {
+    if (justAdded.length === 0) return;
+    const t = setTimeout(() => setJustAdded([]), 3000);
+    return () => clearTimeout(t);
+  }, [justAdded]);
 
   // Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -52,6 +62,14 @@ export default function Page() {
   // Rating prompt
   const [pendingRating, setPendingRating] = useState<PendingRating | null>(null);
   const [ratingMinimized, setRatingMinimized] = useState(false);
+
+  const draggingPhotos = usePhotoDrop(
+    !!user && activeTab === 'closet' && !showImageUpload && !showOnboarding,
+    (files) => {
+      setUploadFiles(files);
+      setShowImageUpload(true);
+    },
+  );
 
   // Check if user needs onboarding
   useEffect(() => {
@@ -162,7 +180,15 @@ export default function Page() {
 
   return (
     <OutfitThemeProvider>
-      <div className="min-h-screen bg-[var(--bg)]">
+      {/* Today's outfit colours wash softly behind the Outfits screen. The
+          wrapper below stays transparent so the wash shows through. */}
+      <div
+        aria-hidden="true"
+        data-testid="outfit-wash"
+        className="outfit-wash fixed inset-0 -z-10 pointer-events-none"
+        style={{ opacity: activeTab === 'generator' ? 1 : 0 }}
+      />
+      <div className="min-h-screen">
         {/* ===== TOP BAR ===== */}
         <header className="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-[var(--border)] px-4 lg:px-8">
           <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
@@ -185,33 +211,67 @@ export default function Page() {
         {/* ===== MAIN CONTENT ===== */}
         <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-32">
           {activeTab === 'closet' && (
-            <Closet
-              key={closetRefreshKey}
-              onAddItem={() => setShowImageUpload(true)}
-              onEditItem={(item) => {
-                setSelectedItem(item);
-                setShowEditItem(true);
-              }}
-            />
+            <div className="page-in">
+              <Closet
+                key={closetRefreshKey}
+                highlightIds={justAdded}
+                onAddItem={() => setShowImageUpload(true)}
+                onEditItem={(item) => {
+                  setSelectedItem(item);
+                  setShowEditItem(true);
+                }}
+              />
+            </div>
           )}
-          {activeTab === 'preferences' && <ColorPreferences />}
+          {activeTab === 'preferences' && (
+            <div className="page-in">
+              <ColorPreferences />
+            </div>
+          )}
           {/* Kept mounted once opened, so the generated outfit survives tab switches. */}
           {generatorOpened && (
-            <div hidden={activeTab !== 'generator'}>
+            // page-in replays each time the tab is un-hidden.
+            <div hidden={activeTab !== 'generator'} className="page-in">
               <OutfitGenerator
+                active={activeTab === 'generator'}
                 onNavigateToCalendar={() => setActiveTab('calendar')}
                 refreshKey={closetRefreshKey}
               />
             </div>
           )}
-          {activeTab === 'calendar' && <OutfitCalendar />}
-          {activeTab === 'stats' && <WardrobeStats />}
+          {activeTab === 'calendar' && (
+            <div className="page-in">
+              <OutfitCalendar />
+            </div>
+          )}
+          {activeTab === 'stats' && (
+            <div className="page-in">
+              <WardrobeStats />
+            </div>
+          )}
         </main>
+
+        {draggingPhotos && (
+          <div
+            data-testid="photo-drop-overlay"
+            className="page-in fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm pointer-events-none"
+          >
+            <div className="rounded-3xl border-2 border-dashed border-[var(--carbon)] bg-white px-10 py-8 text-center">
+              <p className="text-xl font-semibold">Drop photos to add them</p>
+              <p className="readout mt-1">They&apos;ll open in Add items</p>
+            </div>
+          </div>
+        )}
 
         {/* ===== MODALS ===== */}
         <ImageUpload
           isOpen={showImageUpload}
-          onClose={() => setShowImageUpload(false)}
+          initialFiles={uploadFiles}
+          onItemsAdded={setJustAdded}
+          onClose={() => {
+            setShowImageUpload(false);
+            setUploadFiles(undefined);
+          }}
           onItemUploaded={() => setClosetRefreshKey((k) => k + 1)}
         />
         <EditItem

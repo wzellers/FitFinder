@@ -1,8 +1,9 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { colorPalette } from '@/lib/constants';
 import { getColorStyle, getColorName, getContrastTextColor } from '@/lib/colorUtils';
 import type { ColorCombination } from '@/lib/types';
@@ -67,17 +68,15 @@ export default function ColorCombinationModal({
     <>
       <Modal label="Edit color combination" onClose={onClose}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl">Edit color combination</h2>
-          <div className="flex items-center gap-2">
-            <button onClick={handleDelete} className="btn-danger text-xs py-1 px-2">
-              <Trash2 size={14} /> Delete
+        <ModalHeader
+          title="Edit color combination"
+          onClose={onClose}
+          actions={
+            <button onClick={handleDelete} className="btn-danger min-h-[36px] px-3 text-sm">
+              <Trash2 size={14} aria-hidden="true" /> Delete
             </button>
-            <button onClick={onClose} className="btn-ghost px-2" aria-label="Close">
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Current preview */}
         <div className="flex justify-center mb-6">

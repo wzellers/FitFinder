@@ -8,6 +8,8 @@ export interface ClothingItem {
   image_url: string;
   is_dirty: boolean;
   created_at?: string;
+  /** The user's order within its type in the closet (set by dragging). */
+  position?: number | null;
 }
 
 // Represents a color combination preference

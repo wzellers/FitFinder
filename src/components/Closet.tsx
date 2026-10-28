@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useId } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, X, ChevronDown, ChevronRight, WashingMachine } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import Dropdown from '@/components/ui/Dropdown';
+import SortableGrid, { SortableTile } from '@/components/ui/SortableGrid';
+import { moveItem, positionUpdates, sortForCloset } from '@/lib/closetOrder';
+import { flushSync } from 'react-dom';
+import { ITEM_PHOTO_TRANSITION, withViewTransition } from '@/lib/viewTransition';
 import PosterHeader from '@/components/ui/PosterHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/lib/supabaseClient';
@@ -44,16 +49,28 @@ function saveJson(key: string, value: unknown): void {
 interface ClosetProps {
   onAddItem: () => void;
   onEditItem?: (item: ClothingItem) => void;
+  /** Items just added: they settle into the grid with a short highlight. */
+  highlightIds?: string[];
 }
 
 type LaundryAction = 'clean' | 'dirty' | null;
 
-export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
+export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: ClosetProps) {
+  // Opening an item: its photo is named for the view transition just long
+  // enough to be snapshotted, then the name passes to the dialog's photo.
+  const [morphingId, setMorphingId] = useState<string | null>(null);
+  const openItem = (item: ClothingItem) => {
+    if (!onEditItem) return;
+    flushSync(() => setMorphingId(item.id));
+    withViewTransition(() => {
+      setMorphingId(null);
+      onEditItem(item);
+    });
+  };
   const { user } = useAuth();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
-  const filterId = useId();
 
   // Filters
   const [filterSection, setFilterSection] = useState<string>('');
@@ -115,7 +132,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
       } else if (filterDirty === 'dirty') {
         filtered = filtered.filter((item) => item.is_dirty);
       }
-      return filtered;
+      return sortForCloset(filtered);
     },
     [items, filterColor, filterDirty],
   );
@@ -157,6 +174,35 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
     }
   };
 
+  // Reorder a type's pieces by dragging: save positions 1, 2, 3… for its
+  // clean pieces in their new order, then the dirty ones (which stay last).
+  const moveWithinType = async (type: string, fromId: string, toId: string) => {
+    const all = sortForCloset(items.filter((i) => i.type === type));
+    const ordered = [
+      ...moveItem(
+        all.filter((i) => !i.is_dirty),
+        fromId,
+        toId,
+      ),
+      ...all.filter((i) => i.is_dirty),
+    ];
+    const updates = positionUpdates(ordered);
+    if (updates.length === 0) return;
+    const next = new Map(updates.map((u) => [u.id, u.position]));
+    setItems((prev) => prev.map((i) => (next.has(i.id) ? { ...i, position: next.get(i.id)! } : i)));
+    const results = await Promise.all(
+      updates.map((u) =>
+        supabase.from('clothing_items').update({ position: u.position }).eq('id', u.id),
+      ),
+    );
+    if (results.some((r) => r.error)) {
+      showToast("Couldn't save the new order. Try again.", 'error');
+      fetchItems();
+    }
+  };
+  // Only the whole group can be reordered, not a filtered part of it.
+  const filtering = filterColor !== '' || filterDirty !== 'all';
+
   const clearFilters = () => {
     setFilterSection('');
     setFilterColor('');
@@ -186,13 +232,6 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
       </div>
     );
   }
-
-  const chip = (active: boolean) =>
-    `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
-      active
-        ? 'bg-[var(--sky)] text-[var(--burgundy)] border-[var(--sky)]'
-        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
-    }`;
 
   return (
     <div className="w-full">
@@ -225,39 +264,28 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
         aria-label="Filter closet"
         className="card px-3 py-3 mb-8 flex flex-wrap items-center gap-2"
       >
-        <label htmlFor={`${filterId}-section`} className="sr-only">
-          Category
-        </label>
-        <select
-          id={`${filterId}-section`}
+        <Dropdown
+          label="Category"
           value={filterSection}
-          onChange={(e) => setFilterSection(e.target.value)}
-          className="min-h-[36px] py-1"
-        >
-          <option value="">All categories</option>
-          {sectionNames.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor={`${filterId}-color`} className="sr-only">
-          Color
-        </label>
-        <select
-          id={`${filterId}-color`}
+          onChange={setFilterSection}
+          options={[
+            { value: '', label: 'All categories' },
+            ...sectionNames.map((s) => ({ value: s, label: s })),
+          ]}
+        />
+        <Dropdown
+          label="Color"
           value={filterColor}
-          onChange={(e) => setFilterColor(e.target.value)}
-          className="min-h-[36px] py-1"
-        >
-          <option value="">All colors</option>
-          {colorPalette.map((c) => (
-            <option key={c} value={c}>
-              {getColorName(c)}
-            </option>
-          ))}
-        </select>
+          onChange={setFilterColor}
+          options={[
+            { value: '', label: 'All colors' },
+            ...colorPalette.map((c) => ({
+              value: c,
+              label: getColorName(c),
+              swatch: getColorStyle(c).backgroundColor,
+            })),
+          ]}
+        />
 
         <div className="flex gap-1" role="group" aria-label="Laundry status">
           {(['all', 'clean', 'dirty'] as const).map((status) => (
@@ -265,7 +293,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
               key={status}
               onClick={() => setFilterDirty(status)}
               aria-pressed={filterDirty === status}
-              className={chip(filterDirty === status)}
+              className="toggle-pill"
             >
               {status === 'all' ? 'All' : status === 'clean' ? 'Clean' : 'Dirty'}
             </button>
@@ -275,7 +303,7 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
         <button
           onClick={() => setHideEmpty(!hideEmpty)}
           aria-pressed={hideEmpty}
-          className={chip(hideEmpty)}
+          className="toggle-pill"
         >
           Hide empty types
         </button>
@@ -356,28 +384,41 @@ export default function Closet({ onAddItem, onEditItem }: ClosetProps) {
                       )}
 
                       {(singleType || !isSubCollapsed) && (
-                        <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                          {typeItems.map((item) => (
-                            <li key={item.id}>
-                              <ItemCard
-                                item={item}
-                                onOpen={() => onEditItem?.(item)}
-                                onToggleDirty={() => toggleItemDirty(item)}
-                              />
+                        <SortableGrid
+                          ids={typeItems.filter((i) => !i.is_dirty).map((i) => i.id)}
+                          onMove={(from, to) => moveWithinType(type, from, to)}
+                          disabled={filtering}
+                        >
+                          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {typeItems.map((item) => (
+                              <SortableTile
+                                key={item.id}
+                                id={item.id}
+                                label={`Reorder ${describeItem(item)}`}
+                                fixed={item.is_dirty || filtering}
+                              >
+                                <ItemCard
+                                  item={item}
+                                  morphing={morphingId === item.id}
+                                  justAdded={highlightIds.includes(item.id)}
+                                  onOpen={() => openItem(item)}
+                                  onToggleDirty={() => toggleItemDirty(item)}
+                                />
+                              </SortableTile>
+                            ))}
+                            <li>
+                              <button
+                                onClick={onAddItem}
+                                className="w-full h-full min-h-[120px] rounded-md border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white flex flex-col items-center justify-center gap-1 transition-colors"
+                              >
+                                <Plus size={20} aria-hidden="true" />
+                                <span className="text-sm font-semibold">
+                                  Add {type.toLowerCase()}
+                                </span>
+                              </button>
                             </li>
-                          ))}
-                          <li>
-                            <button
-                              onClick={onAddItem}
-                              className="w-full h-full min-h-[120px] rounded-md border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white flex flex-col items-center justify-center gap-1 transition-colors"
-                            >
-                              <Plus size={20} aria-hidden="true" />
-                              <span className="text-sm font-semibold">
-                                Add {type.toLowerCase()}
-                              </span>
-                            </button>
-                          </li>
-                        </ul>
+                          </ul>
+                        </SortableGrid>
                       )}
                     </div>
                   );
@@ -426,17 +467,32 @@ function singleTypeSection(types: string[]) {
 
 interface ItemCardProps {
   item: ClothingItem;
+  /** This card's photo is about to grow into the edit dialog. */
+  morphing?: boolean;
+  justAdded?: boolean;
   onOpen: () => void;
   onToggleDirty: () => void;
 }
 
 /** A closet item: photo, type, colors and a clean/dirty toggle. */
-function ItemCard({ item, onOpen, onToggleDirty }: ItemCardProps) {
+function ItemCard({
+  item,
+  morphing = false,
+  justAdded = false,
+  onOpen,
+  onToggleDirty,
+}: ItemCardProps) {
   const name = describeItem(item);
   return (
-    <div className="item-card h-full flex flex-col">
+    <div
+      className={`item-card h-full flex flex-col ${justAdded ? 'just-added' : ''}`}
+      data-just-added={justAdded ? 'true' : undefined}
+    >
       <button onClick={onOpen} className="text-left rounded-sm" aria-label={`Edit ${name}`}>
-        <div className="item-card-photo aspect-square w-full">
+        <div
+          className="item-card-photo aspect-square w-full"
+          style={morphing ? { viewTransitionName: ITEM_PHOTO_TRANSITION } : undefined}
+        >
           <ClothingImage
             src={item.image_url}
             alt=""

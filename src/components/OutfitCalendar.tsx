@@ -1,10 +1,13 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import Dropdown from '@/components/ui/Dropdown';
+import { piecesForLogging } from '@/lib/closetOrder';
 import PosterHeader from '@/components/ui/PosterHeader';
 import { supabase } from '@/lib/supabaseClient';
 import { forgetWearLearning, syncWearLearning } from '@/lib/outfitLearning';
@@ -30,6 +33,14 @@ export default function OutfitCalendar() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
+  // Which way the month grid slides in: from the right going forward.
+  const [slide, setSlide] = useState<'next' | 'prev' | null>(null);
+  const goToMonth = (date: Date, direction: 'next' | 'prev' | null) => {
+    setSlide(direction);
+    setCurrentDate(date);
+  };
+  // Only the first load shows a skeleton; later months load in place.
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [calendarDays, setCalendarDays] = useState<DayData[]>([]);
   const [outfitWears, setOutfitWears] = useState<OutfitWear[]>([]);
   const [items, setItems] = useState<ClothingItem[]>([]);
@@ -81,6 +92,7 @@ export default function OutfitCalendar() {
       showToast("Couldn't load your wear log. Refresh to try again.", 'error');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [user, currentDate, showToast]);
 
@@ -136,8 +148,10 @@ export default function OutfitCalendar() {
 
   const getItemImage = (id: string | undefined) =>
     id ? (items.find((i) => i.id === id)?.image_url ?? null) : null;
+  // Logging a past day: dirty pieces count too, since what you wore is often
+  // in the wash by now.
   const getItemsBySection = (section: string) =>
-    items.filter((i) => typeToSection[i.type] === section && !i.is_dirty);
+    piecesForLogging(items, (i) => typeToSection[i.type] === section);
 
   const handleDayClick = (day: DayData) => {
     setSelectedDate(day.date);
@@ -260,7 +274,7 @@ export default function OutfitCalendar() {
   ];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  if (loading) return <SkeletonCalendar />;
+  if (loading && !hasLoaded) return <SkeletonCalendar />;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -278,7 +292,7 @@ export default function OutfitCalendar() {
         <div className="flex items-center gap-1">
           <button
             onClick={() =>
-              setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+              goToMonth(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1), 'prev')
             }
             className="btn-ghost px-3"
             aria-label="Previous month"
@@ -293,21 +307,37 @@ export default function OutfitCalendar() {
           </span>
           <button
             onClick={() =>
-              setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+              goToMonth(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1), 'next')
             }
             className="btn-ghost px-3"
             aria-label="Next month"
           >
             <ChevronRight size={18} aria-hidden="true" />
           </button>
-          <button onClick={() => setCurrentDate(new Date())} className="btn-secondary ml-1">
+          <button
+            onClick={() => {
+              const now = new Date();
+              const sameMonth =
+                now.getFullYear() === currentDate.getFullYear() &&
+                now.getMonth() === currentDate.getMonth();
+              goToMonth(now, sameMonth ? null : now > currentDate ? 'next' : 'prev');
+            }}
+            className="btn-secondary ml-1"
+          >
             Today
           </button>
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-7 gap-px bg-[var(--border)] rounded-md overflow-hidden border border-[var(--border)]">
+      {/* Grid: slides in from the side you're moving toward; days fill in as
+          the month's log arrives. */}
+      <div
+        key={`${currentDate.getFullYear()}-${currentDate.getMonth()}`}
+        aria-busy={loading}
+        className={`grid grid-cols-7 gap-px bg-[var(--border)] rounded-md overflow-hidden border border-[var(--border)] ${
+          slide === 'next' ? 'slide-from-right' : slide === 'prev' ? 'slide-from-left' : ''
+        }`}
+      >
         {dayNames.map((d) => (
           <div
             key={d}
@@ -388,23 +418,15 @@ export default function OutfitCalendar() {
           onClose={() => setShowLogModal(false)}
           className="max-w-3xl"
         >
-          <div className="flex justify-between items-center mb-5">
-            <h3 className="text-xl">
-              {selectedOutfitWear ? 'Edit outfit' : 'Log outfit'} for{' '}
-              {selectedDate.toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </h3>
-            <button
-              onClick={() => setShowLogModal(false)}
-              className="btn-ghost px-2"
-              aria-label="Close"
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
+          <ModalHeader
+            title={selectedOutfitWear ? 'Edit outfit' : 'Log outfit'}
+            subtitle={selectedDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+            onClose={() => setShowLogModal(false)}
+          />
 
           {/* Mode toggle */}
           <div className="flex gap-2 mb-5">
@@ -432,22 +454,23 @@ export default function OutfitCalendar() {
           </div>
 
           {logMode === 'saved' && (
-            <select
-              aria-label="Saved outfit"
+            <Dropdown
+              label="Saved outfit"
               value={selectedSavedOutfit}
-              onChange={(e) => handleSavedOutfitSelect(e.target.value)}
-              className="w-full mb-5 min-h-[44px]"
-            >
-              <option value="">Choose a saved outfit…</option>
-              {savedOutfits.map((o, idx) => (
-                <option key={o.id} value={o.id}>
-                  {o.name ||
+              onChange={handleSavedOutfitSelect}
+              className="mb-5"
+              options={[
+                { value: '', label: 'Choose a saved outfit…' },
+                ...savedOutfits.map((o, idx) => ({
+                  value: o.id!,
+                  label:
+                    o.name ||
                     (o.created_at
                       ? `Outfit from ${new Date(o.created_at).toLocaleDateString()}`
-                      : `Outfit #${idx + 1}`)}
-                </option>
-              ))}
-            </select>
+                      : `Outfit #${idx + 1}`),
+                })),
+              ]}
+            />
           )}
 
           <div className="space-y-5 mb-5">
@@ -490,8 +513,8 @@ export default function OutfitCalendar() {
                         key={item.id}
                         onClick={() => setter(item.id)}
                         aria-pressed={val === item.id}
-                        aria-label={describeItem(item)}
-                        className={`aspect-square w-full rounded-xl border-2 overflow-hidden bg-white transition-all ${
+                        aria-label={`${describeItem(item)}${item.is_dirty ? ' (dirty)' : ''}`}
+                        className={`relative aspect-square w-full rounded-xl border-2 overflow-hidden bg-white transition-all ${
                           val === item.id
                             ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
                             : 'border-[var(--border)] hover:border-[var(--text-secondary)]'
@@ -500,8 +523,13 @@ export default function OutfitCalendar() {
                         <ClothingImage
                           src={item.image_url}
                           alt=""
-                          className="w-full h-full object-contain p-1"
+                          className={`w-full h-full object-contain p-1 ${item.is_dirty ? 'opacity-70' : ''}`}
                         />
+                        {item.is_dirty && (
+                          <span className="badge-dirty absolute bottom-1 left-1/2 -translate-x-1/2 bg-white/90">
+                            Dirty
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

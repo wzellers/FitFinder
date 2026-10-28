@@ -6,6 +6,11 @@ import type { ClothingItem } from '@/lib/types';
 
 const REEL_LENGTH = 10;
 
+/** Which way the reel's items travel: `down` for a full spin (items come in
+ * from the top), `left` / `right` when one piece is swapped by an arrow or a
+ * swipe, so it moves the way the user pointed. */
+export type ReelDirection = 'down' | 'left' | 'right';
+
 interface SlotReelProps {
   /** The item the reel lands on. */
   item: ClothingItem;
@@ -17,6 +22,8 @@ interface SlotReelProps {
   durationMs?: number;
   /** Spin when first shown (the reel appeared because of a spin). */
   spinOnMount?: boolean;
+  /** Which way the items travel (default `down`). */
+  direction?: ReelDirection;
 }
 
 /**
@@ -30,6 +37,7 @@ export default function SlotReel({
   spinKey,
   durationMs = 900,
   spinOnMount = false,
+  direction = 'down',
 }: SlotReelProps) {
   const [phase, setPhase] = useState<'idle' | 'reset' | 'spin'>(spinOnMount ? 'reset' : 'idle');
   // The key the reel was first shown with; it only spins for later keys,
@@ -57,14 +65,17 @@ export default function SlotReel({
       return;
     }
     setPhase('reset');
-    // Two frames: paint the strip at the top, then animate to the bottom.
+    // Two frames: paint the strip at its start, then animate to its end.
     const raf = requestAnimationFrame(() => requestAnimationFrame(() => setPhase('spin')));
     const done = setTimeout(() => setPhase('idle'), durationMs + 50);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(done);
     };
-  }, [spinKey, strip.length, durationMs]);
+    // Only a new spinKey spins the reel. Its speed and direction change when
+    // another piece is swapped, and must not make this one spin again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spinKey]);
 
   if (phase === 'idle') {
     return (
@@ -72,22 +83,34 @@ export default function SlotReel({
     );
   }
 
+  // The strip travels toward `direction` and stops on the chosen item, so for
+  // `down` and `right` the item leads the strip and the reel starts at the far
+  // end; for `left` it trails the strip and the reel starts at the near end.
   const n = strip.length;
+  const itemFirst = direction !== 'left';
+  const ordered = itemFirst ? [item, ...strip.slice(0, -1).reverse()] : strip;
+  const far = `-${((n - 1) / n) * 100}%`;
+  const offset = phase === 'spin' ? (itemFirst ? '0%' : far) : itemFirst ? far : '0%';
+  const vertical = direction === 'down';
   return (
     <div className="w-full h-full overflow-hidden" aria-hidden="true">
       <div
-        className="flex flex-col"
+        className={vertical ? 'flex flex-col' : 'flex flex-row h-full'}
         style={{
-          height: `${n * 100}%`,
-          transform: phase === 'spin' ? `translateY(-${((n - 1) / n) * 100}%)` : 'translateY(0)',
+          ...(vertical ? { height: `${n * 100}%` } : { width: `${n * 100}%` }),
+          transform: vertical ? `translateY(${offset})` : `translateX(${offset})`,
           transition:
             phase === 'spin'
               ? `transform ${durationMs}ms cubic-bezier(0.15, 0.85, 0.25, 1.04)`
               : 'none',
         }}
       >
-        {strip.map((p, i) => (
-          <div key={`${p.id}-${i}`} style={{ height: `${100 / n}%` }} className="shrink-0">
+        {ordered.map((p, i) => (
+          <div
+            key={`${p.id}-${i}`}
+            style={vertical ? { height: `${100 / n}%` } : { width: `${100 / n}%` }}
+            className="shrink-0"
+          >
             <ClothingImage
               src={p.image_url}
               alt=""

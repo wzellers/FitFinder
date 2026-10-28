@@ -19,12 +19,14 @@ test('filters by category, color and laundry status', async ({ page }) => {
   await openApp(page);
   const filters = page.getByRole('group', { name: 'Filter closet' });
 
-  await filters.getByLabel('Category').selectOption('Bottoms');
+  await filters.getByRole('button', { name: 'Category: All categories' }).click();
+  await page.getByRole('option', { name: 'Bottoms' }).click();
   await expect(item(page, 'Denim Jeans')).toBeVisible();
   await expect(item(page, 'White T-Shirt')).toHaveCount(0);
 
   await filters.getByRole('button', { name: 'Clear filters' }).click();
-  await filters.getByLabel('Color').selectOption('white');
+  await filters.getByRole('button', { name: 'Color: All colors' }).click();
+  await page.getByRole('option', { name: 'White' }).click();
   await expect(item(page, 'White T-Shirt')).toBeVisible();
   await expect(item(page, 'White Shoes')).toBeVisible();
   await expect(item(page, 'Denim Jeans')).toHaveCount(0);
@@ -68,6 +70,56 @@ test('marks everything dirty, then everything clean', async ({ page }) => {
   await expect(page.getByText('{ 6 items · 0 in the wash }')).toBeVisible();
 });
 
+test('reorders pieces by dragging, and the order persists', async ({ page }) => {
+  const { db, userId } = await testDb();
+  // A second T-shirt, so the type has two pieces to order (it reuses the
+  // white tee's photo).
+  ok(
+    await db.from('clothing_items').insert({
+      user_id: userId,
+      type: 'T-Shirt',
+      colors: ['black'],
+      image_url: `${userId}/e2e-white-tee.png`,
+      is_dirty: false,
+    }),
+    'second tee',
+  );
+  await openApp(page);
+  const tees = () =>
+    page
+      .getByRole('button', { name: /^Edit (White|Black) T-Shirt$/ })
+      .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  await expect(item(page, 'Black T-Shirt')).toBeVisible();
+  expect(await tees()).toEqual(['Edit White T-Shirt', 'Edit Black T-Shirt']); // oldest first
+
+  // Drag the black tee onto the white one.
+  const from = (await item(page, 'Black T-Shirt').boundingBox())!;
+  const to = (await item(page, 'White T-Shirt').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect.poll(tees).toEqual(['Edit Black T-Shirt', 'Edit White T-Shirt']);
+  // Dropping didn't open the piece.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // Saved: positions in the database, and the same order after a reload.
+  await expect
+    .poll(async () => {
+      const { data } = await db
+        .from('clothing_items')
+        .select('colors, position')
+        .eq('user_id', userId)
+        .eq('type', 'T-Shirt')
+        .order('position');
+      return (data ?? []).map((r) => `${r.colors[0]}:${r.position}`);
+    })
+    .toEqual(['black:1', 'white:2']);
+  await page.reload();
+  await expect(item(page, 'Black T-Shirt')).toBeVisible();
+  expect(await tees()).toEqual(['Edit Black T-Shirt', 'Edit White T-Shirt']);
+});
+
 test('edits an item and the change persists', async ({ page }) => {
   await openApp(page);
   await item(page, 'White T-Shirt').click();
@@ -75,7 +127,8 @@ test('edits an item and the change persists', async ({ page }) => {
   await expect(dialog).toBeVisible();
   await expectImagesLoaded(page, '[role="dialog"] img');
 
-  await dialog.getByLabel('Type').selectOption('Polo');
+  await dialog.getByRole('button', { name: /^Type: / }).click();
+  await page.getByRole('option', { name: 'Polo' }).click();
   await dialog
     .getByRole('group', { name: /Main color/ })
     .getByRole('button', { name: 'Gray' })
@@ -86,6 +139,56 @@ test('edits an item and the change persists', async ({ page }) => {
   await page.reload();
   await expect(item(page, 'Gray Polo')).toBeVisible();
   await expect(item(page, 'White T-Shirt')).toHaveCount(0);
+});
+
+test("re-crops and tilts an item's photo, then restores the original", async ({ page }) => {
+  const { db, userId } = await testDb();
+  const before = ok(
+    await db
+      .from('clothing_items')
+      .select('id, image_url')
+      .eq('user_id', userId)
+      .eq('type', 'T-Shirt')
+      .single(),
+    'item',
+  );
+  await openApp(page);
+  await item(page, 'White T-Shirt').click();
+  const dialog = page.getByRole('dialog', { name: 'Edit White T-Shirt' });
+  await expectImagesLoaded(page, '[role="dialog"] img');
+
+  await dialog.getByRole('button', { name: /Adjust \/ crop/ }).click();
+  const cropper = page.getByRole('dialog', { name: 'Adjust and crop' });
+  const apply = cropper.getByRole('button', { name: 'Apply crop' });
+  await expect(apply).toBeEnabled(); // once the photo has loaded into the cropper
+  // Tilt it a little, so the rotated crop is drawn for real.
+  await cropper.getByLabel('Tilt').fill('10');
+  await apply.click();
+  await expect(toast(page, 'Photo updated.')).toBeVisible();
+
+  // The item points at a new photo, and the old file is gone.
+  const after = ok(
+    await db.from('clothing_items').select('image_url').eq('id', before!.id).single(),
+    'item',
+  );
+  expect(after!.image_url).not.toBe(before!.image_url);
+  const files = ok(await db.storage.from(BUCKET).list(userId), 'list');
+  const names = (files ?? []).map((f) => `${userId}/${f.name}`);
+  expect(names).toContain(after!.image_url);
+  expect(names).not.toContain(before!.image_url);
+
+  // The photo from before the crop is kept, so the crop can be undone.
+  const originals = ok(await db.storage.from(BUCKET).list(`${userId}/originals`), 'list');
+  expect((originals ?? []).map((f) => f.name)).toContain(before!.id);
+  await dialog.getByRole('button', { name: /Restore original photo/ }).click();
+  await expect(toast(page, 'Original photo restored.')).toBeVisible();
+  const restored = ok(
+    await db.from('clothing_items').select('image_url').eq('id', before!.id).single(),
+    'item',
+  );
+  expect(restored!.image_url).not.toBe(after!.image_url);
+  const kept = ok(await db.storage.from(BUCKET).list(`${userId}/originals`), 'list');
+  expect((kept ?? []).map((f) => f.name)).toContain(before!.id);
 });
 
 test('deletes an item and its photo', async ({ page, seeded }) => {
@@ -107,27 +210,92 @@ test('deletes an item and its photo', async ({ page, seeded }) => {
   expect(files?.map((f) => f.name)).not.toContain('e2e-beige-pants.png');
 });
 
-test('adds an item from a photo', async ({ page }) => {
-  // Detection is stubbed here (the live model is checked in api.spec.ts) so
-  // the form is filled predictably.
+/** Stub detection (the live model is checked in api.spec.ts) so the form is
+ * filled predictably, and skip automatic background removal, which downloads
+ * a large model. */
+async function stubAdding(page: import('@playwright/test').Page) {
   await page.route('**/api/detect-clothing', (route) =>
     route.fulfill({ json: { type: 'T-Shirt', color: 'red', secondaryColor: null } }),
   );
+  await page.addInitScript(() => localStorage.setItem('fitfinder:auto-remove-bg', 'off'));
+}
+
+const RED_TEE = path.resolve(__dirname, 'fixtures/red-tee.png');
+
+test('adds an item from a photo, keeping the uncropped photo when cropped', async ({ page }) => {
+  const { db, userId } = await testDb();
+  await stubAdding(page);
   await openApp(page);
   await page.getByRole('button', { name: 'Add item' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add a clothing item' });
-  await dialog
-    .locator('input[type="file"]')
-    .setInputFiles(path.resolve(__dirname, 'fixtures/red-tee.png'));
+  await dialog.locator('input[type="file"][multiple]').setInputFiles(RED_TEE);
 
-  await expect(dialog.getByLabel('Type')).toHaveValue('T-Shirt');
+  // What detection found shows as chips; tapping one opens the editors.
+  await expect(dialog.getByRole('button', { name: 'Type: T-Shirt. Edit' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Main color: Red. Edit' }).click();
+  await expect(dialog.getByRole('button', { name: 'Type: T-Shirt', exact: true })).toBeVisible();
   await expect(
     dialog.getByRole('group', { name: 'Main color' }).getByRole('button', { name: 'Red' }),
   ).toHaveAttribute('aria-pressed', 'true');
-  await dialog.getByRole('button', { name: 'Add to closet' }).click();
 
+  // Crop it while adding.
+  await dialog.getByRole('button', { name: /Adjust \/ crop/ }).click();
+  const cropper = page.getByRole('dialog', { name: 'Adjust and crop' });
+  await expect(cropper.getByRole('button', { name: 'Apply crop' })).toBeEnabled();
+  await cropper.getByLabel('Zoom').fill('1.5');
+  await cropper.getByRole('button', { name: 'Apply crop' }).click();
+  await expect(cropper).toHaveCount(0);
+
+  await dialog.getByRole('button', { name: 'Add to closet' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(item(page, 'Red T-Shirt')).toBeVisible();
   await expect(page.getByText('{ 7 items · 1 in the wash }')).toBeVisible();
   await expectImagesLoaded(page, 'main button[aria-label="Edit Red T-Shirt"] img');
+
+  // The uncropped photo is kept as its original, so the crop can be undone.
+  const added = ok(
+    await db
+      .from('clothing_items')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('type', 'T-Shirt')
+      .contains('colors', ['red'])
+      .single(),
+    'added item',
+  );
+  const originals = ok(await db.storage.from(BUCKET).list(`${userId}/originals`), 'originals');
+  expect((originals ?? []).map((f) => f.name)).toContain(added!.id);
+  await item(page, 'Red T-Shirt').click();
+  await expect(
+    page.getByRole('dialog', { name: 'Edit Red T-Shirt' }).getByRole('button', {
+      name: /Restore original photo/,
+    }),
+  ).toBeVisible();
+});
+
+test('drops a photo onto the closet to add it, and highlights it', async ({ page }) => {
+  await stubAdding(page);
+  await openApp(page);
+  const png = (await import('fs')).readFileSync(RED_TEE).toString('base64');
+  await page.evaluate(async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], 'red-tee.png', { type: 'image/png' }));
+    for (const type of ['dragenter', 'dragover', 'drop']) {
+      document.body.dispatchEvent(
+        new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: data }),
+      );
+    }
+  }, png);
+
+  const dialog = page.getByRole('dialog', { name: 'Add a clothing item' });
+  await expect(dialog.getByRole('button', { name: 'Type: T-Shirt. Edit' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Add to closet' }).click();
+  await expect(dialog).toHaveCount(0);
+  // It settles into the grid with a short highlight, and is really saved.
+  await expect(
+    page.locator('[data-just-added] button[aria-label="Edit Red T-Shirt"]'),
+  ).toBeVisible();
+  await page.reload();
+  await expect(item(page, 'Red T-Shirt')).toBeVisible();
 });
