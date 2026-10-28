@@ -202,4 +202,58 @@ describe('Closet helpers', () => {
       'Navy blue and white Polo',
     );
   });
+
+  describe('ordering', () => {
+    const tees = [
+      makeTop({ id: 'a', type: 'T-Shirt', colors: ['white'], is_dirty: true, position: 1 }),
+      makeTop({ id: 'b', type: 'T-Shirt', colors: ['red'], is_dirty: false, position: 3 }),
+      makeTop({ id: 'c', type: 'T-Shirt', colors: ['blue'], is_dirty: false, position: 2 }),
+    ];
+    beforeEach(() => {
+      mockSelectFn.mockReturnValue({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => Promise.resolve({ data: tees, error: null })),
+        })),
+      });
+    });
+
+    const tileOrder = () =>
+      screen
+        .getAllByRole('button', { name: /^Edit .*T-Shirt$/ })
+        .map((b) => b.getAttribute('aria-label'));
+
+    it('shows pieces in the saved order, with dirty ones at the end', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });
+      expect(tileOrder()).toEqual(['Edit Blue T-Shirt', 'Edit Red T-Shirt', 'Edit White T-Shirt']);
+    });
+
+    it('lets clean pieces be dragged, but not dirty ones', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      expect(await screen.findByRole('button', { name: 'Reorder Blue T-Shirt' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Reorder Red T-Shirt' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Reorder White T-Shirt' })).toBeNull();
+    });
+
+    it('moves a piece to the end when it gets dirty', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      await screen.findByRole('button', { name: 'Edit Blue T-Shirt' });
+      const blue = screen.getByRole('button', { name: 'Edit Blue T-Shirt' }).closest('li')!;
+      fireEvent.click(within(blue).getByRole('button', { name: /Mark .* dirty/ }));
+      await waitFor(() =>
+        expect(tileOrder()).toEqual([
+          'Edit Red T-Shirt',
+          'Edit White T-Shirt',
+          'Edit Blue T-Shirt',
+        ]),
+      );
+    });
+
+    it('pauses reordering while a filter shows only part of a group', async () => {
+      renderWithProviders(<Closet onAddItem={vi.fn()} />);
+      await screen.findByRole('button', { name: 'Reorder Blue T-Shirt' });
+      fireEvent.click(screen.getByRole('button', { name: 'Clean' }));
+      expect(screen.queryByRole('button', { name: /^Reorder / })).toBeNull();
+    });
+  });
 });

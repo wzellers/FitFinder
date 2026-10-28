@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-28 (fog & slate neutral theme, weather fixes)
+**Last updated:** 2026-10-28 (drag to order the closet)
 
 ## What's live
 
@@ -48,6 +48,11 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   outfit's glow; Wear today stamps the pieces into a calendar tile; Share
   draws a PNG card (`lib/shareCard.ts`), shared on phones and downloaded on
   desktop.
+- **Closet order:** pieces can be dragged into order within their type
+  (`SortableGrid` on dnd-kit: mouse, press-and-hold on touch, or the grip
+  with the keyboard); the order is `clothing_items.position`. Dirty pieces
+  always sort last and can't be dragged; reordering pauses while a filter
+  is on (`lib/closetOrder.ts`).
 - **Adding clothes:** drop photos on the Closet screen or paste them; a scan
   line runs while Claude analyses each, results show as chips, backgrounds
   are removed automatically (a remembered switch turns it off; a slider
@@ -78,7 +83,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`022` are all applied. Vault holds the two daily-email secrets.
+  `001`–`023` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -102,8 +107,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 502 unit/component tests (`npm run test`).
-- **Playwright:** 53 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 513 unit/component tests (`npm run test`).
+- **Playwright:** 54 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a

@@ -5,6 +5,8 @@ import { Plus, X, ChevronDown, ChevronRight, WashingMachine } from 'lucide-react
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import Dropdown from '@/components/ui/Dropdown';
+import SortableGrid, { SortableTile } from '@/components/ui/SortableGrid';
+import { moveItem, positionUpdates, sortForCloset } from '@/lib/closetOrder';
 import { flushSync } from 'react-dom';
 import { ITEM_PHOTO_TRANSITION, withViewTransition } from '@/lib/viewTransition';
 import PosterHeader from '@/components/ui/PosterHeader';
@@ -130,7 +132,7 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
       } else if (filterDirty === 'dirty') {
         filtered = filtered.filter((item) => item.is_dirty);
       }
-      return filtered;
+      return sortForCloset(filtered);
     },
     [items, filterColor, filterDirty],
   );
@@ -171,6 +173,35 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
       showToast("Couldn't update that item. Try again.", 'error');
     }
   };
+
+  // Reorder a type's pieces by dragging: save positions 1, 2, 3… for its
+  // clean pieces in their new order, then the dirty ones (which stay last).
+  const moveWithinType = async (type: string, fromId: string, toId: string) => {
+    const all = sortForCloset(items.filter((i) => i.type === type));
+    const ordered = [
+      ...moveItem(
+        all.filter((i) => !i.is_dirty),
+        fromId,
+        toId,
+      ),
+      ...all.filter((i) => i.is_dirty),
+    ];
+    const updates = positionUpdates(ordered);
+    if (updates.length === 0) return;
+    const next = new Map(updates.map((u) => [u.id, u.position]));
+    setItems((prev) => prev.map((i) => (next.has(i.id) ? { ...i, position: next.get(i.id)! } : i)));
+    const results = await Promise.all(
+      updates.map((u) =>
+        supabase.from('clothing_items').update({ position: u.position }).eq('id', u.id),
+      ),
+    );
+    if (results.some((r) => r.error)) {
+      showToast("Couldn't save the new order. Try again.", 'error');
+      fetchItems();
+    }
+  };
+  // Only the whole group can be reordered, not a filtered part of it.
+  const filtering = filterColor !== '' || filterDirty !== 'all';
 
   const clearFilters = () => {
     setFilterSection('');
@@ -353,30 +384,41 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
                       )}
 
                       {(singleType || !isSubCollapsed) && (
-                        <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                          {typeItems.map((item) => (
-                            <li key={item.id}>
-                              <ItemCard
-                                item={item}
-                                morphing={morphingId === item.id}
-                                justAdded={highlightIds.includes(item.id)}
-                                onOpen={() => openItem(item)}
-                                onToggleDirty={() => toggleItemDirty(item)}
-                              />
+                        <SortableGrid
+                          ids={typeItems.filter((i) => !i.is_dirty).map((i) => i.id)}
+                          onMove={(from, to) => moveWithinType(type, from, to)}
+                          disabled={filtering}
+                        >
+                          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {typeItems.map((item) => (
+                              <SortableTile
+                                key={item.id}
+                                id={item.id}
+                                label={`Reorder ${describeItem(item)}`}
+                                fixed={item.is_dirty || filtering}
+                              >
+                                <ItemCard
+                                  item={item}
+                                  morphing={morphingId === item.id}
+                                  justAdded={highlightIds.includes(item.id)}
+                                  onOpen={() => openItem(item)}
+                                  onToggleDirty={() => toggleItemDirty(item)}
+                                />
+                              </SortableTile>
+                            ))}
+                            <li>
+                              <button
+                                onClick={onAddItem}
+                                className="w-full h-full min-h-[120px] rounded-md border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white flex flex-col items-center justify-center gap-1 transition-colors"
+                              >
+                                <Plus size={20} aria-hidden="true" />
+                                <span className="text-sm font-semibold">
+                                  Add {type.toLowerCase()}
+                                </span>
+                              </button>
                             </li>
-                          ))}
-                          <li>
-                            <button
-                              onClick={onAddItem}
-                              className="w-full h-full min-h-[120px] rounded-md border-2 border-dashed border-[var(--line-strong)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-white flex flex-col items-center justify-center gap-1 transition-colors"
-                            >
-                              <Plus size={20} aria-hidden="true" />
-                              <span className="text-sm font-semibold">
-                                Add {type.toLowerCase()}
-                              </span>
-                            </button>
-                          </li>
-                        </ul>
+                          </ul>
+                        </SortableGrid>
                       )}
                     </div>
                   );

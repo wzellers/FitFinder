@@ -70,6 +70,56 @@ test('marks everything dirty, then everything clean', async ({ page }) => {
   await expect(page.getByText('{ 6 items · 0 in the wash }')).toBeVisible();
 });
 
+test('reorders pieces by dragging, and the order persists', async ({ page }) => {
+  const { db, userId } = await testDb();
+  // A second T-shirt, so the type has two pieces to order (it reuses the
+  // white tee's photo).
+  ok(
+    await db.from('clothing_items').insert({
+      user_id: userId,
+      type: 'T-Shirt',
+      colors: ['black'],
+      image_url: `${userId}/e2e-white-tee.png`,
+      is_dirty: false,
+    }),
+    'second tee',
+  );
+  await openApp(page);
+  const tees = () =>
+    page
+      .getByRole('button', { name: /^Edit (White|Black) T-Shirt$/ })
+      .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  await expect(item(page, 'Black T-Shirt')).toBeVisible();
+  expect(await tees()).toEqual(['Edit White T-Shirt', 'Edit Black T-Shirt']); // oldest first
+
+  // Drag the black tee onto the white one.
+  const from = (await item(page, 'Black T-Shirt').boundingBox())!;
+  const to = (await item(page, 'White T-Shirt').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect.poll(tees).toEqual(['Edit Black T-Shirt', 'Edit White T-Shirt']);
+  // Dropping didn't open the piece.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // Saved: positions in the database, and the same order after a reload.
+  await expect
+    .poll(async () => {
+      const { data } = await db
+        .from('clothing_items')
+        .select('colors, position')
+        .eq('user_id', userId)
+        .eq('type', 'T-Shirt')
+        .order('position');
+      return (data ?? []).map((r) => `${r.colors[0]}:${r.position}`);
+    })
+    .toEqual(['black:1', 'white:2']);
+  await page.reload();
+  await expect(item(page, 'Black T-Shirt')).toBeVisible();
+  expect(await tees()).toEqual(['Edit Black T-Shirt', 'Edit White T-Shirt']);
+});
+
 test('edits an item and the change persists', async ({ page }) => {
   await openApp(page);
   await item(page, 'White T-Shirt').click();
