@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-28 (drag to order the closet)
+**Last updated:** 2026-10-28 (Tag F app icon, dirty pieces in the Calendar)
 
 ## What's live
 
@@ -53,6 +53,11 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   with the keyboard); the order is `clothing_items.position`. Dirty pieces
   always sort last and can't be dragged; reordering pauses while a filter
   is on (`lib/closetOrder.ts`).
+- **Calendar:** logging or editing a day offers every piece, including ones
+  in the wash (badged "Dirty"); rating or editing a past day re-learns it.
+- **App icon:** the Tag F (a fog-white clothing tag with a slate F on a
+  slate square): `src/app/icon.svg`, and `src/app/apple-icon.tsx` draws the
+  180px Home Screen / Dock PNG.
 - **Adding clothes:** drop photos on the Closet screen or paste them; a scan
   line runs while Claude analyses each, results show as chips, backgrounds
   are removed automatically (a remembered switch turns it off; a slider
@@ -107,8 +112,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 513 unit/component tests (`npm run test`).
-- **Playwright:** 54 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 517 unit/component tests (`npm run test`).
+- **Playwright:** 55 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a
