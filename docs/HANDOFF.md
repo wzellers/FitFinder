@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-27 (Outfits screen and adding-clothes redesign)
+**Last updated:** 2026-10-27 (warm neutral theme, settings and stats redesign)
 
 ## What's live
 
@@ -14,12 +14,23 @@ Production is `main`, deployed by Vercel on every push.
 Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.118
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
-- **App:** pill nav, poster headers, slot-reel outfits. Neutral (near-black
-  on white, stone greys) until an outfit is generated; then the whole app
-  takes its colours (`themeFromOutfit`): the top's colour is the accent
-  (buttons, links, selected states, nav, header, rating glow; deepened to stay
-  readable), the bottom's the header title and wash, the shoes' the cutout
-  and wash. The clock is 12-hour; clicking it switches to 24-hour. Closet, outfit generator (weather and occasion filter; a per-user
+- **App:** pill nav, poster headers, slot-reel outfits. Warm and neutral
+  (cream page, beige, espresso ink, mocha accent) until an outfit is
+  generated; then the whole app takes its colours (`themeFromOutfit`): the
+  banner is the top's colour with the bottom's for its title and cutout and a
+  touch of the shoes'; the accent (buttons, links, selected states, nav,
+  rating glow) is the top's colour, or the bottom's when the top is white,
+  deepened to stay readable. Shared UI: `ModalHeader` for dialogs,
+  `Dropdown` instead of native selects, `SettingsCard`, `.toggle-pill`. The
+  clock is 12-hour; clicking it switches to 24-hour.
+- **Settings:** sections in a tab bar across the top; weather rules as
+  Cold/Cool/Warm/Hot chips per type; occasions edited one at a time; colour
+  pairings from two swatch rows.
+- **Stats:** highlights (streak, go-to pairing, busiest day, repeats),
+  weekday and category-use charts (`lib/stats.ts`); Customize chooses which
+  cards show (kept in `localStorage`).
+- **Daily email:** coloured from the outfit it recommends; the unsubscribe
+  page uses the neutral colours. Closet, outfit generator (weather and occasion filter; a per-user
   Bayesian bandit ranks on color, variety and rating, by Thompson sampling,
   `MODEL_VERSION` 3), calendar, stats, settings (weather, occasions, colors,
   email), onboarding, rating prompt.
@@ -85,7 +96,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 458 unit/component tests (`npm run test`).
+- **Vitest:** 479 unit/component tests (`npm run test`).
 - **Playwright:** 52 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
