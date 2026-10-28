@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 // Stable, as the real useAuth keeps it (a new object per render reloads data).
@@ -105,5 +105,32 @@ describe('WardrobeStats', () => {
         'true',
       ),
     );
+  });
+
+  it('shows highlights and the new insight cards', async () => {
+    renderWithProviders(<WardrobeStats />);
+    const highlights = await screen.findByRole('region', { name: 'Highlights' });
+    for (const label of ['Streak', 'Go-to pairing', 'Busiest day', 'Repeats']) {
+      expect(highlights.textContent).toContain(label);
+    }
+    expect(screen.getByRole('heading', { name: 'Days you dress up' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What you wear' })).toBeTruthy();
+  });
+
+  it('lets you choose which cards show, and remembers it', async () => {
+    localStorage.clear();
+    const { unmount } = renderWithProviders(<WardrobeStats />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Customize' }));
+    const picker = screen.getByRole('region', { name: 'Cards to show' });
+    fireEvent.click(within(picker).getByRole('button', { name: 'Colors' }));
+    expect(screen.queryByRole('heading', { name: 'Colors' })).toBeNull();
+    fireEvent.click(within(picker).getByRole('button', { name: 'Highlights' }));
+    expect(screen.queryByRole('region', { name: 'Highlights' })).toBeNull();
+
+    unmount();
+    renderWithProviders(<WardrobeStats />);
+    await screen.findByText('Summary');
+    expect(screen.queryByRole('heading', { name: 'Colors' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Most worn' })).toBeTruthy();
   });
 });
