@@ -170,6 +170,22 @@ describe('Page — Logged In Navigation', () => {
     expect(wash.style.opacity).toBe('0');
   });
 
+  it("opens the Outfits screen on the outfit in the daily email's link", async () => {
+    const OutfitGenerator = vi.mocked((await import('@/components/OutfitGenerator')).default);
+    window.history.replaceState(null, '', '/?top=t1&bottom=b1&shoes=s1');
+    renderWithProviders(<Page />);
+    await waitFor(() => screen.getByTestId('generator'), { timeout: 3000 });
+    expect(OutfitGenerator).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        active: true,
+        initialOutfit: { top_id: 't1', bottom_id: 'b1', shoes_id: 's1' },
+      }),
+      undefined,
+    );
+    // Cleared, so a reload doesn't put it back.
+    expect(window.location.search).toBe('');
+  });
+
   it('opens Add items with photos dropped on the Closet screen', async () => {
     const ImageUpload = vi.mocked((await import('@/components/ImageUpload')).default);
     renderWithProviders(<Page />);

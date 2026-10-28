@@ -71,6 +71,7 @@ import type { WeatherData, TemperatureCategory } from '@/lib/weatherApi';
 import { loadRatedOutfits } from '@/lib/ratedOutfits';
 import { rateOutfitWithoutWearing } from '@/lib/outfitLearning';
 import { logImpression, recordOutcome, type ImpressionOutcome } from '@/lib/impressions';
+import type { OutfitLinkIds } from '@/lib/outfitLink';
 
 type Slot = 'top' | 'bottom' | 'shoes';
 const SLOTS: Slot[] = ['top', 'bottom', 'shoes'];
@@ -84,12 +85,16 @@ interface OutfitGeneratorProps {
    * hidden, so coming back re-reads settings that may have changed (ZIP code,
    * weather and occasion preferences). */
   active?: boolean;
+  /** An outfit to put on screen once the closet loads (from the daily
+   * email's link). */
+  initialOutfit?: OutfitLinkIds | null;
 }
 
 export default function OutfitGenerator({
   onNavigateToCalendar,
   refreshKey = 0,
   active = true,
+  initialOutfit = null,
 }: OutfitGeneratorProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -723,6 +728,42 @@ export default function OutfitGenerator({
     setLockedShoes(false);
     setActiveTab('generator');
   };
+
+  // The daily email's outfit, put on screen once the closet has loaded. It's
+  // shown as is (a piece may have gone in the wash since), and counts as seen
+  // so Try another moves on from it.
+  const placedInitial = useRef<OutfitLinkIds | null>(null);
+  useEffect(() => {
+    if (!initialOutfit || placedInitial.current === initialOutfit) return;
+    if (loading || allItems.length === 0) return;
+    placedInitial.current = initialOutfit;
+    const byId = (id: string) => allItems.find((i) => i.id === id) ?? null;
+    const pieces = {
+      top: byId(initialOutfit.top_id),
+      bottom: byId(initialOutfit.bottom_id),
+      shoes: byId(initialOutfit.shoes_id),
+    };
+    if (!pieces.top || !pieces.bottom || !pieces.shoes) {
+      showToast("Part of today's outfit is no longer in your closet.", 'info');
+    }
+    setTop(pieces.top);
+    setBottom(pieces.bottom);
+    setShoes(pieces.shoes);
+    setLockedTop(false);
+    setLockedBottom(false);
+    setLockedShoes(false);
+    setActiveTab('generator');
+    if (pieces.top && pieces.bottom && pieces.shoes) {
+      shownOutfits.current.add(
+        outfitKey({ top: pieces.top, bottom: pieces.bottom, shoes: pieces.shoes }),
+      );
+    }
+    lastSpinAt.current = Date.now();
+    setDirections({ top: 'down', bottom: 'down', shoes: 'down' });
+    setSpins((prev) => ({ top: prev.top + 1, bottom: prev.bottom + 1, shoes: prev.shoes + 1 }));
+    // Runs when the outfit or the closet arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOutfit, loading, allItems]);
 
   const pickerItems = (() => {
     if (!pickerSlot) return [];

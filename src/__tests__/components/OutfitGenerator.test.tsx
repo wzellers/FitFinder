@@ -388,6 +388,34 @@ describe('OutfitGenerator', () => {
     expect(outfit.style.boxShadow).toContain('var(--outfit-glow) 73%');
   });
 
+  it("puts the email's outfit on screen, and Try another moves on from it", async () => {
+    const tee = makeTop({ type: 'T-Shirt', colors: ['red'] });
+    const polo = makeTop({ type: 'Polo', colors: ['green'] });
+    const jeans = makeBottom();
+    const shoes = makeShoes();
+    mockRows.clothing_items = [tee, polo, jeans, shoes];
+    renderWithProviders(
+      <OutfitGenerator
+        initialOutfit={{ top_id: polo.id, bottom_id: jeans.id, shoes_id: shoes.id }}
+      />,
+    );
+    expect(await screen.findByRole('button', { name: /^Change top: Green Polo/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try another outfit' }));
+    expect(await screen.findByRole('button', { name: /^Change top: Red T-Shirt/ })).toBeTruthy();
+  });
+
+  it("says when part of the email's outfit is gone", async () => {
+    const jeans = makeBottom();
+    const shoes = makeShoes();
+    mockRows.clothing_items = [makeTop(), jeans, shoes];
+    renderWithProviders(
+      <OutfitGenerator
+        initialOutfit={{ top_id: 'deleted', bottom_id: jeans.id, shoes_id: shoes.id }}
+      />,
+    );
+    expect(await screen.findByText(/no longer in your closet/)).toBeTruthy();
+  });
+
   it('stamps the outfit into today after Wear today', async () => {
     mockRows.clothing_items = [makeTop(), makeBottom(), makeShoes()];
     renderWithProviders(<OutfitGenerator />);

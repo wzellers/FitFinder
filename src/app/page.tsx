@@ -22,6 +22,7 @@ import { useToast } from '@/components/ToastProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { toLocalDateString } from '@/lib/dates';
 import { syncWearLearning } from '@/lib/outfitLearning';
+import { parseOutfitLink, type OutfitLinkIds } from '@/lib/outfitLink';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import type { DashboardTab, ClothingItem, PendingRating } from '@/lib/types';
 
@@ -41,6 +42,17 @@ export default function Page() {
   useEffect(() => {
     if (activeTab === 'generator') setGeneratorOpened(true);
   }, [activeTab]);
+  // An outfit named in the URL (the daily email's link) opens the Outfits
+  // screen with it on. The query is cleared so a reload doesn't bring it back.
+  const [linkedOutfit, setLinkedOutfit] = useState<OutfitLinkIds | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    const outfit = parseOutfitLink(window.location.search);
+    if (!outfit) return;
+    setLinkedOutfit(outfit);
+    setActiveTab('generator');
+    window.history.replaceState(null, '', window.location.pathname);
+  }, [user]);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showEditItem, setShowEditItem] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
@@ -236,6 +248,7 @@ export default function Page() {
                 active={activeTab === 'generator'}
                 onNavigateToCalendar={() => setActiveTab('calendar')}
                 refreshKey={closetRefreshKey}
+                initialOutfit={linkedOutfit}
               />
             </div>
           )}

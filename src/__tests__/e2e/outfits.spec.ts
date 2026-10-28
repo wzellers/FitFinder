@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, openApp, goToTab, toast, expectImagesLoaded } from './helpers/test';
+import { test, expect, openApp, goToTab, nav, toast, expectImagesLoaded } from './helpers/test';
 import { localDate, ok, testDb } from './helpers/db';
 
 const slot = (page: Page, part: 'top' | 'bottom' | 'shoes') =>
@@ -38,6 +38,31 @@ test('generates a full outfit from clean items only', async ({ page }) => {
     true,
   );
   await expectImagesLoaded(page, 'button[aria-label^="Change "] img', 3);
+});
+
+test("the daily email's button opens the Outfits screen on its outfit", async ({
+  page,
+  seeded,
+}) => {
+  await page.goto(
+    `/?top=${seeded.navyShirt}&bottom=${seeded.beigePants}&shoes=${seeded.whiteShoes}`,
+  );
+  const outfits = nav(page).getByRole('button', { name: 'Outfits', exact: true });
+  await expect(outfits).toHaveAttribute('aria-current', 'page');
+  await expect(slot(page, 'top')).toHaveAttribute(
+    'aria-label',
+    'Change top: Navy blue Button-Up Shirt',
+  );
+  await expect(slot(page, 'bottom')).toHaveAttribute('aria-label', 'Change bottom: Beige Pants');
+  await expect(slot(page, 'shoes')).toHaveAttribute('aria-label', 'Change shoes: White Shoes');
+
+  // The link is used once: reloading opens the app as usual.
+  await expect(page).toHaveURL(/\/$/);
+  await page.reload();
+  await expect(nav(page).getByRole('button', { name: 'Closet', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
 });
 
 test('shows every outfit once before repeating any', async ({ page }) => {
