@@ -41,3 +41,15 @@ export function positionUpdates<T extends Pick<ClothingItem, 'id' | 'position'>>
     .filter((u) => u.was !== u.position)
     .map(({ id, position }) => ({ id, position }));
 }
+
+/**
+ * The pieces offered when logging a day's outfit in the Calendar: every piece
+ * of the section, dirty ones included (what you wore is often in the wash
+ * now), clean first and each in the closet's order.
+ */
+export function piecesForLogging<T extends Ordered & { type: string }>(
+  items: T[],
+  inSection: (item: T) => boolean,
+): T[] {
+  return sortForCloset(items.filter(inSection));
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { moveItem, positionUpdates, sortForCloset } from '@/lib/closetOrder';
+import { moveItem, piecesForLogging, positionUpdates, sortForCloset } from '@/lib/closetOrder';
 
 const piece = (
   id: string,
@@ -62,5 +62,17 @@ describe('positionUpdates', () => {
       { id: 'b', position: 3 },
       { id: 'd', position: 4 },
     ]);
+  });
+});
+
+describe('piecesForLogging', () => {
+  it('offers dirty pieces too (what you wore is often in the wash), clean first', () => {
+    const items = [
+      { ...piece('worn', 1, true), type: 'T-Shirt' },
+      { ...piece('clean', 2), type: 'T-Shirt' },
+      { ...piece('jeans', 1), type: 'Jeans' },
+    ];
+    const tops = piecesForLogging(items, (i) => i.type === 'T-Shirt');
+    expect(tops.map((i) => i.id)).toEqual(['clean', 'worn']);
   });
 });

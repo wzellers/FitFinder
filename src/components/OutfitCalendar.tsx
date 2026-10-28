@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
 import Dropdown from '@/components/ui/Dropdown';
+import { piecesForLogging } from '@/lib/closetOrder';
 import PosterHeader from '@/components/ui/PosterHeader';
 import { supabase } from '@/lib/supabaseClient';
 import { forgetWearLearning, syncWearLearning } from '@/lib/outfitLearning';
@@ -147,8 +148,10 @@ export default function OutfitCalendar() {
 
   const getItemImage = (id: string | undefined) =>
     id ? (items.find((i) => i.id === id)?.image_url ?? null) : null;
+  // Logging a past day: dirty pieces count too, since what you wore is often
+  // in the wash by now.
   const getItemsBySection = (section: string) =>
-    items.filter((i) => typeToSection[i.type] === section && !i.is_dirty);
+    piecesForLogging(items, (i) => typeToSection[i.type] === section);
 
   const handleDayClick = (day: DayData) => {
     setSelectedDate(day.date);
@@ -510,8 +513,8 @@ export default function OutfitCalendar() {
                         key={item.id}
                         onClick={() => setter(item.id)}
                         aria-pressed={val === item.id}
-                        aria-label={describeItem(item)}
-                        className={`aspect-square w-full rounded-xl border-2 overflow-hidden bg-white transition-all ${
+                        aria-label={`${describeItem(item)}${item.is_dirty ? ' (dirty)' : ''}`}
+                        className={`relative aspect-square w-full rounded-xl border-2 overflow-hidden bg-white transition-all ${
                           val === item.id
                             ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]'
                             : 'border-[var(--border)] hover:border-[var(--text-secondary)]'
@@ -520,8 +523,13 @@ export default function OutfitCalendar() {
                         <ClothingImage
                           src={item.image_url}
                           alt=""
-                          className="w-full h-full object-contain p-1"
+                          className={`w-full h-full object-contain p-1 ${item.is_dirty ? 'opacity-70' : ''}`}
                         />
+                        {item.is_dirty && (
+                          <span className="badge-dirty absolute bottom-1 left-1/2 -translate-x-1/2 bg-white/90">
+                            Dirty
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
