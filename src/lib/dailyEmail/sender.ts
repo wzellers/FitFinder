@@ -140,10 +140,7 @@ async function sendOne(
   });
 
   // Sign every image the email shows, in one request.
-  const shown = [
-    ...(digest.outfit ? [digest.outfit.top, digest.outfit.bottom, digest.outfit.shoes] : []),
-    ...digest.unworn,
-  ];
+  const shown = digest.outfit ? [digest.outfit.top, digest.outfit.bottom, digest.outfit.shoes] : [];
   const pathById = new Map<string, string>();
   for (const item of shown) {
     const path = imagePathFromUrl(item.image_url);

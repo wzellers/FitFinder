@@ -9,6 +9,7 @@ import { colorMap } from '@/lib/constants';
 import { NEUTRAL_ACCENT, themeFromOutfit } from '@/lib/outfitTheme';
 import type { ClothingItem } from '@/lib/types';
 import type { DailyForecast, Digest } from '@/lib/dailyEmail/digest';
+import { outfitLink } from '@/lib/outfitLink';
 
 export interface RenderInput {
   digest: Digest;
@@ -168,14 +169,8 @@ export function renderDailyEmail(input: RenderInput): RenderedEmail {
       ])
     : `<p style="font-family:${FONT};font-size:14px;color:${C.text};margin:0;">Nothing clean fits today's weather. Do a load of laundry, or add a few pieces to your closet.</p>`;
 
-  const extra = digest.unwornCount - digest.unworn.length;
-  const unwornBlock =
-    digest.unworn.length > 0
-      ? `${heading('Not worn this week', P.accent)}
-${row(digest.unworn.slice(0, 3).map((i) => itemCell(i, '', imageUrls, 100)))}
-${digest.unworn.length > 3 ? row(digest.unworn.slice(3).map((i) => itemCell(i, '', imageUrls, 100))) : ''}
-${extra > 0 ? `<p style="font-family:${FONT};font-size:13px;color:${C.secondary};margin:8px 6px 0;">And ${extra} more waiting in your closet.</p>` : ''}`
-      : '';
+  // The button opens the Outfits screen with this outfit on it.
+  const openUrl = digest.outfit ? outfitLink(appUrl, digest.outfit) : appUrl;
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(subject)}</title></head>
@@ -189,9 +184,8 @@ ${extra > 0 ? `<p style="font-family:${FONT};font-size:13px;color:${C.secondary}
   ${weatherBlock}
   ${heading('Wear this', P.accent)}
   ${outfitBlock}
-  ${unwornBlock}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;"><tr><td style="background:${P.accent};border-radius:999px;">
-    <a href="${escapeHtml(appUrl)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:700;color:${P.accentInk};text-decoration:none;">Open FitFinder</a>
+    <a href="${escapeHtml(openUrl)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:700;color:${P.accentInk};text-decoration:none;">Open FitFinder</a>
   </td></tr></table>
   <p style="font-family:${FONT};font-size:12px;line-height:18px;color:${C.secondary};border-top:1px solid ${C.border};margin:32px 0 0;padding-top:14px;">
     You get this because you turned on the daily email in FitFinder Settings.
@@ -219,11 +213,7 @@ ${extra > 0 ? `<p style="font-family:${FONT};font-size:13px;color:${C.secondary}
   } else {
     lines.push("Nothing clean fits today's weather.");
   }
-  if (digest.unworn.length > 0) {
-    lines.push('', 'NOT WORN THIS WEEK', ...digest.unworn.map((i) => `- ${describeItem(i)}`));
-    if (extra > 0) lines.push(`And ${extra} more waiting in your closet.`);
-  }
-  lines.push('', `Open FitFinder: ${appUrl}`, `Unsubscribe: ${unsubscribeUrl}`);
+  lines.push('', `Open FitFinder: ${openUrl}`, `Unsubscribe: ${unsubscribeUrl}`);
 
   return { subject, html, text: lines.join('\n') };
 }
