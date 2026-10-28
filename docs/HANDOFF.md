@@ -54,7 +54,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   compares with the original), a lookalike note warns about likely
   duplicates, and new pieces get a short highlight in the grid. Opening a
   closet item morphs its photo into the edit dialog (View Transitions); its
-  photo can be re-cropped there (`replaceItemImage` uploads the new crop,
+  photo can be re-cropped and tilted there (`replaceItemImage` uploads the new crop,
   repoints the row and deletes the old file).
 - **Clothing detection:** Claude Haiku 4.5 through the Anthropic API
   (`/api/detect-clothing`, signed-in users only). Amazon Bedrock was tried and
@@ -98,7 +98,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 484 unit/component tests (`npm run test`).
+- **Vitest:** 490 unit/component tests (`npm run test`).
 - **Playwright:** 53 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need

@@ -91,7 +91,7 @@ test('edits an item and the change persists', async ({ page }) => {
   await expect(item(page, 'White T-Shirt')).toHaveCount(0);
 });
 
-test("re-crops an item's photo after it was added", async ({ page }) => {
+test("re-crops and tilts an item's photo after it was added", async ({ page }) => {
   const { db, userId } = await testDb();
   const before = ok(
     await db
@@ -111,6 +111,8 @@ test("re-crops an item's photo after it was added", async ({ page }) => {
   const cropper = page.getByRole('dialog', { name: 'Adjust and crop' });
   const apply = cropper.getByRole('button', { name: 'Apply crop' });
   await expect(apply).toBeEnabled(); // once the photo has loaded into the cropper
+  // Tilt it a little, so the rotated crop is drawn for real.
+  await cropper.getByLabel('Tilt').fill('10');
   await apply.click();
   await expect(toast(page, 'Photo updated.')).toBeVisible();
 

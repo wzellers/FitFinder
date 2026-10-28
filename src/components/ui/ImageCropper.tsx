@@ -5,7 +5,7 @@ import Modal from '@/components/ui/Modal';
 import React, { useCallback, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
-import { Loader2, RotateCcw } from 'lucide-react';
+import { Loader2, RotateCcw, RotateCw } from 'lucide-react';
 import { getCroppedBlob } from '@/lib/imageCrop';
 
 interface ImageCropperProps {
@@ -24,6 +24,10 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const [aspect, setAspect] = useState<number | undefined>(undefined); // undefined = free
   const [areaPercent, setAreaPercent] = useState<Area | null>(null);
+  // Rotation: quarter turns (for sideways photos) plus a fine tilt.
+  const [quarterTurns, setQuarterTurns] = useState(0);
+  const [tilt, setTilt] = useState(0);
+  const rotation = quarterTurns * 90 + tilt;
   const [saving, setSaving] = useState(false);
 
   // Capture the crop rectangle as a percentage of the image. With
@@ -38,13 +42,15 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
     setCrop(INITIAL_CROP);
     setZoom(INITIAL_ZOOM);
     setAspect(undefined);
+    setQuarterTurns(0);
+    setTilt(0);
   };
 
   const handleDone = async () => {
     if (!areaPercent) return;
     setSaving(true);
     try {
-      const blob = await getCroppedBlob(imageSrc, areaPercent);
+      const blob = await getCroppedBlob(imageSrc, areaPercent, rotation);
       onCropComplete(blob);
     } catch {
       // Keep the cropper open so the user can retry.
@@ -72,6 +78,7 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
           image={imageSrc}
           crop={crop}
           zoom={zoom}
+          rotation={rotation}
           minZoom={0.3}
           aspect={aspect}
           onCropChange={setCrop}
@@ -96,6 +103,39 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
             className="flex-1 accent-[var(--accent)]"
             aria-label="Zoom"
           />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <label
+            htmlFor="crop-tilt"
+            className="text-xs font-medium text-[var(--text-secondary)] w-10"
+          >
+            Tilt
+          </label>
+          <input
+            id="crop-tilt"
+            type="range"
+            min={-45}
+            max={45}
+            step={0.5}
+            value={tilt}
+            onChange={(e) => setTilt(Number(e.target.value))}
+            onDoubleClick={() => setTilt(0)}
+            aria-valuetext={`${tilt} degrees`}
+            className="flex-1 accent-[var(--accent)]"
+          />
+          <span className="readout w-10 text-right tabular" aria-hidden="true">
+            {tilt > 0 ? '+' : ''}
+            {tilt}°
+          </span>
+          <button
+            type="button"
+            onClick={() => setQuarterTurns((q) => (q + 1) % 4)}
+            className="btn-secondary text-xs px-3 min-h-[36px]"
+            aria-label="Rotate 90 degrees"
+          >
+            <RotateCw size={13} aria-hidden="true" /> 90°
+          </button>
         </div>
 
         <div className="flex items-center justify-between gap-3">
