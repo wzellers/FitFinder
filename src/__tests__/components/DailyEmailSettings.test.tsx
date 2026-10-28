@@ -40,7 +40,7 @@ describe('DailyEmailSettings', () => {
   it('loads the saved time and zone', async () => {
     renderWithProviders(<DailyEmailSettings />);
     expect(await screen.findByLabelText('Time')).toHaveValue('06:45');
-    expect(screen.getByLabelText('Time zone')).toHaveValue('America/Chicago');
+    expect(screen.getByRole('button', { name: 'Time zone: America/Chicago' })).toBeTruthy();
     expect(screen.getByText(/Sent to me@example.com/)).toBeInTheDocument();
   });
 

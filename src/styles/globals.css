@@ -377,6 +377,16 @@
     @apply bg-[var(--poster-accent)] text-[var(--poster-accent-ink)];
   }
 
+  /* An on/off chip: occasions, laundry filters, weather and occasion rules. */
+  .toggle-pill {
+    @apply min-h-[36px] px-3.5 rounded-full border border-[var(--line-strong)] bg-white text-sm
+           font-semibold text-[var(--text-secondary)] inline-flex items-center justify-center gap-1.5
+           transition-colors hover:text-[var(--text)];
+  }
+  .toggle-pill[aria-pressed='true'] {
+    @apply bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-ink)] hover:text-[var(--accent-ink)];
+  }
+
   .modal-overlay {
     @apply fixed inset-0 flex items-end sm:items-center justify-center z-50 bg-black/30 backdrop-blur-[2px];
   }

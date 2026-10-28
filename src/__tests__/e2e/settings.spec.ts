@@ -59,11 +59,15 @@ test('a ZIP code saved in Settings shows on Outfits without reloading', async ({
 
 test('adds a liked color combination and deletes it', async ({ page }) => {
   await openSection(page, 'Colors');
-  await page.getByRole('button', { name: 'Top Color' }).click();
-  await page.getByRole('button', { name: 'navy blue', exact: true }).click();
-  await page.getByRole('button', { name: 'Bottom Color' }).click();
-  await page.getByRole('button', { name: 'beige', exact: true }).click();
-  await page.getByRole('button', { name: 'Add to Liked' }).click();
+  await page
+    .getByRole('group', { name: 'Top color' })
+    .getByRole('button', { name: 'Navy Blue', exact: true })
+    .click();
+  await page
+    .getByRole('group', { name: 'Bottom color' })
+    .getByRole('button', { name: 'Beige', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Add to liked' }).click();
   await expect(toast(page, 'Combination added')).toBeVisible();
 
   const combo = page.getByRole('button', { name: 'Edit Navy Blue top with Beige bottom' });
@@ -92,6 +96,13 @@ test('adds a liked color combination and deletes it', async ({ page }) => {
 test('changes which types suit an occasion', async ({ page }) => {
   const { db, userId } = await testDb();
   await openSection(page, 'Occasions');
+  // Pick the occasion, then toggle a piece for it.
+  const pickWork = () =>
+    page
+      .getByRole('group', { name: 'Occasion to edit' })
+      .getByRole('button', { name: 'Work' })
+      .click();
+  await pickWork();
   const toggle = page.getByRole('button', { name: 'Jeans for Work' });
   const before = (await toggle.getAttribute('aria-pressed')) === 'true';
 
@@ -106,6 +117,7 @@ test('changes which types suit an occasion', async ({ page }) => {
     .getByRole('navigation', { name: 'Preference sections' })
     .getByRole('button', { name: 'Occasions' })
     .click();
+  await pickWork();
   await expect(toggle).toHaveAttribute('aria-pressed', String(!before));
   const rows = ok(
     await db.from('occasion_preferences').select('user_id').eq('user_id', userId),
@@ -121,7 +133,8 @@ test('turns on the daily email with a time and time zone', async ({ page }) => {
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
 
   await page.getByLabel('Time', { exact: true }).fill('06:45');
-  await page.getByLabel('Time zone').selectOption('America/Chicago');
+  await page.getByRole('button', { name: /^Time zone: / }).click();
+  await page.getByRole('option', { name: 'America/Chicago' }).click();
   await toggle.click();
   await expect(toast(page, 'Daily email is on.')).toBeVisible();
 
@@ -133,7 +146,7 @@ test('turns on the daily email with a time and time zone', async ({ page }) => {
     .click();
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByLabel('Time', { exact: true })).toHaveValue('06:45');
-  await expect(page.getByLabel('Time zone')).toHaveValue('America/Chicago');
+  await expect(page.getByRole('button', { name: 'Time zone: America/Chicago' })).toBeVisible();
 
   const profile = ok(
     await db

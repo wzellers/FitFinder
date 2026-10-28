@@ -25,7 +25,7 @@ test('every page fits the screen and the nav stays reachable', async ({ page }) 
 
 test('settings sections fit as tabs without truncation', async ({ page }) => {
   await openApp(page, 'Settings');
-  const tabs = page.getByRole('group', { name: 'Preference section' });
+  const tabs = page.getByRole('navigation', { name: 'Preference sections' });
   for (const name of ['Weather', 'Occasions', 'Colors', 'Email']) {
     const button = tabs.getByRole('button', { name });
     await expect(button).toBeVisible();
