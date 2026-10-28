@@ -199,6 +199,9 @@ export interface UploadItemInput {
   type: string;
   colors: string[];
   isDirty: boolean;
+  /** The photo before it was cropped while adding (background still removed),
+   * kept as the item's original so Restore original photo can undo the crop. */
+  original?: Blob;
 }
 
 /** An upload failure with a message that can be shown to the user as-is. */
@@ -263,10 +266,10 @@ export async function prepareImageForUpload(blob: Blob): Promise<Blob> {
 }
 
 /** Upload a blob to the bucket and return its storage path. */
-async function uploadBlob(userId: string, blob: Blob): Promise<string> {
+async function uploadBlob(userId: string, blob: Blob, path?: string): Promise<string> {
   const prepared = await prepareImageForUpload(blob);
   const contentType = EXTENSIONS[prepared.type] ? prepared.type : 'image/png';
-  const fileName = newImagePath(userId, contentType);
+  const fileName = path ?? newImagePath(userId, contentType);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(fileName, prepared, { contentType });
@@ -370,6 +373,7 @@ export async function uploadItem({
   type,
   colors,
   isDirty,
+  original,
 }: UploadItemInput): Promise<string | null> {
   const path = await uploadBlob(userId, blob);
 
@@ -382,5 +386,13 @@ export async function uploadItem({
     await removeClothingImages([path]);
     throw error;
   }
-  return (data as { id: string }[] | null)?.[0]?.id ?? null;
+  const id = (data as { id: string }[] | null)?.[0]?.id ?? null;
+  // Best-effort: without it, the item is fine; its first saved photo is then
+  // the original.
+  if (id && original) {
+    await uploadBlob(userId, original, originalImagePath(userId, id)).catch((err) =>
+      console.warn('Could not keep the uncropped photo', err),
+    );
+  }
+  return id;
 }

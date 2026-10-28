@@ -32,6 +32,14 @@ vi.mock('@imgly/background-removal', () => ({ removeBackground: vi.fn() }));
 vi.mock('react-easy-crop', () => ({ default: vi.fn(() => null) }));
 vi.mock('next/dynamic', () => ({ default: vi.fn(() => () => null) }));
 
+// The real cropper needs a canvas; this one hands back a cropped blob.
+const croppedBlob = new Blob(['cropped'], { type: 'image/png' });
+vi.mock('@/components/ui/ImageCropper', () => ({
+  default: ({ onCropComplete }: { onCropComplete: (b: Blob) => void }) => (
+    <button onClick={() => onCropComplete(croppedBlob)}>Apply test crop</button>
+  ),
+}));
+
 import ImageUpload from '@/components/ImageUpload';
 
 const photo = () => new File(['x'], 'tee.png', { type: 'image/png' });
@@ -163,5 +171,28 @@ describe('Adding items', () => {
     });
     await waitFor(() => expect(pipeline.detectItem).toHaveBeenCalledTimes(2));
     expect(await screen.findByRole('button', { name: 'Main color: Blue. Edit' })).toBeTruthy();
+  });
+
+  it('keeps the uncropped cut-out as the original when a photo is cropped while adding', async () => {
+    const cutOut = new Blob(['cut'], { type: 'image/png' });
+    pipeline.removeImageBackground.mockResolvedValue(cutOut);
+    renderWithProviders(<ImageUpload isOpen onClose={vi.fn()} />);
+    choose([photo()]);
+    await screen.findByLabelText('Compare with the original photo'); // background removed
+    fireEvent.click(screen.getByRole('button', { name: /Adjust \/ crop/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply test crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to closet' }));
+    await waitFor(() => expect(pipeline.uploadItem).toHaveBeenCalled());
+    const input = pipeline.uploadItem.mock.calls[0][0] as { blob: Blob; original?: Blob };
+    expect(input.blob).toBe(croppedBlob);
+    expect(input.original).toBe(cutOut);
+  });
+
+  it('keeps no separate original when the photo was not cropped', async () => {
+    renderWithProviders(<ImageUpload isOpen onClose={vi.fn()} />);
+    choose([photo()]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to closet' }));
+    await waitFor(() => expect(pipeline.uploadItem).toHaveBeenCalled());
+    expect((pipeline.uploadItem.mock.calls[0][0] as { original?: Blob }).original).toBeUndefined();
   });
 });

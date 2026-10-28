@@ -68,6 +68,10 @@ interface ItemDraft {
   originalPreviewUrl: string;
   /** True once the image has been changed from the original (crop or bg-removal). */
   edited: boolean;
+  /** The photo before any crop (background removed if it was, first): kept as
+   * the item's original when the photo is cropped, so the crop can be undone. */
+  uncroppedBlob: Blob;
+  cropped: boolean;
   category: ClothingSection | '';
   type: string;
   primaryColor: string | null;
@@ -96,6 +100,8 @@ function makeDraft(blob: Blob): ItemDraft {
     originalBlob: blob,
     originalPreviewUrl: URL.createObjectURL(blob),
     edited: false,
+    uncroppedBlob: blob,
+    cropped: false,
     category: '',
     type: '',
     primaryColor: null,
@@ -253,6 +259,8 @@ export default function ImageUpload({
         previewUrl: URL.createObjectURL(result),
         bgRemoved: true,
         edited: true,
+        // Not cropped yet: this cut-out is the uncropped version to keep.
+        ...(current.cropped ? {} : { uncroppedBlob: result }),
       });
       if (!quiet) showToast('Background removed.', 'success');
       // Colors are more accurate without the background; re-run detection.
@@ -273,7 +281,7 @@ export default function ImageUpload({
   const handleCropApplied = (id: string, blob: Blob) => {
     const draft = drafts.find((d) => d.id === id);
     if (draft?.previewUrl) URL.revokeObjectURL(draft.previewUrl);
-    updateDraft(id, { blob, previewUrl: URL.createObjectURL(blob), edited: true });
+    updateDraft(id, { blob, previewUrl: URL.createObjectURL(blob), edited: true, cropped: true });
     setCropDraftId(null);
     // Cropping changes the dominant pixels, so re-detect colors/type.
     runDetection(id, blob);
@@ -289,6 +297,8 @@ export default function ImageUpload({
       previewUrl: URL.createObjectURL(draft.originalBlob),
       edited: false,
       bgRemoved: false,
+      uncroppedBlob: draft.originalBlob,
+      cropped: false,
     });
     runDetection(id, draft.originalBlob);
   };
@@ -345,6 +355,8 @@ export default function ImageUpload({
           type: draft.type,
           colors,
           isDirty: draft.isDirty,
+          // Cropped while adding: keep the uncropped photo as the original.
+          original: draft.cropped ? draft.uncroppedBlob : undefined,
         });
         if (id) addedIds.push(id);
         updateDraft(draft.id, { status: 'done' });

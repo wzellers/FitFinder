@@ -172,7 +172,8 @@ async function stubAdding(page: import('@playwright/test').Page) {
 
 const RED_TEE = path.resolve(__dirname, 'fixtures/red-tee.png');
 
-test('adds an item from a photo', async ({ page }) => {
+test('adds an item from a photo, keeping the uncropped photo when cropped', async ({ page }) => {
+  const { db, userId } = await testDb();
   await stubAdding(page);
   await openApp(page);
   await page.getByRole('button', { name: 'Add item' }).click();
@@ -186,12 +187,40 @@ test('adds an item from a photo', async ({ page }) => {
   await expect(
     dialog.getByRole('group', { name: 'Main color' }).getByRole('button', { name: 'Red' }),
   ).toHaveAttribute('aria-pressed', 'true');
-  await dialog.getByRole('button', { name: 'Add to closet' }).click();
 
+  // Crop it while adding.
+  await dialog.getByRole('button', { name: /Adjust \/ crop/ }).click();
+  const cropper = page.getByRole('dialog', { name: 'Adjust and crop' });
+  await expect(cropper.getByRole('button', { name: 'Apply crop' })).toBeEnabled();
+  await cropper.getByLabel('Zoom').fill('1.5');
+  await cropper.getByRole('button', { name: 'Apply crop' }).click();
+  await expect(cropper).toHaveCount(0);
+
+  await dialog.getByRole('button', { name: 'Add to closet' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(item(page, 'Red T-Shirt')).toBeVisible();
   await expect(page.getByText('{ 7 items · 1 in the wash }')).toBeVisible();
   await expectImagesLoaded(page, 'main button[aria-label="Edit Red T-Shirt"] img');
+
+  // The uncropped photo is kept as its original, so the crop can be undone.
+  const added = ok(
+    await db
+      .from('clothing_items')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('type', 'T-Shirt')
+      .contains('colors', ['red'])
+      .single(),
+    'added item',
+  );
+  const originals = ok(await db.storage.from(BUCKET).list(`${userId}/originals`), 'originals');
+  expect((originals ?? []).map((f) => f.name)).toContain(added!.id);
+  await item(page, 'Red T-Shirt').click();
+  await expect(
+    page.getByRole('dialog', { name: 'Edit Red T-Shirt' }).getByRole('button', {
+      name: /Restore original photo/,
+    }),
+  ).toBeVisible();
 });
 
 test('drops a photo onto the closet to add it, and highlights it', async ({ page }) => {

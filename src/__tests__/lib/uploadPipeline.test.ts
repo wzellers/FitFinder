@@ -123,6 +123,31 @@ describe('uploadItem', () => {
     expect(mockRowInsertSelect).toHaveBeenLastCalledWith('id');
   });
 
+  it('keeps the uncropped photo as the original when one is given', async () => {
+    mockRowInsertSelect.mockResolvedValueOnce({ data: [{ id: 'item-9' }], error: null });
+    const original = new Blob(['uncropped'], { type: 'image/png' });
+    await uploadItem({ ...baseInput, original });
+    expect(mockUpload).toHaveBeenCalledTimes(2);
+    expect(mockUpload.mock.calls[1][0]).toBe('u1/originals/item-9');
+    expect(mockUpload.mock.calls[1][1]).toBe(original);
+  });
+
+  it('keeps no original without one, and still adds the item if keeping it fails', async () => {
+    await uploadItem(baseInput);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+
+    mockUpload.mockClear();
+    mockRowInsertSelect.mockResolvedValueOnce({ data: [{ id: 'item-9' }], error: null });
+    mockUpload
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: 'storage down' } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(
+      uploadItem({ ...baseInput, original: new Blob(['x'], { type: 'image/png' }) }),
+    ).resolves.toBe('item-9');
+    warn.mockRestore();
+  });
+
   it('does not write an original_image_url column', async () => {
     await uploadItem(baseInput);
     const row = mockRowInsert.mock.calls[0][0][0];
