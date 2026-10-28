@@ -57,4 +57,31 @@ describe('WeatherBackdrop', () => {
     render(<WeatherBackdrop scene="sunny" night storm={false} />);
     expect(count('wx-sky-night')).toBe(1);
   });
+
+  it('places every particle on screen', () => {
+    // Positions are percentages of the screen; anything far outside is lost.
+    const scenes = [
+      { scene: 'rainy', night: false },
+      { scene: 'cloudy', night: false },
+      { scene: 'snowy', night: false },
+      { scene: 'sunny', night: true },
+    ] as const;
+    for (const { scene, night } of scenes) {
+      const { container, unmount } = render(
+        <WeatherBackdrop scene={scene} night={night} storm={false} />,
+      );
+      const spans = container.querySelectorAll<HTMLElement>('span');
+      expect(spans.length).toBeGreaterThan(0);
+      for (const el of spans) {
+        for (const prop of ['left', 'top', 'bottom'] as const) {
+          const v = el.style[prop];
+          if (!v.endsWith('%')) continue;
+          const n = parseFloat(v);
+          expect(n, `${scene} ${prop} ${v}`).toBeGreaterThanOrEqual(-10);
+          expect(n, `${scene} ${prop} ${v}`).toBeLessThanOrEqual(110);
+        }
+      }
+      unmount();
+    }
+  });
 });

@@ -426,7 +426,15 @@
   background: linear-gradient(to bottom, rgba(140, 150, 168, 0.26), transparent 65%);
 }
 .wx-sky-rainy {
-  background: linear-gradient(to bottom, rgba(95, 115, 145, 0.3), transparent 75%);
+  /* A moody blue-grey sky that darkens toward the top. */
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(58, 82, 118, 0.42),
+      rgba(90, 115, 150, 0.16) 55%,
+      transparent 85%
+    ),
+    radial-gradient(120% 60% at 50% 110%, rgba(70, 100, 140, 0.18), transparent 70%);
 }
 .wx-sky-snowy {
   background: linear-gradient(to bottom, rgba(180, 200, 228, 0.35), transparent 75%);
@@ -476,8 +484,14 @@
   position: absolute;
   left: 0;
   border-radius: 9999px;
-  background: rgba(120, 135, 160, 0.3);
-  filter: blur(22px);
+  /* Soft round puffs, densest in the middle. */
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    rgba(120, 135, 160, 0.42),
+    rgba(120, 135, 160, 0.18) 45%,
+    transparent 70%
+  );
+  filter: blur(10px);
   animation: wx-drift 60s linear infinite;
 }
 @keyframes wx-drift {
@@ -490,14 +504,56 @@
 }
 .wx-drop {
   position: absolute;
-  top: -15vh;
+  top: -20vh;
   width: 1.5px;
-  background: linear-gradient(to bottom, transparent, rgba(60, 95, 140, 0.5));
+  border-radius: 9999px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(110, 150, 200, 0.45) 65%,
+    rgba(200, 225, 255, 0.85)
+  );
   animation: wx-rain 1.2s linear infinite;
+}
+/* Close-up drops: longer, brighter, with a soft glint. */
+.wx-drop-near {
+  width: 2.5px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(120, 165, 220, 0.7) 60%,
+    rgba(235, 245, 255, 1)
+  );
+  filter: drop-shadow(0 0 3px rgba(150, 190, 240, 0.8));
 }
 @keyframes wx-rain {
   to {
-    transform: translate(-12vh, 125vh);
+    transform: translate(-14vh, 135vh);
+  }
+}
+/* A drop landing: a ring that spreads and fades. */
+.wx-splash {
+  position: absolute;
+  width: 26px;
+  height: 7px;
+  margin-left: -13px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(110, 155, 210, 0.75);
+  opacity: 0;
+  animation: wx-splash 1.6s ease-out infinite;
+}
+@keyframes wx-splash {
+  0%,
+  55% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
   }
 }
 .wx-flash {

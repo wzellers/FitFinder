@@ -10,7 +10,9 @@ const rand = (i: number, salt: number) => {
   return x - Math.floor(x);
 };
 
-const COUNTS = { stars: 40, clouds: 7, rain: 80, snow: 60 } as const;
+const COUNTS = { stars: 40, clouds: 7, rain: 110, snow: 60 } as const;
+/** Raindrops splashing on the ground, as small rings. */
+const SPLASHES = 18;
 
 /**
  * A soft animated sky behind the Outfits screen that matches today's
@@ -30,6 +32,7 @@ export default function WeatherBackdrop({ scene, night, storm }: SceneChoice) {
             : night
               ? COUNTS.stars
               : 0;
+    // x and y are percentages of the screen (0–100).
     return Array.from({ length: n }, (_, i) => ({
       x: rand(i, 1) * 100,
       y: rand(i, 2) * 100,
@@ -57,7 +60,7 @@ export default function WeatherBackdrop({ scene, night, storm }: SceneChoice) {
             className="wx-star"
             style={{
               left: `${p.x}%`,
-              top: `${p.y * 70}%`,
+              top: `${p.y * 0.7}%`,
               width: 2 + p.size * 2,
               height: 2 + p.size * 2,
               animationDelay: `${-p.delay * 4}s`,
@@ -72,7 +75,7 @@ export default function WeatherBackdrop({ scene, night, storm }: SceneChoice) {
             key={i}
             className="wx-cloud"
             style={{
-              top: `${5 + p.y * 55}%`,
+              top: `${5 + p.y * 0.55}%`,
               width: 280 + p.size * 260,
               height: 110 + p.size * 90,
               animationDelay: `${-p.delay * 60}s`,
@@ -82,15 +85,32 @@ export default function WeatherBackdrop({ scene, night, storm }: SceneChoice) {
         ))}
 
       {scene === 'rainy' &&
-        particles.map((p, i) => (
+        particles.map((p, i) => {
+          // Two depths: near drops are longer, brighter and faster.
+          const near = i % 3 === 0;
+          return (
+            <span
+              key={i}
+              className={near ? 'wx-drop wx-drop-near' : 'wx-drop'}
+              style={{
+                left: `${p.x * 1.1 - 5}%`,
+                height: near ? 90 + p.size * 60 : 45 + p.size * 35,
+                animationDelay: `${-p.delay * 2}s`,
+                animationDuration: `${near ? 0.55 + p.speed * 0.25 : 0.95 + p.speed * 0.5}s`,
+              }}
+            />
+          );
+        })}
+      {scene === 'rainy' &&
+        particles.slice(0, SPLASHES).map((p, i) => (
           <span
-            key={i}
-            className="wx-drop"
+            key={`splash-${i}`}
+            className="wx-splash"
             style={{
-              left: `${p.x * 110 - 5}%`,
-              height: 50 + p.size * 40,
-              animationDelay: `${-p.delay * 2}s`,
-              animationDuration: `${0.9 + p.speed * 0.6}s`,
+              left: `${p.x}%`,
+              bottom: `${2 + p.y * 0.14}%`,
+              animationDelay: `${-p.delay * 1.6}s`,
+              animationDuration: `${1.2 + p.speed * 0.8}s`,
             }}
           />
         ))}

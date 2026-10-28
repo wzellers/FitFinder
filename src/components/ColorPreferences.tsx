@@ -755,8 +755,8 @@ export default function ColorPreferences() {
       />
 
       {/* Sections across the top, the active one highlighted. */}
-      <nav aria-label="Preference sections" className="mb-6 -mx-1 px-1 overflow-x-auto">
-        <div className="inline-flex gap-1 p-1 rounded-full border border-[var(--border)] bg-white">
+      <nav aria-label="Preference sections" className="mb-6 -mx-1 px-1 overflow-x-auto flex">
+        <div className="mx-auto inline-flex gap-1 p-1 rounded-full border border-[var(--border)] bg-white">
           {sections.map((item) => {
             const active = activeSection === item.key;
             return (
