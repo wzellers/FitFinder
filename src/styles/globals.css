@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 /*
- * Warm and neutral until there's an outfit.
+ * Fog & slate until there's an outfit.
  *
- * A cream page with espresso ink, beige surfaces and a mocha accent: soft,
- * so the clothes carry the colour. Once an outfit is generated, OutfitThemeProvider sets the
+ * A cool grey-white page with slate ink, misty blue-grey surfaces and a slate
+ * blue accent: clean and quiet, so the clothes carry the colour. Once an outfit is generated, OutfitThemeProvider sets the
  * --outfit-* colours and the whole app takes them: the top's colour is the
  * accent, the bottom's and the shoes' the secondary and third. Raspberry
  * stays for dirty / destructive.
@@ -31,7 +31,7 @@
 @property --outfit-accent {
   syntax: '<color>';
   inherits: true;
-  initial-value: #7a5a45;
+  initial-value: #4a6276;
 }
 @property --outfit-accent-ink {
   syntax: '<color>';
@@ -41,12 +41,12 @@
 @property --outfit-tint {
   syntax: '<color>';
   inherits: true;
-  initial-value: #f1e8dc;
+  initial-value: #e9ecef;
 }
 @property --outfit-glow {
   syntax: '<color>';
   inherits: true;
-  initial-value: #b08968;
+  initial-value: #7d93a6;
 }
 
 @layer base {
@@ -54,21 +54,21 @@
     /* Palette */
     --raspberry: #b0244f;
 
-    /* Surfaces: a cream page, white cards, beige wells */
-    --bg: #faf6f0;
+    /* Surfaces: a fog page, white cards, misty wells */
+    --bg: #f4f6f7;
     --card: #ffffff;
-    --muted: #f3ece2; /* photo wells: soft so item colours read true */
+    --muted: #e9edf0; /* photo wells: soft so item colours read true */
 
     /* Text */
-    --text: #2b211c;
-    --text-secondary: #6b5a4e;
+    --text: #1f2a33;
+    --text-secondary: #56636e;
 
     /* Links and focus */
     --carbon: #23608f;
 
     /* Lines */
-    --border: #eae1d5;
-    --line-strong: #9a8676; /* form control borders, 3:1 on white */
+    --border: #dde3e8;
+    --line-strong: #8794a0; /* form control borders, 3:1 on white */
 
     /* Status */
     --success: #15803d;
@@ -80,16 +80,16 @@
     --focus: var(--carbon);
 
     /* Poster headers (themable by today's outfit) */
-    --poster-bg: #e6d8c5;
-    --poster-title: #5a4232;
-    --poster-fg: #3d2e24;
-    --poster-cutout: #d3bea4;
-    --poster-script: #8a6a52;
-    --poster-accent: #5a4232;
-    --poster-accent-ink: #faf6f0;
+    --poster-bg: #dce3ea;
+    --poster-title: #34495b;
+    --poster-fg: #22313d;
+    --poster-cutout: #c3cfda;
+    --poster-script: #8a7a64;
+    --poster-accent: #34495b;
+    --poster-accent-ink: #f4f6f7;
 
     /* Nav highlight (themable) */
-    --pill-active: #7a5a45;
+    --pill-active: #4a6276;
     --pill-active-ink: #ffffff;
   }
 

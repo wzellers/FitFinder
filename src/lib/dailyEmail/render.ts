@@ -2,7 +2,7 @@
 //
 // Email clients ignore stylesheets and most modern CSS, so the HTML uses
 // tables and inline styles, coloured by the outfit it recommends (like the
-// app) on the app's warm neutrals.
+// app) on the app's fog & slate neutrals.
 
 import { describeItem } from '@/lib/itemLabels';
 import { colorMap } from '@/lib/constants';
@@ -27,16 +27,16 @@ export interface RenderedEmail {
   text: string;
 }
 
-/** The app's warm neutrals, shared by every email. */
+/** The app's fog & slate neutrals, shared by every email. */
 const C = {
-  text: '#2b211c',
-  secondary: '#6b5a4e',
-  muted: '#f3ece2',
-  border: '#eae1d5',
+  text: '#1f2a33',
+  secondary: '#56636e',
+  muted: '#e9edf0',
+  border: '#dde3e8',
 };
 
 /** The email's colours: from the recommended outfit (its top first, like the
- * app), or the warm neutral scheme when there's no outfit. */
+ * app), or the fog & slate neutrals when there's no outfit. */
 export interface EmailColors {
   /** Headings, the weather and the button. */
   accent: string;
@@ -52,10 +52,10 @@ export interface EmailColors {
 const NEUTRAL: EmailColors = {
   accent: NEUTRAL_ACCENT,
   accentInk: '#ffffff',
-  tint: '#f1e8dc',
-  bannerBg: '#e6d8c5',
-  bannerTitle: '#5a4232',
-  bannerFg: '#3d2e24',
+  tint: '#e9ecef',
+  bannerBg: '#dce3ea',
+  bannerTitle: '#34495b',
+  bannerFg: '#22313d',
 };
 
 export function emailColors(
@@ -179,7 +179,7 @@ ${extra > 0 ? `<p style="font-family:${FONT};font-size:13px;color:${C.secondary}
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;padding:0;background:#faf6f0;">
+<body style="margin:0;padding:0;background:#f4f6f7;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:24px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;"><tr><td>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${P.bannerBg};border-radius:18px;margin-bottom:18px;"><tr><td style="padding:18px 20px;">

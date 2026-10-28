@@ -254,7 +254,7 @@ describe('render', () => {
     expect(email.html).not.toContain('#5c1a26');
   });
 
-  it('uses the warm neutrals when there is no outfit', () => {
+  it('uses the neutral fog & slate colours when there is no outfit', () => {
     expect(emailColors(null).accent).toBe(NEUTRAL_ACCENT);
     const email = renderDailyEmail({
       ...base,

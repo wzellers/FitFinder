@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-27 (warm neutral theme, settings and stats redesign)
+**Last updated:** 2026-10-28 (fog & slate neutral theme, weather fixes)
 
 ## What's live
 
@@ -14,9 +14,9 @@ Production is `main`, deployed by Vercel on every push.
 Node 22 is required (`engines` in package.json; CI uses it too): supabase-js 2.118
 needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
-- **App:** pill nav, poster headers, slot-reel outfits. Warm and neutral
-  (cream page, beige, espresso ink, mocha accent) until an outfit is
-  generated; then the whole app takes its colours (`themeFromOutfit`): the
+- **App:** pill nav, poster headers, slot-reel outfits. Fog & slate
+  (cool grey-white page, misty blue-grey surfaces, slate ink and accent)
+  until an outfit is generated; then the whole app takes its colours (`themeFromOutfit`): the
   banner is the top's colour with the bottom's for its title and cutout and a
   touch of the shoes'; the accent (buttons, links, selected states, nav,
   rating glow) is the top's colour, or the bottom's when the top is white,
@@ -96,7 +96,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 479 unit/component tests (`npm run test`).
+- **Vitest:** 480 unit/component tests (`npm run test`).
 - **Playwright:** 52 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need

@@ -147,7 +147,7 @@ export default function Dropdown({
           tabIndex={-1}
           aria-activedescendant={`${id}-opt-${active}`}
           onKeyDown={onListKey}
-          className="dropdown-menu absolute z-30 left-0 mt-2 min-w-full w-max max-h-72 overflow-auto rounded-2xl border border-[var(--border)] bg-white p-1.5 shadow-[0_18px_40px_-16px_rgba(43,33,28,0.35)] focus:outline-none"
+          className="dropdown-menu absolute z-30 left-0 mt-2 min-w-full w-max max-h-72 overflow-auto rounded-2xl border border-[var(--border)] bg-white p-1.5 shadow-[0_18px_40px_-16px_rgba(31,42,51,0.35)] focus:outline-none"
         >
           {options.map((o, i) => {
             const isSelected = o.value === value;

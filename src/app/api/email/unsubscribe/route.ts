@@ -13,10 +13,10 @@ function page(title: string, body: string, status = 200) {
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex"><title>${title} · FitFinder</title></head>
-<body style="margin:0;background:#faf6f0;color:#2b211c;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<body style="margin:0;background:#f4f6f7;color:#1f2a33;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
 <main style="max-width:440px;margin:0 auto;padding:64px 16px;">
-<p style="font-family:Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#6b5a4e;margin:0;">FitFinder</p>
-<h1 style="font-size:28px;color:#7a5a45;margin:8px 0 16px;">${title}</h1>
+<p style="font-family:Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#56636e;margin:0;">FitFinder</p>
+<h1 style="font-size:28px;color:#4a6276;margin:8px 0 16px;">${title}</h1>
 ${body}
 </main></body></html>`;
   return new NextResponse(html, {
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     'Stop the daily email?',
     `${p("You won't get the morning outfit email anymore. You can turn it back on in Settings.")}
 <form method="post" action="?token=${token}">
-<button type="submit" style="background:#7a5a45;color:#ffffff;border:0;border-radius:999px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;">Unsubscribe</button>
+<button type="submit" style="background:#4a6276;color:#ffffff;border:0;border-radius:999px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;">Unsubscribe</button>
 </form>`,
   );
 }

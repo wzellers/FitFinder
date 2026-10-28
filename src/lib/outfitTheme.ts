@@ -21,11 +21,12 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** The app's dark ink (espresso), for text on light colours. */
-export const NEUTRAL_INK = '#2b211c';
-/** The accent when there's no outfit: a warm mocha. */
-export const NEUTRAL_ACCENT = '#7a5a45';
-const INK = NEUTRAL_INK;
+/** The app's dark ink (slate), for text on light colours. */
+export const NEUTRAL_INK = '#1f2a33';
+/** The accent when there's no outfit: slate blue. */
+export const NEUTRAL_ACCENT = '#4a6276';
+/** Text on outfit colours: a deeper slate, so mid-tone colours stay readable. */
+const INK = '#141c22';
 const PAPER = '#ffffff';
 
 /** Whichever of dark ink or white reads better on `bg`. */

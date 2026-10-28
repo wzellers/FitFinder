@@ -26,10 +26,10 @@ describe('/api/email/unsubscribe', () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it('uses the warm neutral colours, not an outfit', async () => {
+  it('uses the neutral fog & slate colours, not an outfit', async () => {
     const html = await (await GET(req('GET'))).text();
-    expect(html).toContain('background:#faf6f0');
-    expect(html).toContain('background:#7a5a45;color:#ffffff');
+    expect(html).toContain('background:#f4f6f7');
+    expect(html).toContain('background:#4a6276;color:#ffffff');
     expect(html).not.toContain('#5c1a26');
   });
 
