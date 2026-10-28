@@ -14,6 +14,18 @@ const mockUpdate = vi.fn();
 const mockDelete = vi.fn();
 const mockEq = vi.fn();
 
+const mockReplaceImage = vi.hoisted(() => vi.fn(() => Promise.resolve('u1/new.png')));
+vi.mock('@/lib/uploadPipeline', () => ({ replaceItemImage: mockReplaceImage }));
+vi.mock('@/lib/clothingImages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/clothingImages')>()),
+  getClothingImageUrl: vi.fn((url: string) => Promise.resolve(`signed:${url}`)),
+}));
+// The real cropper needs a canvas; this one hands back a blob on click.
+vi.mock('@/components/ui/ImageCropper', () => ({
+  default: ({ onCropComplete }: { onCropComplete: (b: Blob) => void }) => (
+    <button onClick={() => onCropComplete(new Blob(['png']))}>Apply test crop</button>
+  ),
+}));
 vi.mock('@/components/ui/ClothingImage', () => ({
   default: ({ alt }: { alt?: string }) => <img alt={alt} />,
 }));
@@ -111,12 +123,35 @@ describe('EditItem', () => {
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
 
-  it('does not render image-editing controls', () => {
+  it('offers re-cropping, but not replacing the photo', () => {
     renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
+    expect(screen.getByRole('button', { name: /Adjust \/ crop/ })).toBeTruthy();
     expect(screen.queryByText('New photo')).toBeNull();
-    expect(screen.queryByText('Adjust / crop')).toBeNull();
     expect(screen.queryByText('Revert to original')).toBeNull();
     expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it("re-crops the photo and saves it as the item's new photo", async () => {
+    const onItemUpdated = vi.fn();
+    renderWithProviders(
+      <EditItem isOpen={true} onClose={vi.fn()} item={item} onItemUpdated={onItemUpdated} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Adjust \/ crop/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply test crop' }));
+    await waitFor(() =>
+      expect(mockReplaceImage).toHaveBeenCalledWith(
+        expect.objectContaining({ itemId: item.id, oldImageUrl: item.image_url, userId: 'u1' }),
+      ),
+    );
+    expect(await screen.findByText('Photo updated.')).toBeTruthy();
+    expect(onItemUpdated).toHaveBeenCalled();
+  });
+
+  it('shows the main and second colour swatches at the same size', () => {
+    renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
+    const [main, second] = screen.getAllByRole('button', { name: 'Red' });
+    const size = (el: HTMLElement) => el.className.match(/\bw-\d+ h-\d+\b/)?.[0];
+    expect(size(second)).toBe(size(main));
   });
 
   it('keeps and edits a second colour', async () => {

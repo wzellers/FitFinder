@@ -10,7 +10,11 @@
 // fills the corresponding field in manually.
 
 import { supabase } from '@/lib/supabaseClient';
-import { CLOTHING_BUCKET as BUCKET, removeClothingImages } from '@/lib/clothingImages';
+import {
+  CLOTHING_BUCKET as BUCKET,
+  imagePathFromUrl,
+  removeClothingImages,
+} from '@/lib/clothingImages';
 import { typeToSection } from '@/lib/constants';
 import { detectColors } from '@/lib/imageColor';
 import type { ClothingSection } from '@/lib/types';
@@ -269,6 +273,38 @@ async function uploadBlob(userId: string, blob: Blob): Promise<string> {
   if (uploadError) throw uploadError;
   // The bucket is private: store the path and sign URLs when displaying.
   return fileName;
+}
+
+/**
+ * Replace an item's photo (e.g. after re-cropping it): upload the new image,
+ * point the row at it, then delete the old file. If the row can't be
+ * updated, the new file is removed and the old photo stays. Returns the new
+ * storage path.
+ */
+export async function replaceItemImage({
+  userId,
+  itemId,
+  oldImageUrl,
+  blob,
+}: {
+  userId: string;
+  itemId: string;
+  oldImageUrl: string | null;
+  blob: Blob;
+}): Promise<string> {
+  const path = await uploadBlob(userId, blob);
+  const { error } = await supabase
+    .from('clothing_items')
+    .update({ image_url: path })
+    .eq('id', itemId)
+    .eq('user_id', userId);
+  if (error) {
+    await removeClothingImages([path]);
+    throw error;
+  }
+  // Best-effort: a leftover old file is harmless (private, unreferenced).
+  await removeClothingImages([imagePathFromUrl(oldImageUrl)]).catch(() => {});
+  return path;
 }
 
 /**

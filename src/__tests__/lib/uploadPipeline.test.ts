@@ -8,6 +8,10 @@ const mockRowInsertSelect = vi.fn();
 const mockRowInsert = vi.fn((_rows: Array<Record<string, unknown>>) => ({
   select: mockRowInsertSelect,
 }));
+const mockRowUpdateResult = vi.fn();
+const mockRowUpdate = vi.fn((_patch: Record<string, unknown>) => ({
+  eq: () => ({ eq: mockRowUpdateResult }),
+}));
 
 vi.mock('@/lib/supabaseClient', () => ({
   supabase: {
@@ -20,11 +24,17 @@ vi.mock('@/lib/supabaseClient', () => ({
     },
     from: vi.fn(() => ({
       insert: mockRowInsert,
+      update: mockRowUpdate,
     })),
   },
 }));
 
-import { runWithConcurrency, uploadItem, prepareImageForUpload } from '@/lib/uploadPipeline';
+import {
+  runWithConcurrency,
+  uploadItem,
+  prepareImageForUpload,
+  replaceItemImage,
+} from '@/lib/uploadPipeline';
 
 describe('runWithConcurrency', () => {
   it('runs every item and preserves result order', async () => {
@@ -156,5 +166,37 @@ describe('uploadItem cleanup', () => {
       }),
     ).rejects.toBeTruthy();
     expect(mockRemove).toHaveBeenCalledWith([mockUpload.mock.calls[0][0]]);
+  });
+});
+
+describe('replaceItemImage', () => {
+  const input = {
+    userId: 'u1',
+    itemId: 'item-1',
+    oldImageUrl: 'u1/old.png',
+    blob: new Blob(['img'], { type: 'image/png' }),
+  };
+
+  beforeEach(() => {
+    mockUpload.mockReset().mockResolvedValue({ error: null });
+    mockRemove.mockReset().mockResolvedValue({ error: null });
+    mockRowUpdate.mockClear();
+    mockRowUpdateResult.mockReset().mockResolvedValue({ error: null });
+  });
+
+  it('uploads the new photo, points the item at it, then removes the old one', async () => {
+    const path = await replaceItemImage(input);
+    expect(path).toBe(mockUpload.mock.calls[0][0]);
+    expect(path).toMatch(/^u1\/.+\.png$/);
+    expect(mockRowUpdate).toHaveBeenCalledWith({ image_url: path });
+    expect(mockRemove).toHaveBeenCalledWith(['u1/old.png']);
+  });
+
+  it('keeps the old photo, and removes the new upload, when the item fails to update', async () => {
+    mockRowUpdateResult.mockResolvedValueOnce({ error: { message: 'nope' } });
+    await expect(replaceItemImage(input)).rejects.toBeTruthy();
+    const uploaded = mockUpload.mock.calls[0][0];
+    expect(mockRemove).toHaveBeenCalledWith([uploaded]);
+    expect(mockRemove).not.toHaveBeenCalledWith(['u1/old.png']);
   });
 });

@@ -91,6 +91,41 @@ test('edits an item and the change persists', async ({ page }) => {
   await expect(item(page, 'White T-Shirt')).toHaveCount(0);
 });
 
+test("re-crops an item's photo after it was added", async ({ page }) => {
+  const { db, userId } = await testDb();
+  const before = ok(
+    await db
+      .from('clothing_items')
+      .select('id, image_url')
+      .eq('user_id', userId)
+      .eq('type', 'T-Shirt')
+      .single(),
+    'item',
+  );
+  await openApp(page);
+  await item(page, 'White T-Shirt').click();
+  const dialog = page.getByRole('dialog', { name: 'Edit White T-Shirt' });
+  await expectImagesLoaded(page, '[role="dialog"] img');
+
+  await dialog.getByRole('button', { name: /Adjust \/ crop/ }).click();
+  const cropper = page.getByRole('dialog', { name: 'Adjust and crop' });
+  const apply = cropper.getByRole('button', { name: 'Apply crop' });
+  await expect(apply).toBeEnabled(); // once the photo has loaded into the cropper
+  await apply.click();
+  await expect(toast(page, 'Photo updated.')).toBeVisible();
+
+  // The item points at a new photo, and the old file is gone.
+  const after = ok(
+    await db.from('clothing_items').select('image_url').eq('id', before!.id).single(),
+    'item',
+  );
+  expect(after!.image_url).not.toBe(before!.image_url);
+  const files = ok(await db.storage.from(BUCKET).list(userId), 'list');
+  const names = (files ?? []).map((f) => `${userId}/${f.name}`);
+  expect(names).toContain(after!.image_url);
+  expect(names).not.toContain(before!.image_url);
+});
+
 test('deletes an item and its photo', async ({ page, seeded }) => {
   const { db, userId } = await testDb();
   await openApp(page);
