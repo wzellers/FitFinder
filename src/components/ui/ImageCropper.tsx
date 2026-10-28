@@ -22,12 +22,19 @@ const INITIAL_ZOOM = 1;
 export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: ImageCropperProps) {
   const [crop, setCrop] = useState<Point>(INITIAL_CROP);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
-  const [aspect, setAspect] = useState<number | undefined>(undefined); // undefined = free
+  // A fixed crop shape, or undefined for the photo's own shape.
+  const [aspect, setAspect] = useState<number | undefined>(undefined);
   const [areaPercent, setAreaPercent] = useState<Area | null>(null);
   // Rotation: quarter turns (for sideways photos) plus a fine tilt.
   const [quarterTurns, setQuarterTurns] = useState(0);
   const [tilt, setTilt] = useState(0);
   const rotation = quarterTurns * 90 + tilt;
+  // The photo's own shape (width / height). With "Photo" chosen, the crop box
+  // takes this shape, so the whole photo starts inside it and nothing is cut
+  // unless the user crops in.
+  const [photoAspect, setPhotoAspect] = useState<number | null>(null);
+  const turned = quarterTurns % 2 === 1;
+  const cropAspect = aspect ?? (photoAspect ? (turned ? 1 / photoAspect : photoAspect) : undefined);
   const [saving, setSaving] = useState(false);
 
   // Capture the crop rectangle as a percentage of the image. With
@@ -80,7 +87,8 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
           zoom={zoom}
           rotation={rotation}
           minZoom={0.3}
-          aspect={aspect}
+          aspect={cropAspect}
+          onMediaLoaded={(m) => setPhotoAspect(m.naturalWidth / m.naturalHeight)}
           onCropChange={setCrop}
           onZoomChange={setZoom}
           onCropComplete={handleCropComplete}
@@ -141,7 +149,7 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-[var(--text-secondary)]">Shape</span>
-            {aspectBtn('Free', undefined)}
+            {aspectBtn('Photo', undefined)}
             {aspectBtn('1:1', 1)}
           </div>
           <button onClick={resetView} className="btn-ghost text-xs flex items-center gap-1">

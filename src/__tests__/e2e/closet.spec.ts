@@ -91,7 +91,7 @@ test('edits an item and the change persists', async ({ page }) => {
   await expect(item(page, 'White T-Shirt')).toHaveCount(0);
 });
 
-test("re-crops and tilts an item's photo after it was added", async ({ page }) => {
+test("re-crops and tilts an item's photo, then restores the original", async ({ page }) => {
   const { db, userId } = await testDb();
   const before = ok(
     await db
@@ -126,6 +126,19 @@ test("re-crops and tilts an item's photo after it was added", async ({ page }) =
   const names = (files ?? []).map((f) => `${userId}/${f.name}`);
   expect(names).toContain(after!.image_url);
   expect(names).not.toContain(before!.image_url);
+
+  // The photo from before the crop is kept, so the crop can be undone.
+  const originals = ok(await db.storage.from(BUCKET).list(`${userId}/originals`), 'list');
+  expect((originals ?? []).map((f) => f.name)).toContain(before!.id);
+  await dialog.getByRole('button', { name: /Restore original photo/ }).click();
+  await expect(toast(page, 'Original photo restored.')).toBeVisible();
+  const restored = ok(
+    await db.from('clothing_items').select('image_url').eq('id', before!.id).single(),
+    'item',
+  );
+  expect(restored!.image_url).not.toBe(after!.image_url);
+  const kept = ok(await db.storage.from(BUCKET).list(`${userId}/originals`), 'list');
+  expect((kept ?? []).map((f) => f.name)).toContain(before!.id);
 });
 
 test('deletes an item and its photo', async ({ page, seeded }) => {

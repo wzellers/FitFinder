@@ -8,13 +8,27 @@ const area = { x: 10, y: 10, width: 80, height: 80 };
 // shows the rotation it was given.
 function FakeCropper({
   rotation,
+  aspect,
   onCropComplete,
+  onMediaLoaded,
 }: {
   rotation: number;
+  aspect?: number;
   onCropComplete: (a: typeof area) => void;
+  onMediaLoaded?: (m: {
+    width: number;
+    height: number;
+    naturalWidth: number;
+    naturalHeight: number;
+  }) => void;
 }) {
   React.useEffect(() => onCropComplete(area), [onCropComplete]);
-  return <div data-testid="cropper" data-rotation={rotation} />;
+  // A tall photo, 300 × 600.
+  React.useEffect(
+    () => onMediaLoaded?.({ width: 150, height: 300, naturalWidth: 300, naturalHeight: 600 }),
+    [onMediaLoaded],
+  );
+  return <div data-testid="cropper" data-rotation={rotation} data-aspect={aspect ?? ''} />;
 }
 vi.mock('react-easy-crop', () => ({ default: FakeCropper }));
 
@@ -52,5 +66,17 @@ describe('ImageCropper', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rotate 90 degrees' }));
     fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
     expect(rotation()).toBe(0);
+  });
+
+  it("starts the crop box at the photo's own shape, so nothing is cut off", () => {
+    render(<ImageCropper imageSrc="blob:x" onCancel={vi.fn()} onCropComplete={vi.fn()} />);
+    const aspect = () => Number(screen.getByTestId('cropper').dataset.aspect);
+    expect(aspect()).toBe(0.5); // the tall photo, not a fixed 4:3 box
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate 90 degrees' }));
+    expect(aspect()).toBe(2); // turned on its side
+    fireEvent.click(screen.getByRole('button', { name: '1:1' }));
+    expect(aspect()).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Photo' }));
+    expect(aspect()).toBe(2);
   });
 });

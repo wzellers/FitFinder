@@ -15,15 +15,33 @@ const mockDelete = vi.fn();
 const mockEq = vi.fn();
 
 const mockReplaceImage = vi.hoisted(() => vi.fn(() => Promise.resolve('u1/new.png')));
-vi.mock('@/lib/uploadPipeline', () => ({ replaceItemImage: mockReplaceImage }));
+const mockRestore = vi.hoisted(() => vi.fn(() => Promise.resolve('u1/restored.png')));
+// Whether the item has a kept original (from an earlier re-crop).
+const mockOriginal = vi.hoisted(() => ({ kept: false }));
+vi.mock('@/lib/uploadPipeline', () => ({
+  replaceItemImage: mockReplaceImage,
+  restoreOriginalImage: mockRestore,
+  originalImagePath: (userId: string, itemId: string) => `${userId}/originals/${itemId}`,
+}));
 vi.mock('@/lib/clothingImages', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/clothingImages')>()),
-  getClothingImageUrl: vi.fn((url: string) => Promise.resolve(`signed:${url}`)),
+  getClothingImageUrl: vi.fn((url: string) =>
+    Promise.resolve(url.includes('/originals/') && !mockOriginal.kept ? null : `signed:${url}`),
+  ),
 }));
-// The real cropper needs a canvas; this one hands back a blob on click.
+// The real cropper needs a canvas; this one shows what it was given and
+// hands back a blob on click.
 vi.mock('@/components/ui/ImageCropper', () => ({
-  default: ({ onCropComplete }: { onCropComplete: (b: Blob) => void }) => (
-    <button onClick={() => onCropComplete(new Blob(['png']))}>Apply test crop</button>
+  default: ({
+    imageSrc,
+    onCropComplete,
+  }: {
+    imageSrc: string;
+    onCropComplete: (b: Blob) => void;
+  }) => (
+    <button data-src={imageSrc} onClick={() => onCropComplete(new Blob(['png']))}>
+      Apply test crop
+    </button>
   ),
 }));
 vi.mock('@/components/ui/ClothingImage', () => ({
@@ -167,5 +185,44 @@ describe('EditItem', () => {
     // Changing the main colour keeps the second one.
     fireEvent.click(screen.getAllByRole('button', { name: 'Black' })[0]);
     expect(white.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  describe('the original photo', () => {
+    beforeEach(() => {
+      mockOriginal.kept = false;
+      mockRestore.mockClear();
+    });
+
+    it('has nothing to restore until the photo has been re-cropped', async () => {
+      renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
+      fireEvent.click(screen.getByRole('button', { name: /Adjust \/ crop/ }));
+      // Crops the current photo.
+      expect((await screen.findByText('Apply test crop')).dataset.src).toBe(
+        `signed:${item.image_url}`,
+      );
+      expect(screen.queryByRole('button', { name: /Restore original photo/ })).toBeNull();
+    });
+
+    it('re-crops from the kept original, so an earlier crop can be redone', async () => {
+      mockOriginal.kept = true;
+      renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
+      await screen.findByRole('button', { name: /Restore original photo/ });
+      fireEvent.click(screen.getByRole('button', { name: /Adjust \/ crop/ }));
+      expect((await screen.findByText('Apply test crop')).dataset.src).toBe(
+        `signed:u1/originals/${item.id}`,
+      );
+    });
+
+    it('restores the original photo', async () => {
+      mockOriginal.kept = true;
+      renderWithProviders(<EditItem isOpen={true} onClose={vi.fn()} item={item} />);
+      fireEvent.click(await screen.findByRole('button', { name: /Restore original photo/ }));
+      await waitFor(() =>
+        expect(mockRestore).toHaveBeenCalledWith(
+          expect.objectContaining({ itemId: item.id, currentImageUrl: item.image_url }),
+        ),
+      );
+      expect(await screen.findByText('Original photo restored.')).toBeTruthy();
+    });
   });
 });

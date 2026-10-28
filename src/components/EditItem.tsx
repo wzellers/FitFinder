@@ -2,13 +2,13 @@
 
 import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
-import React, { useState, useEffect } from 'react';
-import { Trash2, Crop } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Trash2, Crop, RotateCcw } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import ClothingImage from '@/components/ui/ClothingImage';
 import Dropdown from '@/components/ui/Dropdown';
 import ImageCropper from '@/components/ui/ImageCropper';
-import { replaceItemImage } from '@/lib/uploadPipeline';
+import { originalImagePath, replaceItemImage, restoreOriginalImage } from '@/lib/uploadPipeline';
 import { useAuth } from '@/hooks/useAuth';
 import { ITEM_PHOTO_TRANSITION } from '@/lib/viewTransition';
 import { getClothingImageUrl, imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
@@ -44,6 +44,8 @@ export default function EditItem({
   // The photo shown (it changes after a re-crop) and the cropper's source.
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  // The photo as it was before its first re-crop, if it has been re-cropped.
+  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -59,9 +61,22 @@ export default function EditItem({
     }
   }, [item]);
 
+  // Is there a kept original (from an earlier re-crop)?
+  const findOriginal = useCallback(async () => {
+    if (!item || !user) return null;
+    const url = await getClothingImageUrl(originalImagePath(user.id, item.id));
+    setOriginalUrl(url);
+    return url;
+  }, [item, user]);
+  useEffect(() => {
+    setOriginalUrl(null);
+    if (isOpen) void findOriginal();
+  }, [isOpen, findOriginal]);
+
   // Re-crop or zoom the photo of an item already in the closet.
   const openCropper = async () => {
-    const url = await getClothingImageUrl(imageUrl);
+    // Crop from the whole original, so an earlier crop can be redone.
+    const url = originalUrl ?? (await getClothingImageUrl(imageUrl));
     if (url) setCropSrc(url);
     else showToast("Couldn't load the photo. Try again.", 'error');
   };
@@ -77,10 +92,29 @@ export default function EditItem({
         blob,
       });
       setImageUrl(path);
+      void findOriginal();
       showToast('Photo updated.', 'success');
       onItemUpdated?.();
     } catch {
       showToast("Couldn't save the new crop. Try again.", 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+  const restoreOriginal = async () => {
+    if (!item || !user) return;
+    setUpdating(true);
+    try {
+      const path = await restoreOriginalImage({
+        userId: user.id,
+        itemId: item.id,
+        currentImageUrl: imageUrl,
+      });
+      setImageUrl(path);
+      showToast('Original photo restored.', 'success');
+      onItemUpdated?.();
+    } catch {
+      showToast("Couldn't restore the original photo. Try again.", 'error');
     } finally {
       setUpdating(false);
     }
@@ -115,7 +149,10 @@ export default function EditItem({
     try {
       const { error } = await supabase.from('clothing_items').delete().eq('id', item.id);
       if (error) throw error;
-      await removeClothingImages([imagePathFromUrl(item.image_url)]);
+      await removeClothingImages([
+        imagePathFromUrl(imageUrl),
+        user ? originalImagePath(user.id, item.id) : null,
+      ]);
       showToast('Item deleted.', 'success');
       onItemDeleted?.();
       setTimeout(onClose, 800);
@@ -170,6 +207,15 @@ export default function EditItem({
             >
               <Crop size={14} aria-hidden="true" /> Adjust / crop
             </button>
+            {originalUrl && (
+              <button
+                onClick={restoreOriginal}
+                disabled={updating}
+                className="btn-ghost w-full text-sm"
+              >
+                <RotateCcw size={14} aria-hidden="true" /> Restore original photo
+              </button>
+            )}
           </div>
           <div className="flex flex-col items-start gap-3">
             <span className={isDirty ? 'badge-dirty' : 'badge-clean'}>
