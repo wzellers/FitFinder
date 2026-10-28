@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-28 (daily email opens its outfit; unworn list removed)
+**Last updated:** 2026-10-28 (vision test set from the closet)
 
 ## What's live
 
@@ -125,6 +125,13 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   its data, and the sign-out test ends all of its sessions.
 - Claude can't run the end-to-end suite itself (it signs in with a password),
   so the user runs `npm run test:e2e` and Claude reads the terminal output.
+
+- **Detection accuracy:** `scripts/exportVisionSet.mjs <email> <folder>` saves a
+  user's closet photos with `labels.json` (type, main colour) and a
+  `review.html` contact sheet (needs `SUPABASE_SERVICE_ROLE_KEY` in
+  `.env.local`); `scripts/measureVision.mjs <folder> [url]` then measures
+  latency and accuracy. Labels start as Claude's own guesses, so review them
+  first.
 
 ## Decisions to keep
 
