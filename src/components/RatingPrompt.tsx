@@ -1,5 +1,6 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { Minus } from 'lucide-react';
@@ -70,17 +71,13 @@ export default function RatingPrompt({
   return (
     <Modal label="Rate yesterday's outfit" onClose={onMinimize} className="max-w-sm">
       {/* Header */}
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-xl">How was yesterday&apos;s outfit?</h3>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            {formatDate(pendingRating.worn_date)}
-          </p>
-        </div>
-        <button onClick={onMinimize} className="btn-ghost px-2" aria-label="Remind me later">
-          <Minus size={14} />
-        </button>
-      </div>
+      <ModalHeader
+        title="How was yesterday's outfit?"
+        subtitle={formatDate(pendingRating.worn_date)}
+        onClose={onMinimize}
+        closeLabel="Remind me later"
+        closeIcon={<Minus size={16} aria-hidden="true" />}
+      />
 
       {/* Outfit Preview */}
       <div className="flex justify-center gap-2 mb-5 flex-wrap">

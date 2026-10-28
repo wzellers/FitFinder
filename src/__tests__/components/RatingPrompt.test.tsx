@@ -103,8 +103,7 @@ describe('RatingPrompt', () => {
         onMinimize={onMinimize}
       />,
     );
-    const minBtn = document.querySelector('.btn-ghost');
-    if (minBtn) fireEvent.click(minBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Remind me later' }));
     expect(onMinimize).toHaveBeenCalledTimes(1);
   });
 

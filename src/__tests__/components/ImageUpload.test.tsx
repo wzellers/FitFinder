@@ -70,8 +70,7 @@ describe('ImageUpload', () => {
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn();
     renderWithProviders(<ImageUpload isOpen={true} onClose={onClose} />);
-    const closeBtn = document.querySelector('.btn-ghost');
-    if (closeBtn) fireEvent.click(closeBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalled();
   });
 

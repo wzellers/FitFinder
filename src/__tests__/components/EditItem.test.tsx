@@ -51,7 +51,7 @@ describe('EditItem', () => {
     expect(screen.getAllByRole('button', { name: 'Blue' })[0].getAttribute('aria-pressed')).toBe(
       'true',
     );
-    expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('T-Shirt');
+    expect(screen.getByRole('button', { name: 'Type: T-Shirt' })).toBeTruthy();
   });
 
   it('shows ConfirmDialog when delete button is clicked', () => {

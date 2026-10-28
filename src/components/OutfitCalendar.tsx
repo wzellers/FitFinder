@@ -1,10 +1,12 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ClothingImage from '@/components/ui/ClothingImage';
+import Dropdown from '@/components/ui/Dropdown';
 import PosterHeader from '@/components/ui/PosterHeader';
 import { supabase } from '@/lib/supabaseClient';
 import { forgetWearLearning, syncWearLearning } from '@/lib/outfitLearning';
@@ -413,23 +415,15 @@ export default function OutfitCalendar() {
           onClose={() => setShowLogModal(false)}
           className="max-w-3xl"
         >
-          <div className="flex justify-between items-center mb-5">
-            <h3 className="text-xl">
-              {selectedOutfitWear ? 'Edit outfit' : 'Log outfit'} for{' '}
-              {selectedDate.toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </h3>
-            <button
-              onClick={() => setShowLogModal(false)}
-              className="btn-ghost px-2"
-              aria-label="Close"
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
+          <ModalHeader
+            title={selectedOutfitWear ? 'Edit outfit' : 'Log outfit'}
+            subtitle={selectedDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+            onClose={() => setShowLogModal(false)}
+          />
 
           {/* Mode toggle */}
           <div className="flex gap-2 mb-5">
@@ -457,22 +451,23 @@ export default function OutfitCalendar() {
           </div>
 
           {logMode === 'saved' && (
-            <select
-              aria-label="Saved outfit"
+            <Dropdown
+              label="Saved outfit"
               value={selectedSavedOutfit}
-              onChange={(e) => handleSavedOutfitSelect(e.target.value)}
-              className="w-full mb-5 min-h-[44px]"
-            >
-              <option value="">Choose a saved outfit…</option>
-              {savedOutfits.map((o, idx) => (
-                <option key={o.id} value={o.id}>
-                  {o.name ||
+              onChange={handleSavedOutfitSelect}
+              className="mb-5"
+              options={[
+                { value: '', label: 'Choose a saved outfit…' },
+                ...savedOutfits.map((o, idx) => ({
+                  value: o.id!,
+                  label:
+                    o.name ||
                     (o.created_at
                       ? `Outfit from ${new Date(o.created_at).toLocaleDateString()}`
-                      : `Outfit #${idx + 1}`)}
-                </option>
-              ))}
-            </select>
+                      : `Outfit #${idx + 1}`),
+                })),
+              ]}
+            />
           )}
 
           <div className="space-y-5 mb-5">

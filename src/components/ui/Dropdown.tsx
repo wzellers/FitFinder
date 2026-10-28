@@ -17,6 +17,9 @@ interface DropdownProps {
   options: DropdownOption[];
   onChange: (value: string) => void;
   className?: string;
+  disabled?: boolean;
+  /** Required and still unset: outlined in red. */
+  invalid?: boolean;
 }
 
 /**
@@ -30,6 +33,8 @@ export default function Dropdown({
   options,
   onChange,
   className = '',
+  disabled = false,
+  invalid = false,
 }: DropdownProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -102,7 +107,8 @@ export default function Dropdown({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={`${id}-list`}
-        aria-label={`${label}: ${selected?.label ?? ''}`}
+        aria-label={`${label}: ${selected?.label ?? ''}${invalid ? ' (required)' : ''}`}
+        disabled={disabled}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -110,10 +116,12 @@ export default function Dropdown({
             openList();
           }
         }}
-        className={`min-h-[36px] pl-4 pr-3 rounded-full border text-sm font-semibold inline-flex items-center gap-2 transition-colors ${
-          chosen
-            ? 'border-[var(--accent)] bg-[var(--accent-light)] text-[var(--text)]'
-            : 'border-[var(--line-strong)] bg-white text-[var(--text)] hover:bg-[var(--muted)]'
+        className={`min-h-[40px] pl-4 pr-3 rounded-full border text-sm font-semibold inline-flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+          invalid
+            ? 'border-[var(--danger)] ring-1 ring-[var(--danger)] bg-white text-[var(--text)]'
+            : chosen
+              ? 'border-[var(--accent)] bg-[var(--accent-light)] text-[var(--text)]'
+              : 'border-[var(--line-strong)] bg-white text-[var(--text)] hover:bg-[var(--muted)]'
         }`}
       >
         {selected?.swatch && (

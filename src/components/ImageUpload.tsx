@@ -1,5 +1,6 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -14,6 +15,7 @@ import {
   Camera,
 } from 'lucide-react';
 import ScrambleText from '@/components/ui/ScrambleText';
+import Dropdown from '@/components/ui/Dropdown';
 import { usePhotoDrop } from '@/hooks/usePhotoDrop';
 import { findLookalike } from '@/lib/lookalike';
 import { describeItem } from '@/lib/itemLabels';
@@ -428,12 +430,15 @@ export default function ImageUpload({
       className={isGrid ? 'max-w-5xl' : 'max-w-2xl'}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl">{isGrid ? `Add ${drafts.length} items` : 'Add an item'}</h2>
-        <button onClick={closeModal} className="btn-ghost px-2" aria-label="Close">
-          <X size={18} aria-hidden="true" />
-        </button>
-      </div>
+      <ModalHeader
+        title={isGrid ? `Add ${drafts.length} items` : 'Add an item'}
+        subtitle={
+          stage === 'select'
+            ? 'Photos of single pieces work best.'
+            : 'Check what we found, then add to your closet.'
+        }
+        onClose={closeModal}
+      />
 
       {/* Shared hidden file input (used by both the select and review stages). */}
       <input
@@ -755,36 +760,31 @@ function TypeSelects({
   onCategoryChange: (c: ClothingSection | '') => void;
   onTypeChange: (t: string) => void;
 }) {
-  const errorRing = 'border-[var(--danger)] ring-1 ring-[var(--danger)] bg-[#fbeceb]';
   return (
     <>
-      <select
-        aria-label="Category"
-        aria-invalid={invalid && !draft.category ? true : undefined}
+      <Dropdown
+        label="Category"
         value={draft.category}
-        onChange={(e) => onCategoryChange(e.target.value as ClothingSection | '')}
-        className={`w-48 text-center ${invalid && !draft.category ? errorRing : ''}`}
-      >
-        <option value="">Choose a category</option>
-        <option value="Tops">Tops</option>
-        <option value="Bottoms">Bottoms</option>
-        <option value="Shoes">Shoes</option>
-      </select>
+        onChange={(c) => onCategoryChange(c as ClothingSection | '')}
+        invalid={invalid && !draft.category}
+        options={[
+          { value: '', label: 'Choose a category' },
+          { value: 'Tops', label: 'Tops' },
+          { value: 'Bottoms', label: 'Bottoms' },
+          { value: 'Shoes', label: 'Shoes' },
+        ]}
+      />
       {draft.category && (
-        <select
-          aria-label="Type"
-          aria-invalid={invalid && !draft.type ? true : undefined}
+        <Dropdown
+          label="Type"
           value={draft.type}
-          onChange={(e) => onTypeChange(e.target.value)}
-          className={`w-48 text-center ${invalid && !draft.type ? errorRing : ''}`}
-        >
-          <option value="">Choose a type</option>
-          {clothingTypes[draft.category]?.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+          onChange={onTypeChange}
+          invalid={invalid && !draft.type}
+          options={[
+            { value: '', label: 'Choose a type' },
+            ...(clothingTypes[draft.category] ?? []).map((t) => ({ value: t, label: t })),
+          ]}
+        />
       )}
     </>
   );

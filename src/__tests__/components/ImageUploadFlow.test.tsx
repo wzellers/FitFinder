@@ -61,11 +61,11 @@ describe('Adding items', () => {
     choose([photo()]);
     expect(await screen.findByRole('button', { name: 'Type: T-Shirt. Edit' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Main color: Red. Edit' })).toBeTruthy();
-    expect(screen.queryByLabelText('Category')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Category:/ })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Type: T-Shirt. Edit' }));
-    expect(screen.getByLabelText('Category')).toBeTruthy();
-    expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('T-Shirt');
+    expect(screen.getByRole('button', { name: 'Category: Tops' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Type: T-Shirt' })).toBeTruthy();
   });
 
   it('opens the editors straight away when detection finds nothing', async () => {
@@ -76,7 +76,10 @@ describe('Adding items', () => {
     });
     renderWithProviders(<ImageUpload isOpen onClose={vi.fn()} />);
     choose([photo()]);
-    expect(await screen.findByLabelText('Category')).toBeTruthy();
+    // Required and unset: marked for the user (and screen readers).
+    expect(
+      await screen.findByRole('button', { name: 'Category: Choose a category (required)' }),
+    ).toBeTruthy();
   });
 
   it('removes backgrounds automatically, with a slider to compare', async () => {

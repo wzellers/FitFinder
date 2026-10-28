@@ -202,13 +202,6 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
     );
   }
 
-  const chip = (active: boolean) =>
-    `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
-      active
-        ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]'
-        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
-    }`;
-
   return (
     <div className="w-full">
       <PosterHeader
@@ -269,7 +262,7 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
               key={status}
               onClick={() => setFilterDirty(status)}
               aria-pressed={filterDirty === status}
-              className={chip(filterDirty === status)}
+              className="toggle-pill"
             >
               {status === 'all' ? 'All' : status === 'clean' ? 'Clean' : 'Dirty'}
             </button>
@@ -279,7 +272,7 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
         <button
           onClick={() => setHideEmpty(!hideEmpty)}
           aria-pressed={hideEmpty}
-          className={chip(hideEmpty)}
+          className="toggle-pill"
         >
           Hide empty types
         </button>

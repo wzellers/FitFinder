@@ -1,10 +1,12 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import ClothingImage from '@/components/ui/ClothingImage';
+import Dropdown from '@/components/ui/Dropdown';
 import { ITEM_PHOTO_TRANSITION } from '@/lib/viewTransition';
 import { imagePathFromUrl, removeClothingImages } from '@/lib/clothingImages';
 import { useToast } from '@/components/ToastProvider';
@@ -112,14 +114,7 @@ export default function EditItem({
   return (
     <>
       <Modal label={`Edit ${describeItem(item)}`} onClose={onClose} className="max-w-2xl">
-        <div className="flex items-start justify-between gap-3 mb-5">
-          <div>
-            <h2 className="text-2xl">Edit item</h2>
-          </div>
-          <button onClick={onClose} className="btn-ghost px-2" aria-label="Close">
-            <X size={18} aria-hidden="true" />
-          </button>
-        </div>
+        <ModalHeader title="Edit item" subtitle={describeItem(item)} onClose={onClose} />
 
         <div className="flex items-center gap-5 mb-6">
           <div className="item-card w-36 shrink-0">
@@ -146,42 +141,37 @@ export default function EditItem({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="edit-item-category" className="text-sm font-semibold">
-              Category
-            </label>
-            <select
-              id="edit-item-category"
+            <span className="text-sm font-semibold">Category</span>
+            <Dropdown
+              label="Category"
               value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value);
+              onChange={(c) => {
+                setSelectedCategory(c);
                 setSelectedType('');
               }}
-              className="min-h-[44px]"
-            >
-              <option value="">Choose a category</option>
-              <option value="Tops">Tops</option>
-              <option value="Bottoms">Bottoms</option>
-              <option value="Shoes">Shoes</option>
-            </select>
+              options={[
+                { value: '', label: 'Choose a category' },
+                { value: 'Tops', label: 'Tops' },
+                { value: 'Bottoms', label: 'Bottoms' },
+                { value: 'Shoes', label: 'Shoes' },
+              ]}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="edit-item-type" className="text-sm font-semibold">
-              Type
-            </label>
-            <select
-              id="edit-item-type"
+            <span className="text-sm font-semibold">Type</span>
+            <Dropdown
+              label="Type"
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
+              onChange={setSelectedType}
               disabled={!selectedCategory}
-              className="min-h-[44px]"
-            >
-              <option value="">Choose a type</option>
-              {clothingTypes[selectedCategory as ClothingSection]?.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Choose a type' },
+                ...(clothingTypes[selectedCategory as ClothingSection] ?? []).map((t) => ({
+                  value: t,
+                  label: t,
+                })),
+              ]}
+            />
           </div>
         </div>
 

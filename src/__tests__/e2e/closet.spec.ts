@@ -77,7 +77,8 @@ test('edits an item and the change persists', async ({ page }) => {
   await expect(dialog).toBeVisible();
   await expectImagesLoaded(page, '[role="dialog"] img');
 
-  await dialog.getByLabel('Type').selectOption('Polo');
+  await dialog.getByRole('button', { name: /^Type: / }).click();
+  await page.getByRole('option', { name: 'Polo' }).click();
   await dialog
     .getByRole('group', { name: /Main color/ })
     .getByRole('button', { name: 'Gray' })
@@ -131,7 +132,7 @@ test('adds an item from a photo', async ({ page }) => {
   // What detection found shows as chips; tapping one opens the editors.
   await expect(dialog.getByRole('button', { name: 'Type: T-Shirt. Edit' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Main color: Red. Edit' }).click();
-  await expect(dialog.getByLabel('Type', { exact: true })).toHaveValue('T-Shirt');
+  await expect(dialog.getByRole('button', { name: 'Type: T-Shirt', exact: true })).toBeVisible();
   await expect(
     dialog.getByRole('group', { name: 'Main color' }).getByRole('button', { name: 'Red' }),
   ).toHaveAttribute('aria-pressed', 'true');

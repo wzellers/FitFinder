@@ -1,10 +1,11 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useCallback, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
-import { Loader2, X, RotateCcw } from 'lucide-react';
+import { Loader2, RotateCcw } from 'lucide-react';
 import { getCroppedBlob } from '@/lib/imageCrop';
 
 interface ImageCropperProps {
@@ -63,12 +64,7 @@ export default function ImageCropper({ imageSrc, onCancel, onCropComplete }: Ima
   return (
     <Modal label="Adjust and crop" onClose={onCancel} dismissible={!saving}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-[var(--text)]">Adjust &amp; crop</h2>
-        <button onClick={onCancel} className="btn-ghost p-1" aria-label="Cancel crop">
-          <X size={18} />
-        </button>
-      </div>
+      <ModalHeader title="Adjust & crop" onClose={onCancel} closeLabel="Cancel crop" />
 
       {/* Crop area */}
       <div className="relative w-full h-64 sm:h-80 rounded-lg overflow-hidden bg-[var(--muted)] border border-[var(--border)]">

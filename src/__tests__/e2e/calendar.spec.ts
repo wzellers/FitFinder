@@ -157,7 +157,8 @@ test('logs a day from a saved outfit', async ({ page, seeded }) => {
   await dayCell(page, 2).click();
   const dialog = page.getByRole('dialog', { name: /^Log outfit for / });
   await dialog.getByRole('button', { name: 'From a saved outfit' }).click();
-  await dialog.getByLabel('Saved outfit').selectOption({ label: 'E2E Work' });
+  await dialog.getByRole('button', { name: /^Saved outfit: / }).click();
+  await page.getByRole('option', { name: 'E2E Work' }).click();
   await dialog.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(dialog).toHaveCount(0);
 

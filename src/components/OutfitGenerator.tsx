@@ -1,5 +1,6 @@
 'use client';
 
+import ModalHeader from '@/components/ui/ModalHeader';
 import Modal from '@/components/ui/Modal';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -10,7 +11,6 @@ import {
   CloudSun,
   CalendarPlus,
   CloudOff,
-  X,
   Calendar,
   Trash2,
   ChevronLeft,
@@ -822,13 +822,6 @@ export default function OutfitGenerator({
     },
   ];
 
-  const chip = (active: boolean) =>
-    `min-h-[36px] px-3 rounded-full border text-sm font-semibold transition-colors ${
-      active
-        ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]'
-        : 'bg-white text-[var(--text-secondary)] border-[var(--line-strong)] hover:text-[var(--text)]'
-    }`;
-
   if (loading && items.length === 0) {
     return (
       <div className="w-full">
@@ -876,7 +869,7 @@ export default function OutfitGenerator({
                 <button
                   onClick={() => setOccasion(null)}
                   aria-pressed={occasion === null}
-                  className={chip(occasion === null)}
+                  className="toggle-pill"
                 >
                   Any
                 </button>
@@ -885,7 +878,7 @@ export default function OutfitGenerator({
                     key={o}
                     onClick={() => setOccasion(o)}
                     aria-pressed={occasion === o}
-                    className={chip(occasion === o)}
+                    className="toggle-pill"
                   >
                     {o}
                   </button>
@@ -1262,7 +1255,7 @@ export default function OutfitGenerator({
       {/* Save name modal */}
       {showSaveModal && (
         <Modal label="Save outfit" onClose={() => setShowSaveModal(false)} className="max-w-sm">
-          <h3 className="text-xl mb-4">Save outfit</h3>
+          <ModalHeader title="Save outfit" onClose={() => setShowSaveModal(false)} />
           <label htmlFor="save-outfit-name" className="text-sm font-semibold mb-1.5 block">
             Name
           </label>
@@ -1296,16 +1289,11 @@ export default function OutfitGenerator({
           onClose={() => setPickerSlot(null)}
           className="max-w-3xl"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl">Choose a {pickerSlot}</h3>
-            <button
-              onClick={() => setPickerSlot(null)}
-              className="btn-ghost px-2"
-              aria-label="Close"
-            >
-              <X size={16} />
-            </button>
-          </div>
+          <ModalHeader
+            title={`Choose a ${pickerSlot}`}
+            subtitle="Clean pieces only. Picking one keeps it in the outfit."
+            onClose={() => setPickerSlot(null)}
+          />
           {pickerItems.length === 0 ? (
             <p className="text-sm text-[var(--text-secondary)] text-center py-6">
               No clean {pickerSlot === 'shoes' ? 'shoes' : `${pickerSlot}s`} in your closet. Add
