@@ -528,36 +528,38 @@ function Shamrock({ size, style }: { size: number; style: React.CSSProperties })
 }
 
 function FlowerRow() {
+  // Each flower is its own small drawing at a fixed size, spread across the
+  // bottom, so none is cropped however wide the screen is.
   return (
-    <svg
-      className="sz-ground"
-      data-testid="seasonal-flowers"
-      viewBox="0 0 400 40"
-      preserveAspectRatio="xMidYMax slice"
-      width="100%"
-      height="56"
-    >
-      {range(22).map((i) => {
-        const x = 8 + i * 18 + rand(i, 1) * 6;
-        const h = 14 + rand(i, 2) * 14;
+    <div className="sz-ground h-16" data-testid="seasonal-flowers">
+      {range(28).map((i) => {
+        const h = 22 + rand(i, 2) * 26;
         const c = PASTELS[i % PASTELS.length];
         return (
-          <g key={i} className="sz-sway" style={{ transformOrigin: `${x}px 40px` }}>
-            <path d={`M${x} 40 V${40 - h}`} stroke="#4f8a3a" strokeWidth="1.6" />
+          <svg
+            key={i}
+            className="sz-flower sz-sway"
+            style={{ left: `${(i + 0.2 + rand(i, 1) * 0.6) * (100 / 28)}%` }}
+            viewBox={`-8 ${-h - 8} 16 ${h + 8}`}
+            width="16"
+            height={h + 8}
+          >
+            <path d={`M0 0 V${-h}`} stroke="#4f8a3a" strokeWidth="1.6" />
+            <path d={`M0 ${-h * 0.4} q5 -4 7 -1 q-3 3 -7 1`} fill="#5f9e46" />
             {range(5).map((p) => (
               <circle
                 key={p}
-                cx={x + 3.2 * Math.cos((p * 2 * Math.PI) / 5)}
-                cy={40 - h + 3.2 * Math.sin((p * 2 * Math.PI) / 5)}
-                r="2.6"
+                cx={3.4 * Math.cos((p * 2 * Math.PI) / 5)}
+                cy={-h + 3.4 * Math.sin((p * 2 * Math.PI) / 5)}
+                r="2.8"
                 fill={c}
               />
             ))}
-            <circle cx={x} cy={40 - h} r="1.8" fill="#f5c542" />
-          </g>
+            <circle cx="0" cy={-h} r="2" fill="#f5c542" />
+          </svg>
         );
       })}
-    </svg>
+    </div>
   );
 }
 
@@ -581,67 +583,92 @@ function Butterfly() {
 
 function EasterGrass() {
   return (
-    <svg
-      className="sz-ground"
-      data-testid="seasonal-eggs"
-      viewBox="0 0 400 50"
-      preserveAspectRatio="xMidYMax slice"
-      width="100%"
-      height="70"
-    >
-      <path
-        d={`M0 50 ${range(81)
-          .map((i) => `L${i * 5} ${i % 2 ? 30 + rand(i, 1) * 8 : 40}`)
-          .join(' ')} L400 50 Z`}
-        fill="#7cc46a"
-      />
-      {range(7).map((i) => {
-        const x = 30 + i * 55 + rand(i, 1) * 20;
+    <div className="sz-ground h-20" data-testid="seasonal-eggs">
+      {/* Grass stretches to fit; the eggs are drawn at a fixed size on it. */}
+      <svg
+        className="absolute inset-x-0 bottom-0 w-full h-12"
+        viewBox="0 0 400 50"
+        preserveAspectRatio="none"
+      >
+        <path
+          d={`M0 50 ${range(81)
+            .map((i) => `L${i * 5} ${i % 2 ? 6 + rand(i, 1) * 16 : 26}`)
+            .join(' ')} L400 50 Z`}
+          fill="#7cc46a"
+        />
+      </svg>
+      {range(9).map((i) => {
         const c = PASTELS[i % PASTELS.length];
         return (
-          <g key={i} transform={`translate(${x} 38) rotate(${(rand(i, 2) - 0.5) * 30})`}>
-            <ellipse rx="8" ry="10.5" fill={c} stroke="rgba(0,0,0,0.08)" />
+          <svg
+            key={i}
+            className="sz-egg"
+            style={{
+              left: `${6 + i * 11 + rand(i, 1) * 4}%`,
+              rotate: `${(rand(i, 2) - 0.5) * 30}deg`,
+            }}
+            viewBox="-10 -12 20 24"
+            width="26"
+            height="32"
+          >
+            <ellipse rx="8.5" ry="11" fill={c} stroke="rgba(0,0,0,0.1)" />
             <path
-              d="M-8 0 L-5 -3 L-2 0 L1 -3 L4 0 L8 -3"
+              d="M-8.5 0 L-5 -3 L-1.5 0 L2 -3 L5.5 0 L8.5 -3"
               fill="none"
               stroke="#ffffff"
               strokeWidth="1.6"
             />
-            <path d="M-7 4 H7" stroke={PASTELS[(i + 2) % PASTELS.length]} strokeWidth="2" />
-          </g>
+            <path d="M-7.5 5 H7.5" stroke={PASTELS[(i + 2) % PASTELS.length]} strokeWidth="2.2" />
+            <circle cx="-3" cy="-7" r="1.2" fill="#ffffff" />
+            <circle cx="3" cy="-6" r="1.2" fill="#ffffff" />
+          </svg>
         );
       })}
-    </svg>
+    </div>
   );
 }
 
 function Vine({ side }: { side: 'left' | 'right' }) {
+  // Grows the full height of the screen, winding up the edge.
+  const H = 800;
+  const turns = 7;
+  const stem = range(turns + 1)
+    .map((i) => {
+      const y = H - (i * H) / turns;
+      if (i === 0) return `M40 ${y}`;
+      const prevY = H - ((i - 1) * H) / turns;
+      const bend = i % 2 ? 72 : 8;
+      return `C${bend} ${prevY - (H / turns) * 0.3} ${bend} ${y + (H / turns) * 0.3} 40 ${y}`;
+    })
+    .join(' ');
   return (
     <svg
       className={`sz-vine sz-vine-${side}`}
       data-testid="seasonal-vine"
-      viewBox="0 0 80 300"
-      width="90"
-      height="320"
+      viewBox={`0 0 80 ${H}`}
+      preserveAspectRatio="xMidYMax meet"
     >
       <path
         className="sz-vine-stem"
-        d="M40 300 C10 250 70 210 40 160 C10 110 70 70 40 10"
+        d={stem}
+        pathLength={1}
         fill="none"
         stroke="#3f7d3a"
         strokeWidth="3"
         strokeLinecap="round"
       />
-      {range(9).map((i) => {
-        const y = 280 - i * 31;
-        const x = 40 + (i % 2 ? 18 : -18) * Math.sin((y / 300) * Math.PI);
+      {range(22).map((i) => {
+        const y = H - 20 - i * ((H - 40) / 21);
+        const t = (H - y) / (H / turns);
+        const x = 40 + 26 * Math.sin(t * Math.PI) * (Math.floor(t) % 2 ? -1 : 1);
+        const out = i % 2 ? 1 : -1;
         return (
           <path
             key={i}
             className="sz-vine-leaf"
-            style={{ animationDelay: `${0.3 + i * 0.25}s` }}
-            d={`M${x} ${y} c${i % 2 ? 10 : -10} -8 ${i % 2 ? 16 : -16} 2 0 8 Z`}
-            fill="#5aa64a"
+            style={{ animationDelay: `${0.2 + (i / 22) * 2.6}s` }}
+            d={`M${x} ${y} c${out * 10} -9 ${out * 18} 1 0 9 Z`}
+            fill={i % 3 ? '#5aa64a' : '#76bf5e'}
           />
         );
       })}
@@ -834,21 +861,65 @@ function Bunting() {
 }
 
 function Icicles() {
+  // A snowy ledge with icicles of many lengths: each tapers to a point,
+  // shaded from frosty white to clear blue, with a glint down one side and
+  // now and then a drip.
+  const n = 120;
   return (
     <svg
-      className="absolute inset-x-0 top-0 w-full"
+      className="absolute inset-x-0 top-0 w-full h-16"
       data-testid="seasonal-icicles"
-      viewBox="0 0 400 30"
-      preserveAspectRatio="none"
-      height="30"
+      viewBox="0 0 1600 64"
+      preserveAspectRatio="xMinYMin slice"
     >
+      <defs>
+        <linearGradient id="sz-ice" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f4fbff" />
+          <stop offset="0.5" stopColor="#bfe0f7" />
+          <stop offset="1" stopColor="#7fb8e6" />
+        </linearGradient>
+      </defs>
+      {range(n).map((i) => {
+        const x = (i + 0.5) * (1600 / n) + (rand(i, 1) - 0.5) * 4;
+        const long = i % 5 === 2 || rand(i, 2) > 0.8;
+        const len = long ? 36 + rand(i, 3) * 22 : 10 + rand(i, 3) * 18;
+        const w = long ? 8 : 5 + rand(i, 4) * 2.5;
+        const kink = (rand(i, 5) - 0.5) * 2;
+        return (
+          <g key={i}>
+            <path
+              d={`M${x - w} 6 C${x - w * 0.8} ${6 + len * 0.4} ${x - w * 0.25 + kink} ${6 + len * 0.8} ${x + kink} ${6 + len} C${x + w * 0.25 + kink} ${6 + len * 0.8} ${x + w * 0.8} ${6 + len * 0.4} ${x + w} 6 Z`}
+              fill="url(#sz-ice)"
+              stroke="rgba(90, 150, 210, 0.75)"
+              strokeWidth="0.8"
+            />
+            <path
+              d={`M${x - w * 0.45} 8 Q${x - w * 0.3} ${6 + len * 0.5} ${x + kink * 0.6} ${6 + len * 0.85}`}
+              stroke="rgba(255,255,255,0.9)"
+              strokeWidth="1.2"
+              fill="none"
+            />
+            {long && (
+              <circle
+                className="sz-drip"
+                cx={x + kink}
+                cy={6 + len + 2}
+                r="1.4"
+                fill="#bfe0f7"
+                style={{ animationDelay: `${-rand(i, 6) * 4}s` }}
+              />
+            )}
+          </g>
+        );
+      })}
+      {/* Snow on the ledge */}
       <path
-        d={`M0 0 ${range(41)
-          .map((i) => `L${i * 10 + 5} ${i % 3 === 0 ? 26 : 10 + rand(i, 1) * 10} L${i * 10 + 10} 2`)
-          .join(' ')} L400 0 Z`}
-        fill="rgba(225, 240, 252, 0.9)"
-        stroke="rgba(160, 200, 235, 0.8)"
-        strokeWidth="0.6"
+        d={`M0 0 H1600 V7 ${range(161)
+          .map((i) => `Q${1600 - i * 10 + 5} ${11 + rand(i, 7) * 4} ${1600 - (i + 1) * 10} 7`)
+          .join(' ')} Z`}
+        fill="#ffffff"
+        stroke="rgba(170, 205, 235, 0.7)"
+        strokeWidth="0.5"
       />
     </svg>
   );
