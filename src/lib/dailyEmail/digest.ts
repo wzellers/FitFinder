@@ -1,4 +1,5 @@
-// What goes in a user's daily email: one outfit for today's forecast.
+// What goes in a user's daily email: one outfit for today's forecast, or the
+// outfit the user already logged for today.
 //
 // The outfit uses the same candidates and learned weights as the Outfits tab,
 // but always exploits: an email can't be re-rolled, so it sends the model's
@@ -32,7 +33,7 @@ export interface Outfit {
 
 export interface DigestInput {
   items: ClothingItem[];
-  /** Wears from at least the last 7 days (older rows are ignored). */
+  /** Wears from at least the last 7 days, and today's (older rows are ignored). */
   recentWears: OutfitWear[];
   ratedOutfits: OutfitWear[];
   likedCombinations: ColorCombination[];
@@ -47,6 +48,8 @@ export interface DigestInput {
 
 export interface Digest {
   outfit: Outfit | null;
+  /** True when the outfit is the one the user logged for today, not a pick. */
+  logged: boolean;
   temperature: TemperatureCategory | null;
 }
 
@@ -91,9 +94,30 @@ function hashString(s: string): number {
   return h >>> 0;
 }
 
+/**
+ * The outfit logged for today, if all three of its pieces are still in the
+ * closet. The latest log wins; it's sent even if a piece is in the wash or
+ * off for the weather, since that's what the user chose.
+ */
+export function loggedOutfit(input: DigestInput): Outfit | null {
+  const byId = new Map(input.items.map((i) => [i.id, i]));
+  const today = input.recentWears
+    .filter((w) => w.worn_date === input.today)
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+  for (const w of today) {
+    const top = w.top_id ? byId.get(w.top_id) : undefined;
+    const bottom = w.bottom_id ? byId.get(w.bottom_id) : undefined;
+    const shoes = w.shoes_id ? byId.get(w.shoes_id) : undefined;
+    if (top && bottom && shoes) return { top, bottom, shoes };
+  }
+  return null;
+}
+
 export function buildDigest(input: DigestInput): Digest {
   const temperature = input.forecast
     ? getTemperatureCategory(input.forecast.high, input.thresholds ?? undefined)
     : null;
-  return { outfit: pickDailyOutfit(input, temperature), temperature };
+  const logged = loggedOutfit(input);
+  if (logged) return { outfit: logged, logged: true, temperature };
+  return { outfit: pickDailyOutfit(input, temperature), logged: false, temperature };
 }

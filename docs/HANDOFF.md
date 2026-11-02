@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-11-02 (seasonal themes; Effects settings; migration 024 applied)
+**Last updated:** 2026-11-02 (the daily email sends today's logged outfit)
 
 ## What's live
 
@@ -30,7 +30,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 - **Stats:** highlights (streak, go-to pairing, busiest day, repeats),
   weekday and category-use charts (`lib/stats.ts`); Customize chooses which
   cards show (kept in `localStorage`).
-- **Daily email:** one outfit for the day's weather, coloured from it; the
+- **Daily email:** one outfit for the day's weather, coloured from it, or, if
+  the user already logged an outfit for today, that one ("You're wearing"); the
   unsubscribe page uses the neutral colours. Its Open FitFinder button links
   to `/?top=…&bottom=…&shoes=…` (`lib/outfitLink.ts`), which opens the
   Outfits screen with that outfit on (after sign-in if needed); the query is
@@ -135,7 +136,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 589 unit/component tests (`npm run test`).
+- **Vitest:** 592 unit/component tests (`npm run test`).
 - **Playwright:** 58 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need

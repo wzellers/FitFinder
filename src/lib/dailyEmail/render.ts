@@ -182,7 +182,7 @@ export function renderDailyEmail(input: RenderInput): RenderedEmail {
     <div style="font-family:${FONT};font-size:30px;font-weight:800;color:${P.bannerTitle};padding-top:6px;">Today's fit</div>
   </td></tr></table>
   ${weatherBlock}
-  ${heading('Wear this', P.accent)}
+  ${heading(digest.logged ? "You're wearing" : 'Wear this', P.accent)}
   ${outfitBlock}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;"><tr><td style="background:${P.accent};border-radius:999px;">
     <a href="${escapeHtml(openUrl)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:700;color:${P.accentInk};text-decoration:none;">Open FitFinder</a>
@@ -203,7 +203,7 @@ export function renderDailyEmail(input: RenderInput): RenderedEmail {
   } else {
     lines.push('No forecast today. Add your ZIP code in Settings to dress for the weather.');
   }
-  lines.push('', 'WEAR THIS');
+  lines.push('', digest.logged ? "YOU'RE WEARING" : 'WEAR THIS');
   if (digest.outfit) {
     lines.push(
       `Top: ${describeItem(digest.outfit.top)}`,
