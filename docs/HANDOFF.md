@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-11-02 (seasonal themes; Effects settings; migration 024 written, not yet applied)
+**Last updated:** 2026-11-02 (seasonal themes; Effects settings; migration 024 applied)
 
 ## What's live
 
@@ -111,8 +111,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`023` are applied; `024_effects_settings.sql` (the two Effects
-  columns) is written and waiting for the user to run it. Vault holds the two daily-email secrets.
+  `001`–`024` are all applied. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -136,7 +135,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 587 unit/component tests (`npm run test`).
+- **Vitest:** 589 unit/component tests (`npm run test`).
 - **Playwright:** 58 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need

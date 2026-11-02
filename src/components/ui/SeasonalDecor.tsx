@@ -217,6 +217,23 @@ interface SkyProps {
   sun?: boolean;
 }
 
+/** Whether `theme` hangs anything in the sky strip (so the screen only makes
+ * room for the strip when there's something in it). */
+export function hasSeasonalSky(theme: SeasonalTheme, night = false, sun = false): boolean {
+  if (theme === 'summer') return sun || !night;
+  return [
+    'winter',
+    'christmas',
+    'lunarnewyear',
+    'valentines',
+    'stpatricks',
+    'july4',
+    'halloween',
+    'spring',
+    'easter',
+  ].includes(theme);
+}
+
 /** Decorations hung in the sky strip above the banner. */
 export function SeasonalSky({ theme, night = false, sun = false }: SkyProps) {
   return (

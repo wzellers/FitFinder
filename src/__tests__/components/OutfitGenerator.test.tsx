@@ -501,7 +501,6 @@ describe('OutfitGenerator', () => {
     const first = renderWithProviders(<OutfitGenerator />);
     expect(await screen.findByTestId('weather-backdrop')).toBeTruthy();
     expect(screen.getByTestId('seasonal-backdrop')).toBeTruthy();
-    expect(screen.getByTestId('seasonal-sky')).toBeTruthy();
     first.unmount();
 
     mockSingle.profiles = { zip_code: '10001', weather_effects: false };
@@ -519,6 +518,28 @@ describe('OutfitGenerator', () => {
     await waitFor(() => expect(screen.getByText(/52°F high/)).toBeTruthy());
     expect(screen.queryByTestId('seasonal-backdrop')).toBeNull();
     expect(screen.queryByTestId('weather-backdrop')).toBeNull();
+  });
+
+  it('only makes room above the banner when the sky has something in it', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      // Early November is fall, which hangs nothing in the sky: no room taken.
+      vi.setSystemTime(new Date(2026, 10, 2, 12));
+      const fall = renderWithProviders(<OutfitGenerator />);
+      const banner = await screen.findByRole('heading', { name: "Today's fit" });
+      expect(screen.getByTestId('seasonal-backdrop').dataset.theme).toBe('fall');
+      expect(screen.queryByTestId('seasonal-sky')).toBeNull();
+      expect(banner.closest('header')!.parentElement!.className).not.toContain('pt-14');
+      fall.unmount();
+
+      // Christmas hangs lights in the sky: room is made for them.
+      vi.setSystemTime(new Date(2026, 11, 20, 12));
+      renderWithProviders(<OutfitGenerator />);
+      expect(await screen.findByTestId('seasonal-sky')).toBeTruthy();
+      expect(screen.getByTestId('seasonal-lights')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows no weather backdrop without a ZIP code', async () => {

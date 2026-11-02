@@ -31,7 +31,7 @@ import SlotReel, { type ReelDirection } from '@/components/ui/SlotReel';
 import SwipeArea, { type SwipeDirection } from '@/components/ui/SwipeArea';
 import WornStamp from '@/components/ui/WornStamp';
 import WeatherBackdrop, { WeatherSky } from '@/components/ui/WeatherBackdrop';
-import { SeasonalBackdrop, SeasonalSky } from '@/components/ui/SeasonalDecor';
+import { SeasonalBackdrop, SeasonalSky, hasSeasonalSky } from '@/components/ui/SeasonalDecor';
 import { weatherScene } from '@/lib/weatherScene';
 import { hanukkahNight, seasonalTheme } from '@/lib/seasons';
 import { supabase } from '@/lib/supabaseClient';
@@ -903,6 +903,8 @@ export default function OutfitGenerator({
   const theme = effects.seasonal ? seasonalTheme(now) : null;
   const night = scene ? scene.night : now.getHours() >= 19 || now.getHours() < 6;
   const sunOut = scene?.scene === 'sunny' && !scene.night;
+  const seasonSky = theme && hasSeasonalSky(theme, night, sunOut) ? theme : null;
+  const skyShown = Boolean(scene || seasonSky);
 
   return (
     <div className="w-full outfit-glass">
@@ -914,9 +916,11 @@ export default function OutfitGenerator({
       {wornStamp && <WornStamp pieces={wornStamp} date={new Date()} onDone={clearWornStamp} />}
       {/* The sky above the banner: the weather's sun, moon or clouds,
           drifting partly behind it. */}
-      <div className={scene || theme ? 'relative pt-16' : undefined}>
+      {/* Room is only made for the sky when something's in it, and it uses
+          the gap under the top bar, so the outfit stays above the fold. */}
+      <div className={skyShown ? 'relative -mt-8 pt-14' : undefined}>
         {scene && <WeatherSky {...scene} />}
-        {theme && <SeasonalSky theme={theme} night={night} sun={sunOut} />}
+        {seasonSky && <SeasonalSky theme={seasonSky} night={night} sun={sunOut} />}
         <div className="relative z-10">
           <PosterHeader
             compact

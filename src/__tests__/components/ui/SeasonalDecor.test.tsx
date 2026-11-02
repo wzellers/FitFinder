@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { SeasonalBackdrop, SeasonalSky } from '@/components/ui/SeasonalDecor';
+import { SeasonalBackdrop, SeasonalSky, hasSeasonalSky } from '@/components/ui/SeasonalDecor';
 import { SEASONAL_THEMES } from '@/lib/seasons';
 
 describe('SeasonalBackdrop', () => {
@@ -108,5 +108,22 @@ describe('SeasonalSky', () => {
     render(<SeasonalSky theme="summer" sun />);
     expect(screen.getByTestId('seasonal-sunglasses')).toBeTruthy();
     expect(screen.getByTestId('seasonal-kite')).toBeTruthy();
+  });
+});
+
+describe('hasSeasonalSky', () => {
+  it('matches what each theme actually hangs in the sky', () => {
+    for (const { theme } of SEASONAL_THEMES) {
+      for (const night of [false, true]) {
+        for (const sun of [false, true]) {
+          const { unmount } = render(<SeasonalSky theme={theme} night={night} sun={sun} />);
+          const drawn = screen.getByTestId('seasonal-sky').children.length > 0;
+          expect(hasSeasonalSky(theme, night, sun), `${theme} night=${night} sun=${sun}`).toBe(
+            drawn,
+          );
+          unmount();
+        }
+      }
+    }
   });
 });
