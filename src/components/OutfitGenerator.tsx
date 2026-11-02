@@ -566,8 +566,14 @@ export default function OutfitGenerator({
   const [lastRating, setLastRating] = useState<{ key: string; rating: number } | null>(null);
   const shownKey = top && bottom && shoes ? outfitKey({ top, bottom, shoes }) : '';
   const shownRating = lastRating?.key === shownKey ? lastRating.rating : 0;
-  // The rating being pointed at: the outfit's glow warms with it.
-  const [ratingPreview, setRatingPreview] = useState(0);
+  // The rating picked but not yet submitted, for the outfit on screen. The
+  // user can click around before sending it.
+  const [draftRating, setDraftRating] = useState<{ key: string; rating: number } | null>(null);
+  const pickedRating = draftRating?.key === shownKey ? draftRating.rating : 0;
+  // The rating being pointed at, else the one picked: the outfit's glow
+  // warms with it.
+  const [pointedRating, setRatingPreview] = useState(0);
+  const ratingPreview = pointedRating || (shownRating ? 0 : pickedRating);
   const rateShownOutfit = async (rating: number) => {
     if (!user || !top || !bottom || !shoes || rating < 1) return;
     setRatingSaving(true);
@@ -596,6 +602,7 @@ export default function OutfitGenerator({
       setRatedOutfits(rated);
       settleShownPick('rated', rating);
       setLastRating({ key: outfitKey({ top, bottom, shoes }), rating });
+      setDraftRating(null);
       setRatingPreview(0);
       showToast(`Rated ${rating}/10. Try another when you're ready.`, 'success');
     } catch {
@@ -1168,30 +1175,42 @@ export default function OutfitGenerator({
             </section>
             <section aria-label="Rate this outfit" className="card p-4">
               {hasOutfit ? (
-                <RatingPicker
-                  value={shownRating}
-                  onChange={rateShownOutfit}
-                  clearable={false}
-                  disabled={ratingSaving || shownRating > 0}
-                  onPreview={setRatingPreview}
-                  legend={
-                    shownRating > 0 ? (
-                      <>
-                        You rated this {shownRating}/10{' '}
-                        <span className="font-normal text-[var(--text-secondary)]">
-                          (Try another for the next one)
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        Rate this outfit{' '}
-                        <span className="font-normal text-[var(--text-secondary)]">
-                          (no need to wear it; helps FitFinder learn your taste)
-                        </span>
-                      </>
-                    )
-                  }
-                />
+                <>
+                  <RatingPicker
+                    value={shownRating || pickedRating}
+                    onChange={(rating) => setDraftRating({ key: shownKey, rating })}
+                    clearable={false}
+                    disabled={ratingSaving || shownRating > 0}
+                    onPreview={setRatingPreview}
+                    legend={
+                      shownRating > 0 ? (
+                        <>
+                          You rated this {shownRating}/10{' '}
+                          <span className="font-normal text-[var(--text-secondary)]">
+                            (Try another for the next one)
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          Rate this outfit{' '}
+                          <span className="font-normal text-[var(--text-secondary)]">
+                            (no need to wear it; helps FitFinder learn your taste)
+                          </span>
+                        </>
+                      )
+                    }
+                  />
+                  {shownRating === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => rateShownOutfit(pickedRating)}
+                      disabled={pickedRating === 0 || ratingSaving}
+                      className="btn-primary w-full mt-3"
+                    >
+                      {pickedRating ? `Submit ${pickedRating}/10` : 'Submit rating'}
+                    </button>
+                  )}
+                </>
               ) : (
                 <p className="text-sm text-[var(--text-secondary)]">
                   Generate an outfit, then rate it here. No need to wear it; it helps FitFinder

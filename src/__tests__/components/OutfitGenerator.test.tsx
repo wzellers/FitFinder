@@ -512,6 +512,26 @@ describe('OutfitGenerator', () => {
     expect(await screen.findByText("Couldn't load the weather for 10001 right now.")).toBeTruthy();
   });
 
+  it("doesn't save a rating until it's submitted, so it can be changed first", async () => {
+    mockRows.clothing_items = [makeTop(), makeBottom(), makeShoes()];
+    renderWithProviders(<OutfitGenerator />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate outfit' }));
+    const submit = await screen.findByRole('button', { name: 'Submit rating' });
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '4 out of 10' }));
+    fireEvent.click(screen.getByRole('button', { name: '7 out of 10' }));
+    expect(screen.getByRole('button', { name: '7 out of 10' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(mockWrites.some((w) => w.table === 'outfit_ratings')).toBe(false);
+    expect(screen.queryByText(/You rated this/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit 7/10' }));
+    expect(await screen.findByText(/You rated this 7\/10/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Submit/ })).toBeNull();
+  });
+
   it('keeps a rated outfit on screen with its rating, until you try another', async () => {
     mockRows.clothing_items = [
       makeTop({ colors: ['red'] }),
@@ -526,6 +546,7 @@ describe('OutfitGenerator', () => {
     const rated = top();
 
     fireEvent.click(await screen.findByRole('button', { name: '8 out of 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit 8/10' }));
     expect(await screen.findByText(/You rated this 8\/10/)).toBeTruthy();
     expect(top()).toBe(rated);
     expect(
