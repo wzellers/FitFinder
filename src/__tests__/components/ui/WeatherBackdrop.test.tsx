@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import WeatherBackdrop, { SunnySky } from '@/components/ui/WeatherBackdrop';
+import WeatherBackdrop, { WeatherSky } from '@/components/ui/WeatherBackdrop';
 
 const backdrop = () => screen.getByTestId('weather-backdrop');
 const count = (cls: string) => backdrop().querySelectorAll(`.${cls}`).length;
@@ -12,12 +12,6 @@ describe('WeatherBackdrop', () => {
     expect(backdrop().dataset.scene).toBe('sunny');
     expect(count('wx-sun')).toBe(1);
     expect(count('wx-star')).toBe(0);
-  });
-
-  it('draws a sun and white clouds for the sunny banner', () => {
-    render(<SunnySky />);
-    expect(screen.getByTestId('weather-sun')).toBeTruthy();
-    expect(screen.getAllByTestId('weather-cloud').length).toBeGreaterThanOrEqual(3);
   });
 
   it('shows stars instead on a clear night', () => {
@@ -42,6 +36,41 @@ describe('WeatherBackdrop', () => {
   it('flashes now and then in a thunderstorm', () => {
     render(<WeatherBackdrop scene="rainy" night={false} storm />);
     expect(screen.getByTestId('weather-flash')).toBeTruthy();
+  });
+
+  it('makes a clear night starry, with bright stars and shooting stars', () => {
+    render(<WeatherBackdrop scene="sunny" night storm={false} />);
+    expect(count('wx-star')).toBeGreaterThanOrEqual(60);
+    expect(count('wx-star-bright')).toBeGreaterThan(5);
+    expect(count('wx-shooting')).toBeGreaterThan(0);
+  });
+
+  it('makes a storm darker than rain, with heavier rain and lightning bolts', () => {
+    const { unmount } = render(<WeatherBackdrop scene="rainy" night={false} storm={false} />);
+    const rain = count('wx-drop');
+    expect(screen.queryByTestId('weather-bolt')).toBeNull();
+    unmount();
+    render(<WeatherBackdrop scene="rainy" night={false} storm />);
+    expect(count('wx-sky-storm')).toBe(1);
+    expect(count('wx-drop')).toBeGreaterThan(rain);
+    expect(screen.getAllByTestId('weather-bolt').length).toBe(2);
+  });
+
+  it('snows light-blue crystals onto a snowbank with a snowman', () => {
+    render(<WeatherBackdrop scene="snowy" night={false} storm={false} />);
+    expect(count('wx-crystal')).toBeGreaterThan(10);
+    expect(count('wx-snowbank')).toBe(1);
+    expect(screen.getByTestId('weather-snowman')).toBeTruthy();
+  });
+
+  it('adds a Christmas tree at Christmas, whatever the weather', () => {
+    const { unmount } = render(
+      <WeatherBackdrop scene="cloudy" night={false} storm={false} season="christmas" />,
+    );
+    expect(screen.getByTestId('weather-tree')).toBeTruthy();
+    unmount();
+    render(<WeatherBackdrop scene="cloudy" night={false} storm={false} />);
+    expect(screen.queryByTestId('weather-tree')).toBeNull();
   });
 
   it('is decoration, hidden from screen readers and clicks', () => {
@@ -89,5 +118,39 @@ describe('WeatherBackdrop', () => {
       }
       unmount();
     }
+  });
+});
+
+describe('WeatherSky', () => {
+  const cloudClasses = () => screen.getAllByTestId('weather-cloud').map((c) => c.className);
+
+  it('puts the sun and white clouds above the banner on a sunny day', () => {
+    render(<WeatherSky scene="sunny" night={false} storm={false} />);
+    expect(screen.getByTestId('weather-sun')).toBeTruthy();
+    expect(cloudClasses().every((c) => c === 'wx-puff')).toBe(true);
+  });
+
+  it('shows the moon at night, and no sun', () => {
+    render(<WeatherSky scene="sunny" night storm={false} />);
+    expect(screen.getByTestId('weather-moon')).toBeTruthy();
+    expect(screen.queryByTestId('weather-sun')).toBeNull();
+  });
+
+  it('colours its clouds for rain, storms and snow', () => {
+    const { unmount } = render(<WeatherSky scene="rainy" night={false} storm={false} />);
+    expect(cloudClasses().every((c) => c.includes('wx-puff-rain'))).toBe(true);
+    unmount();
+    const r = render(<WeatherSky scene="rainy" night={false} storm />);
+    expect(cloudClasses().every((c) => c.includes('wx-puff-storm'))).toBe(true);
+    expect(screen.getByTestId('weather-sky').className).toContain('wx-strip-storm');
+    r.unmount();
+    render(<WeatherSky scene="snowy" night={false} storm={false} />);
+    expect(cloudClasses().every((c) => c.includes('wx-puff-snow'))).toBe(true);
+  });
+
+  it('hangs Christmas lights at Christmas', () => {
+    render(<WeatherSky scene="sunny" night={false} storm={false} season="christmas" />);
+    const lights = screen.getByTestId('weather-lights');
+    expect(lights.querySelectorAll('.wx-bulb').length).toBeGreaterThan(10);
   });
 });

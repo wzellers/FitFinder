@@ -446,7 +446,7 @@ describe('OutfitGenerator', () => {
     expect(screen.queryByTestId('weather-backdrop')).toBeNull();
   });
 
-  it('puts a sun and clouds in the banner on a sunny day, and not when it rains', async () => {
+  it('puts the sun and clouds above the banner on a sunny day, not in it', async () => {
     mockSingle.profiles = { zip_code: '10001' };
     vi.mocked(fetchWeather).mockResolvedValueOnce({
       temperature: 75,
@@ -460,9 +460,12 @@ describe('OutfitGenerator', () => {
       zipCode: '10001',
     });
     const { unmount } = renderWithProviders(<OutfitGenerator />);
-    const banner = (await screen.findByRole('heading', { name: "Today's fit" })).closest('header')!;
-    expect(await within(banner).findByTestId('weather-sun')).toBeTruthy();
-    expect(within(banner).getAllByTestId('weather-cloud').length).toBeGreaterThan(0);
+    const sky = await screen.findByTestId('weather-sky');
+    expect(within(sky).getByTestId('weather-sun')).toBeTruthy();
+    expect(within(sky).getAllByTestId('weather-cloud').length).toBeGreaterThan(0);
+    // The banner keeps the outfit's colours: no weather inside it.
+    const banner = screen.getByRole('heading', { name: "Today's fit" }).closest('header')!;
+    expect(within(banner).queryByTestId('weather-sun')).toBeNull();
     unmount();
 
     vi.mocked(fetchWeather).mockResolvedValueOnce({

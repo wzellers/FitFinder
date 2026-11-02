@@ -17,9 +17,6 @@ interface PosterHeaderProps {
   /** One slim row instead of a tall poster, for screens whose content
    * should start near the top (Outfits). */
   compact?: boolean;
-  /** Drawn behind the banner's text in place of its cutout shape, e.g. the
-   * weather (compact banners only). */
-  decor?: React.ReactNode;
 }
 
 /**
@@ -34,7 +31,6 @@ export default function PosterHeader({
   readout,
   actions,
   compact = false,
-  decor,
 }: PosterHeaderProps) {
   const { pairing, setPairing } = useOutfitTheme();
   const colors = ((pairing ?? []) as (string | null | undefined)[]).filter((c): c is string => !!c);
@@ -64,12 +60,8 @@ export default function PosterHeader({
   if (compact) {
     return (
       <header className="poster relative overflow-hidden rounded-[22px] bg-[var(--poster-bg)] px-5 sm:px-8 py-4 mb-4 transition-colors duration-700">
-        {decor ?? (
-          <Cutout className="absolute -right-6 -top-10 w-24 sm:w-32 text-[var(--poster-cutout)] transition-colors duration-700" />
-        )}
-        <div
-          className={`relative flex flex-wrap items-center justify-between gap-x-6 gap-y-3 ${decor ? 'pr-20 sm:pr-24' : ''}`}
-        >
+        <Cutout className="absolute -right-6 -top-10 w-24 sm:w-32 text-[var(--poster-cutout)] transition-colors duration-700" />
+        <div className="relative flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <div className="flex items-end gap-3 min-w-0">
             <h2 className="font-poster uppercase leading-[0.85] text-[var(--poster-title)] text-[clamp(2.25rem,5vw,3.5rem)] tracking-[-0.01em] transition-colors duration-700">
               {title}
