@@ -981,3 +981,560 @@
     box-shadow: 0 0 0 0 transparent;
   }
 }
+
+/* Seasonal themes (SeasonalDecor): falling, rising and drifting things,
+   ground pieces, and decorations hung in the sky strip. */
+.sz-fall {
+  position: absolute;
+  top: -6vh;
+  animation-name: sz-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes sz-fall {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(3vw, 28vh) rotate(110deg);
+  }
+  50% {
+    transform: translate(-2vw, 56vh) rotate(200deg);
+  }
+  75% {
+    transform: translate(2.5vw, 84vh) rotate(290deg);
+  }
+  100% {
+    transform: translate(0, 112vh) rotate(380deg);
+  }
+}
+.sz-petal {
+  width: 10px;
+  height: 7px;
+  border-radius: 70% 0 70% 0;
+  opacity: 0.9;
+}
+.sz-confetti {
+  width: 7px;
+  height: 11px;
+  border-radius: 1px;
+}
+.sz-leaf {
+  filter: drop-shadow(0 2px 2px rgba(80, 40, 10, 0.2));
+}
+.sz-rise {
+  position: absolute;
+  bottom: -6vh;
+  opacity: 0.85;
+  animation-name: sz-rise;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes sz-rise {
+  0% {
+    transform: translate(0, 0) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate(3vw, -55vh) scale(1);
+  }
+  90% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(-2vw, -112vh) scale(1.1);
+    opacity: 0;
+  }
+}
+.sz-sky-lantern {
+  position: absolute;
+  bottom: -8vh;
+  width: 18px;
+  height: 24px;
+  border-radius: 40% 40% 20% 20%;
+  background: linear-gradient(to bottom, #ffcf73, #f08a24);
+  box-shadow:
+    0 0 14px 4px rgba(255, 170, 60, 0.6),
+    0 0 40px 10px rgba(255, 140, 40, 0.25);
+  animation-name: sz-rise;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.sz-frost {
+  position: absolute;
+  width: 34vmin;
+  height: 34vmin;
+  background:
+    radial-gradient(
+      circle at var(--fx) var(--fy),
+      rgba(235, 245, 255, 0.85),
+      rgba(200, 225, 248, 0.35) 35%,
+      transparent 65%
+    ),
+    repeating-conic-gradient(
+      from 0deg at var(--fx) var(--fy),
+      rgba(255, 255, 255, 0.35) 0deg 2deg,
+      transparent 2deg 14deg
+    );
+  -webkit-mask: radial-gradient(circle at var(--fx) var(--fy), #000 20%, transparent 62%);
+  mask: radial-gradient(circle at var(--fx) var(--fy), #000 20%, transparent 62%);
+}
+.sz-frost-tl {
+  top: 0;
+  left: 0;
+  --fx: 0%;
+  --fy: 0%;
+}
+.sz-frost-tr {
+  top: 0;
+  right: 0;
+  --fx: 100%;
+  --fy: 0%;
+}
+.sz-frost-bl {
+  bottom: 0;
+  left: 0;
+  --fx: 0%;
+  --fy: 100%;
+}
+.sz-frost-br {
+  bottom: 0;
+  right: 0;
+  --fx: 100%;
+  --fy: 100%;
+}
+.sz-firefly {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: #fff4a3;
+  box-shadow:
+    0 0 8px 3px rgba(255, 236, 120, 0.8),
+    0 0 20px 6px rgba(200, 255, 120, 0.3);
+  animation:
+    sz-wander 8s ease-in-out infinite alternate,
+    sz-blink 3s ease-in-out infinite;
+}
+@keyframes sz-wander {
+  33% {
+    translate: 40px -30px;
+  }
+  66% {
+    translate: -30px -60px;
+  }
+  100% {
+    translate: 20px 10px;
+  }
+}
+@keyframes sz-blink {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.sz-shimmer {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 30vh;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 210, 140, 0.1) 0 6px,
+    transparent 6px 14px
+  );
+  -webkit-mask: linear-gradient(to top, #000, transparent);
+  mask: linear-gradient(to top, #000, transparent);
+  animation: sz-shimmer 3s ease-in-out infinite alternate;
+}
+@keyframes sz-shimmer {
+  to {
+    transform: translateY(-8px) skewX(4deg);
+    opacity: 0.6;
+  }
+}
+.sz-ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.sz-ground-right {
+  position: absolute;
+  right: 3%;
+  bottom: 16px;
+  filter: drop-shadow(0 6px 10px rgba(40, 30, 20, 0.25));
+}
+.sz-flower,
+.sz-egg {
+  position: absolute;
+  bottom: 0;
+  transform-origin: 50% 100%;
+}
+.sz-egg {
+  bottom: 6px;
+  filter: drop-shadow(0 2px 2px rgba(60, 90, 50, 0.25));
+}
+.sz-drip {
+  opacity: 0;
+  animation: sz-drip 4s ease-in infinite;
+}
+@keyframes sz-drip {
+  0%,
+  70% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.sz-sway {
+  animation: sz-sway 4s ease-in-out infinite alternate;
+}
+@keyframes sz-sway {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(4deg);
+  }
+}
+.sz-butterfly-path {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  animation: sz-flutter-across 26s linear infinite;
+}
+@keyframes sz-flutter-across {
+  0% {
+    transform: translate(-60px, 0);
+  }
+  25% {
+    transform: translate(25vw, -60px);
+  }
+  50% {
+    transform: translate(50vw, 30px);
+  }
+  75% {
+    transform: translate(75vw, -40px);
+  }
+  100% {
+    transform: translate(105vw, 0);
+  }
+}
+.sz-butterfly .sz-wing {
+  transform-origin: 0 0;
+  transform-box: view-box;
+  animation: sz-flap 0.35s ease-in-out infinite alternate;
+}
+@keyframes sz-flap {
+  to {
+    transform: scaleX(0.25);
+  }
+}
+.sz-vine {
+  position: absolute;
+  bottom: 0;
+  height: calc(100vh - 64px);
+  width: auto;
+  aspect-ratio: 80 / 800;
+}
+.sz-vine-left {
+  left: 0;
+}
+.sz-vine-right {
+  right: 0;
+  transform: scaleX(-1);
+}
+.sz-vine-stem {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sz-grow 3s ease-out forwards;
+}
+@keyframes sz-grow {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.sz-vine-leaf {
+  opacity: 0;
+  animation: sz-pop 0.6s ease-out forwards;
+}
+@keyframes sz-pop {
+  to {
+    opacity: 1;
+  }
+}
+.sz-plane {
+  position: absolute;
+  left: 0;
+  filter: drop-shadow(0 4px 4px rgba(60, 80, 110, 0.25));
+  animation-name: sz-glide;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes sz-glide {
+  0% {
+    transform: translate(-60px, 0) rotate(8deg);
+  }
+  30% {
+    transform: translate(30vw, -40px) rotate(-6deg);
+  }
+  60% {
+    transform: translate(60vw, 20px) rotate(10deg);
+  }
+  100% {
+    transform: translate(105vw, -30px) rotate(-4deg);
+  }
+}
+.sz-dusk {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(70, 30, 110, 0.4),
+    rgba(240, 120, 40, 0.12) 75%,
+    transparent
+  );
+}
+.sz-web {
+  position: absolute;
+  top: 64px;
+  left: 0;
+}
+.sz-spider {
+  animation: sz-bob 5s ease-in-out infinite alternate;
+}
+@keyframes sz-bob {
+  to {
+    transform: translateY(26px);
+  }
+}
+.sz-flicker {
+  filter: drop-shadow(0 0 6px rgba(255, 200, 60, 0.9));
+  animation: sz-flicker 1.4s steps(5) infinite;
+}
+@keyframes sz-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0.7;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.6;
+  }
+}
+.sz-glint {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: #dbe7ff;
+  box-shadow:
+    0 0 8px 2px rgba(110, 150, 240, 0.7),
+    0 0 18px 4px rgba(200, 215, 255, 0.4);
+  animation: sz-blink 4s ease-in-out infinite;
+}
+.sz-flame {
+  transform-origin: center bottom;
+  transform-box: fill-box;
+  filter: drop-shadow(0 0 4px rgba(255, 190, 60, 0.95));
+  animation: sz-flame 0.9s ease-in-out infinite alternate;
+}
+@keyframes sz-flame {
+  to {
+    transform: scaleY(1.15) skewX(4deg);
+  }
+}
+.sz-firework {
+  position: absolute;
+}
+.sz-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  box-shadow: 0 0 6px currentColor;
+  opacity: 0;
+  animation: sz-burst 3.6s ease-out infinite;
+}
+@keyframes sz-burst {
+  0%,
+  8% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(0);
+  }
+  12% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.9;
+    transform: rotate(var(--a)) translateY(-80px);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-95px);
+  }
+}
+.sz-drift {
+  position: absolute;
+  left: 0;
+  animation-name: wx-drift-across;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.sz-bat-wings {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: sz-bat-flap 0.3s ease-in-out infinite alternate;
+}
+@keyframes sz-bat-flap {
+  to {
+    transform: scaleY(0.4);
+  }
+}
+.sz-flag {
+  position: absolute;
+  width: 0;
+  height: 0;
+  margin-left: -7px;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 14px solid;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
+  transform-origin: top center;
+  animation: sz-sway 2.4s ease-in-out infinite alternate;
+}
+.sz-lantern {
+  position: absolute;
+  top: 0;
+  transform-origin: top center;
+  filter: drop-shadow(0 0 10px rgba(255, 90, 60, 0.5));
+  animation: sz-sway 3s ease-in-out infinite alternate;
+}
+.sz-sunglasses {
+  position: absolute;
+  top: 34px;
+  right: 49px;
+}
+/* A bunny hopping across the bottom now and then. */
+.sz-hop {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  animation: sz-hop-across 22s linear infinite;
+}
+.sz-hop-body {
+  animation: sz-hop 0.7s ease-in-out infinite;
+}
+@keyframes sz-hop-across {
+  0% {
+    transform: translateX(-80px);
+  }
+  45%,
+  100% {
+    transform: translateX(105vw);
+  }
+}
+@keyframes sz-hop {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-22px) rotate(-8deg);
+  }
+}
+.sz-ball-bounce {
+  position: absolute;
+  bottom: 14px;
+  animation: sz-bounce 1.6s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate;
+}
+.sz-ball {
+  animation: wx-spin 2.4s linear infinite;
+}
+@keyframes sz-bounce {
+  to {
+    transform: translateY(-46px);
+  }
+}
+.sz-kite {
+  position: absolute;
+  top: 2px;
+  left: 18%;
+  transform-origin: 50% 90%;
+  animation: sz-kite 4s ease-in-out infinite alternate;
+}
+@keyframes sz-kite {
+  from {
+    transform: rotate(-8deg) translateY(0);
+  }
+  to {
+    transform: rotate(7deg) translateY(6px);
+  }
+}
+.sz-kite-tail {
+  animation: sz-sway 1.4s ease-in-out infinite alternate;
+  transform-origin: 35px 62px;
+}
+.sz-hang {
+  position: absolute;
+  margin-left: -9px;
+  transform-origin: top center;
+  animation: sz-sway 2.6s ease-in-out infinite alternate;
+}
+.sz-fronds {
+  animation: sz-fronds 5s ease-in-out infinite alternate;
+}
+@keyframes sz-fronds {
+  from {
+    transform: rotate(-3deg);
+  }
+  to {
+    transform: rotate(3deg);
+  }
+}
+.sz-gull-wings {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: sz-gull-flap 3s ease-in-out infinite;
+}
+@keyframes sz-gull-flap {
+  0%,
+  60%,
+  100% {
+    transform: scaleY(1);
+  }
+  70%,
+  90% {
+    transform: scaleY(0.4);
+  }
+  80% {
+    transform: scaleY(1.1);
+  }
+}
+.sz-flag-wave {
+  transform-origin: 35px 10px;
+  animation: sz-sway 1.2s ease-in-out infinite alternate;
+}
+.sz-twirl {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sz-sway 3s ease-in-out infinite alternate;
+}

@@ -31,7 +31,9 @@ import SlotReel, { type ReelDirection } from '@/components/ui/SlotReel';
 import SwipeArea, { type SwipeDirection } from '@/components/ui/SwipeArea';
 import WornStamp from '@/components/ui/WornStamp';
 import WeatherBackdrop, { WeatherSky } from '@/components/ui/WeatherBackdrop';
-import { seasonFor, weatherScene } from '@/lib/weatherScene';
+import { SeasonalBackdrop, SeasonalSky, hasSeasonalSky } from '@/components/ui/SeasonalDecor';
+import { weatherScene } from '@/lib/weatherScene';
+import { hanukkahNight, seasonalTheme } from '@/lib/seasons';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -77,6 +79,15 @@ type Slot = 'top' | 'bottom' | 'shoes';
 const SLOTS: Slot[] = ['top', 'bottom', 'shoes'];
 const SLOT_LABEL: Record<Slot, string> = { top: 'top', bottom: 'bottom', shoes: 'pair of shoes' };
 
+/** The user's effect settings from their profile row; both default to on
+ * (including before the columns exist). */
+function effectsFrom(profile: { weather_effects?: boolean; seasonal_themes?: boolean } | null) {
+  return {
+    weather: profile?.weather_effects !== false,
+    seasonal: profile?.seasonal_themes !== false,
+  };
+}
+
 interface OutfitGeneratorProps {
   onNavigateToCalendar?: () => void;
   /** Changes when closet items change, so the generator reloads its data. */
@@ -118,6 +129,10 @@ export default function OutfitGenerator({
   const [tempCategory, setTempCategory] = useState<TemperatureCategory | null>(null);
   const [ignoreWeather, setIgnoreWeather] = useState(false);
   const [userWeatherPrefs, setUserWeatherPrefs] = useState<UserWeatherPreferences | null>(null);
+
+  // Animated weather and seasonal themes, each of which the user can turn
+  // off in Settings → Effects.
+  const [effects, setEffects] = useState({ weather: true, seasonal: true });
 
   // Occasion — null means "Any" (no occasion filter).
   const [occasion, setOccasion] = useState<Occasion | null>(null);
@@ -177,7 +192,7 @@ export default function OutfitGenerator({
               .select('*')
               .eq('user_id', user.id)
               .order('created_at', { ascending: false }),
-            supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+            supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
             supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
             supabase
               .from('outfit_wears')
@@ -219,6 +234,7 @@ export default function OutfitGenerator({
           : null;
         setUserWeatherPrefs(userWP);
 
+        setEffects(effectsFrom(profileData));
         await loadWeather(profileData?.zip_code ?? null, userWP);
       } catch {
         setError("Couldn't load your closet. Refresh to try again.");
@@ -258,7 +274,7 @@ export default function OutfitGenerator({
         const [{ data: profileData }, { data: weatherPrefsData }, { data: occPrefsData }] =
           throwIfAnyError(
             await Promise.all([
-              supabase.from('profiles').select('zip_code').eq('id', user.id).maybeSingle(),
+              supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
               supabase.from('weather_preferences').select('*').eq('user_id', user.id).maybeSingle(),
               supabase
                 .from('occasion_preferences')
@@ -279,6 +295,7 @@ export default function OutfitGenerator({
           : null;
         setUserWeatherPrefs(userWP);
         setUserOccasionRules((occPrefsData?.rules ?? null) as OccasionRules | null);
+        setEffects(effectsFrom(profileData));
         const nextZip = profileData?.zip_code ?? null;
         if (nextZip !== zip || (nextZip && !weather)) await loadWeather(nextZip, userWP);
         else if (weather) {
@@ -878,18 +895,32 @@ export default function OutfitGenerator({
     );
   }
 
-  const scene = weather && !ignoreWeather ? weatherScene(weather.icon, weather.condition) : null;
-  const season = seasonFor(new Date());
+  const scene =
+    effects.weather && weather && !ignoreWeather
+      ? weatherScene(weather.icon, weather.condition)
+      : null;
+  const now = new Date();
+  const theme = effects.seasonal ? seasonalTheme(now) : null;
+  const night = scene ? scene.night : now.getHours() >= 19 || now.getHours() < 6;
+  const sunOut = scene?.scene === 'sunny' && !scene.night;
+  const seasonSky = theme && hasSeasonalSky(theme, night, sunOut) ? theme : null;
+  const skyShown = Boolean(scene || seasonSky);
 
   return (
     <div className="w-full outfit-glass">
       {/* Today's weather, faintly, behind the screen (off when not dressing for it). */}
-      {scene && <WeatherBackdrop {...scene} season={season} />}
+      {scene && <WeatherBackdrop {...scene} santaHat={theme === 'christmas'} />}
+      {theme && (
+        <SeasonalBackdrop theme={theme} night={night} hanukkahNight={hanukkahNight(now) ?? 8} />
+      )}
       {wornStamp && <WornStamp pieces={wornStamp} date={new Date()} onDone={clearWornStamp} />}
       {/* The sky above the banner: the weather's sun, moon or clouds,
           drifting partly behind it. */}
-      <div className={scene ? 'relative pt-16' : undefined}>
-        {scene && <WeatherSky {...scene} season={season} />}
+      {/* Room is only made for the sky when something's in it, and it uses
+          the gap under the top bar, so the outfit stays above the fold. */}
+      <div className={skyShown ? 'relative -mt-8 pt-14' : undefined}>
+        {scene && <WeatherSky {...scene} />}
+        {seasonSky && <SeasonalSky theme={seasonSky} night={night} sun={sunOut} />}
         <div className="relative z-10">
           <PosterHeader
             compact

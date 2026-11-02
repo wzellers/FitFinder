@@ -2,7 +2,10 @@ import type { Page } from '@playwright/test';
 import { test, expect, openApp, goToTab, toast } from './helpers/test';
 import { ok, testDb } from './helpers/db';
 
-async function openSection(page: Page, name: 'Weather' | 'Occasions' | 'Colors' | 'Email') {
+async function openSection(
+  page: Page,
+  name: 'Weather' | 'Occasions' | 'Colors' | 'Email' | 'Effects',
+) {
   await openApp(page, 'Settings');
   await page
     .getByRole('navigation', { name: 'Preference sections' })
@@ -161,4 +164,51 @@ test('turns on the daily email with a time and time zone', async ({ page }) => {
     daily_email_time: '06:45:00',
     timezone: 'America/Chicago',
   });
+});
+
+test('turns off weather effects and seasonal themes, and the Outfits screen goes plain', async ({
+  page,
+}) => {
+  const { db, userId } = await testDb();
+  // On by default: today's seasonal theme shows on the Outfits screen.
+  await openApp(page, 'Outfits');
+  await expect(page.getByTestId('seasonal-backdrop')).toBeAttached();
+
+  await goToTab(page, 'Settings');
+  await page
+    .getByRole('navigation', { name: 'Preference sections' })
+    .getByRole('button', { name: 'Effects' })
+    .click();
+  const weather = page.getByRole('switch', { name: 'Weather effects' });
+  const seasonal = page.getByRole('switch', { name: 'Seasonal themes' });
+  await expect(weather).toHaveAttribute('aria-checked', 'true');
+  await expect(seasonal).toHaveAttribute('aria-checked', 'true');
+  await weather.click();
+  await seasonal.click();
+  await expect(weather).toHaveAttribute('aria-checked', 'false');
+  await expect(seasonal).toHaveAttribute('aria-checked', 'false');
+
+  // Saved to the account.
+  await expect
+    .poll(async () =>
+      ok(
+        await db
+          .from('profiles')
+          .select('weather_effects, seasonal_themes')
+          .eq('id', userId)
+          .single(),
+        'profile',
+      ),
+    )
+    .toEqual({ weather_effects: false, seasonal_themes: false });
+
+  // Back on Outfits, without reloading, the effects are gone.
+  await goToTab(page, 'Outfits');
+  await expect(page.getByTestId('seasonal-backdrop')).toHaveCount(0);
+  await expect(page.getByTestId('weather-backdrop')).toHaveCount(0);
+
+  // Still off after a reload.
+  await openSection(page, 'Effects');
+  await expect(weather).toHaveAttribute('aria-checked', 'false');
+  await expect(seasonal).toHaveAttribute('aria-checked', 'false');
 });

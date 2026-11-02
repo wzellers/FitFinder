@@ -10,6 +10,7 @@ import {
   Palette,
   Briefcase,
   Mail,
+  Sparkles,
   Shirt,
   Heart,
   X,
@@ -17,6 +18,7 @@ import {
 import SettingsCard from '@/components/ui/SettingsCard';
 import Dropdown from '@/components/ui/Dropdown';
 import DailyEmailSettings from '@/components/DailyEmailSettings';
+import EffectsSettings from '@/components/EffectsSettings';
 import ColorCombinationModal from '@/components/ColorCombinationModal';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
@@ -54,9 +56,9 @@ export default function ColorPreferences() {
     cool: TEMPERATURE_THRESHOLDS.COOL,
     warm: TEMPERATURE_THRESHOLDS.WARM,
   });
-  const [activeSection, setActiveSection] = useState<'weather' | 'colors' | 'occasions' | 'email'>(
-    'weather',
-  );
+  const [activeSection, setActiveSection] = useState<
+    'weather' | 'colors' | 'occasions' | 'email' | 'effects'
+  >('weather');
   const [clothingRulesState, setClothingRulesState] = useState<
     Record<string, ClothingWeatherRules>
   >({});
@@ -402,6 +404,7 @@ export default function ColorPreferences() {
     { key: 'occasions' as const, label: 'Occasions', icon: Briefcase },
     { key: 'colors' as const, label: 'Colors', icon: Palette },
     { key: 'email' as const, label: 'Email', icon: Mail },
+    { key: 'effects' as const, label: 'Effects', icon: Sparkles },
   ];
 
   // Temperature ranges, shown as a scale from cold to hot.
@@ -742,6 +745,8 @@ export default function ColorPreferences() {
       occasionsContent
     ) : activeSection === 'email' ? (
       <DailyEmailSettings />
+    ) : activeSection === 'effects' ? (
+      <EffectsSettings />
     ) : (
       colorsContent
     );
@@ -751,7 +756,7 @@ export default function ColorPreferences() {
       <PosterHeader
         title="Settings"
         script="your rules"
-        readout="{ weather · occasions · colors · email }"
+        readout="{ weather · occasions · colors · email · effects }"
       />
 
       {/* Sections across the top, the active one highlighted. */}

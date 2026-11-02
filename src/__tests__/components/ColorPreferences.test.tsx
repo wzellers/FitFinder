@@ -95,7 +95,7 @@ describe('ColorPreferences', () => {
     renderWithProviders(<ColorPreferences />);
     const nav = await screen.findByRole('navigation', { name: 'Preference sections' });
     const names = Array.from(nav.querySelectorAll('button')).map((b) => b.textContent);
-    expect(names).toEqual(['Weather', 'Occasions', 'Colors', 'Email']);
+    expect(names).toEqual(['Weather', 'Occasions', 'Colors', 'Email', 'Effects']);
     expect(screen.getByRole('button', { name: 'Weather' }).getAttribute('aria-current')).toBe(
       'page',
     );
