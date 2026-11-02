@@ -30,8 +30,8 @@ import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import SlotReel, { type ReelDirection } from '@/components/ui/SlotReel';
 import SwipeArea, { type SwipeDirection } from '@/components/ui/SwipeArea';
 import WornStamp from '@/components/ui/WornStamp';
-import WeatherBackdrop, { SunnySky } from '@/components/ui/WeatherBackdrop';
-import { weatherScene } from '@/lib/weatherScene';
+import WeatherBackdrop, { WeatherSky } from '@/components/ui/WeatherBackdrop';
+import { seasonFor, weatherScene } from '@/lib/weatherScene';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
 import { toLocalDateString } from '@/lib/dates';
@@ -879,33 +879,39 @@ export default function OutfitGenerator({
   }
 
   const scene = weather && !ignoreWeather ? weatherScene(weather.icon, weather.condition) : null;
-  const sunnyDay = scene?.scene === 'sunny' && !scene.night;
+  const season = seasonFor(new Date());
 
   return (
     <div className="w-full outfit-glass">
       {/* Today's weather, faintly, behind the screen (off when not dressing for it). */}
-      {scene && <WeatherBackdrop {...scene} />}
+      {scene && <WeatherBackdrop {...scene} season={season} />}
       {wornStamp && <WornStamp pieces={wornStamp} date={new Date()} onDone={clearWornStamp} />}
-      <PosterHeader
-        compact
-        decor={sunnyDay ? <SunnySky /> : undefined}
-        title="Today's fit"
-        script="get dressed"
-        readout={`{ ${items.length} clean ${items.length === 1 ? 'item' : 'items'} to pick from }`}
-        actions={
-          <div className="segmented-poster">
-            <button
-              onClick={() => setActiveTab('generator')}
-              aria-pressed={activeTab === 'generator'}
-            >
-              New outfit
-            </button>
-            <button onClick={() => setActiveTab('saved')} aria-pressed={activeTab === 'saved'}>
-              Saved <span className="tabular">({savedOutfits.length})</span>
-            </button>
-          </div>
-        }
-      />
+      {/* The sky above the banner: the weather's sun, moon or clouds,
+          drifting partly behind it. */}
+      <div className={scene ? 'relative pt-16' : undefined}>
+        {scene && <WeatherSky {...scene} season={season} />}
+        <div className="relative z-10">
+          <PosterHeader
+            compact
+            title="Today's fit"
+            script="get dressed"
+            readout={`{ ${items.length} clean ${items.length === 1 ? 'item' : 'items'} to pick from }`}
+            actions={
+              <div className="segmented-poster">
+                <button
+                  onClick={() => setActiveTab('generator')}
+                  aria-pressed={activeTab === 'generator'}
+                >
+                  New outfit
+                </button>
+                <button onClick={() => setActiveTab('saved')} aria-pressed={activeTab === 'saved'}>
+                  Saved <span className="tabular">({savedOutfits.length})</span>
+                </button>
+              </div>
+            }
+          />
+        </div>
+      </div>
 
       {activeTab === 'generator' && (
         <div className="mx-auto w-full max-w-6xl grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)_minmax(0,1fr)] gap-5 lg:gap-6 items-start">

@@ -410,8 +410,9 @@
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Weather behind the Outfits screen (WeatherBackdrop). Soft, but visible
-   around and through the screen's frosted cards. */
+/* Weather behind the Outfits screen (WeatherBackdrop) and in the sky strip
+   above its banner (WeatherSky). Visible around and through the screen's
+   frosted cards. */
 .wx-sky {
   position: absolute;
   inset: 0;
@@ -428,24 +429,43 @@
     );
 }
 .wx-sky-night {
-  background: linear-gradient(to bottom, rgba(70, 85, 130, 0.22), transparent 70%);
+  /* A deep starry sky. */
+  background:
+    radial-gradient(80% 50% at 85% 0%, rgba(120, 130, 200, 0.25), transparent 70%),
+    linear-gradient(to bottom, rgba(18, 26, 64, 0.62), rgba(40, 52, 110, 0.3) 50%, transparent 90%);
 }
 .wx-sky-cloudy {
-  background: linear-gradient(to bottom, rgba(140, 150, 168, 0.26), transparent 65%);
+  background: linear-gradient(to bottom, rgba(140, 150, 168, 0.34), transparent 65%);
 }
 .wx-sky-rainy {
   /* A moody blue-grey sky that darkens toward the top. */
   background:
     linear-gradient(
       to bottom,
-      rgba(58, 82, 118, 0.42),
-      rgba(90, 115, 150, 0.16) 55%,
+      rgba(58, 82, 118, 0.48),
+      rgba(90, 115, 150, 0.18) 55%,
       transparent 85%
     ),
     radial-gradient(120% 60% at 50% 110%, rgba(70, 100, 140, 0.18), transparent 70%);
 }
+.wx-sky-storm {
+  /* Near-black bruised sky, with a purple cast. */
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(22, 26, 40, 0.72),
+      rgba(48, 44, 78, 0.36) 50%,
+      rgba(60, 70, 100, 0.12) 85%
+    ),
+    radial-gradient(120% 60% at 50% 110%, rgba(40, 50, 80, 0.3), transparent 70%);
+}
 .wx-sky-snowy {
-  background: linear-gradient(to bottom, rgba(180, 200, 228, 0.35), transparent 75%);
+  background: linear-gradient(
+    to bottom,
+    rgba(170, 195, 228, 0.45),
+    rgba(220, 232, 246, 0.2) 60%,
+    transparent 85%
+  );
 }
 
 /* Cards on the Outfits screen: frosted, so the weather and the outfit's
@@ -456,6 +476,8 @@
   backdrop-filter: blur(14px) saturate(1.15);
   -webkit-backdrop-filter: blur(14px) saturate(1.15);
 }
+
+/* Sunny: a big soft glow behind the screen, and the sun in the sky strip. */
 .wx-sun {
   position: absolute;
   top: -22vmax;
@@ -471,11 +493,16 @@
   );
   animation: wx-sun 18s ease-in-out infinite alternate;
 }
-/* The sun itself, peeking into the banner's top-right corner. */
+@keyframes wx-sun {
+  to {
+    transform: translate(-4vmax, 3vmax) scale(1.08);
+    opacity: 0.8;
+  }
+}
 .wx-sun-disc {
   position: absolute;
-  top: -22px;
-  right: 22px;
+  top: 6px;
+  right: 40px;
   width: 78px;
   height: 78px;
   border-radius: 9999px;
@@ -506,15 +533,19 @@
     transform: rotate(360deg);
   }
 }
-/* A white cartoon cloud: a rounded base with two puffs on top. */
+
+/* Cartoon clouds in the sky strip: a rounded base with two puffs on top,
+   coloured by the weather. */
 .wx-puff {
+  --puff-bg: rgba(255, 255, 255, 0.96);
+  --puff-shadow: rgba(90, 120, 160, 0.35);
   position: absolute;
   left: 0;
   width: 150px;
   height: 46px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 10px 24px -8px rgba(90, 120, 160, 0.35);
+  background: var(--puff-bg);
+  box-shadow: 0 10px 24px -8px var(--puff-shadow);
   transform-origin: left top;
   scale: var(--puff-scale, 1);
   animation: wx-drift-across 80s linear infinite;
@@ -538,36 +569,38 @@
   left: 62px;
   top: -44px;
 }
-@keyframes wx-sun {
-  to {
-    transform: translate(-4vmax, 3vmax) scale(1.08);
-    opacity: 0.8;
+.wx-puff-grey {
+  --puff-bg: #d9dee6;
+  --puff-shadow: rgba(80, 95, 120, 0.4);
+}
+.wx-puff-rain {
+  --puff-bg: #8794a6;
+  --puff-shadow: rgba(40, 55, 80, 0.5);
+}
+.wx-puff-storm {
+  --puff-bg: #4a4f63;
+  --puff-shadow: rgba(10, 12, 25, 0.6);
+}
+/* In a storm the whole strip lights up when the lightning strikes. */
+.wx-strip-storm {
+  animation: wx-cloud-flicker 11s linear infinite;
+}
+.wx-puff-snow {
+  --puff-bg: #eef3f9;
+  --puff-shadow: rgba(110, 140, 180, 0.4);
+}
+/* A storm cloud lit from inside when the lightning strikes. */
+@keyframes wx-cloud-flicker {
+  0%,
+  91%,
+  93.5%,
+  100% {
+    filter: none;
   }
-}
-.wx-star {
-  position: absolute;
-  border-radius: 9999px;
-  background: rgba(70, 90, 140, 0.55);
-  animation: wx-twinkle 4s ease-in-out infinite;
-}
-@keyframes wx-twinkle {
-  50% {
-    opacity: 0.15;
+  92%,
+  94% {
+    filter: brightness(2.1);
   }
-}
-.wx-cloud {
-  position: absolute;
-  left: 0;
-  border-radius: 9999px;
-  /* Soft round puffs, densest in the middle. */
-  background: radial-gradient(
-    ellipse at 50% 55%,
-    rgba(120, 135, 160, 0.42),
-    rgba(120, 135, 160, 0.18) 45%,
-    transparent 70%
-  );
-  filter: blur(10px);
-  animation: wx-drift 60s linear infinite;
 }
 @keyframes wx-drift-across {
   from {
@@ -577,6 +610,94 @@
     left: 100%;
   }
 }
+
+/* Clear night: twinkling stars, bright ones with a sparkle, shooting stars
+   and a crescent moon. */
+.wx-star {
+  position: absolute;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 0 4px rgba(200, 215, 255, 0.9);
+  animation: wx-twinkle 4s ease-in-out infinite;
+}
+.wx-star-bright {
+  background: #fffbe8;
+  box-shadow:
+    0 0 6px 2px rgba(255, 245, 210, 0.9),
+    0 0 16px 4px rgba(170, 190, 255, 0.45);
+}
+.wx-star-bright::before,
+.wx-star-bright::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  margin: -0.5px 0 0 -9px;
+  background: linear-gradient(to right, transparent, rgba(255, 250, 230, 0.9), transparent);
+}
+.wx-star-bright::after {
+  transform: rotate(90deg);
+}
+@keyframes wx-twinkle {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+}
+.wx-shooting {
+  position: absolute;
+  width: 140px;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.95), transparent);
+  opacity: 0;
+  transform: rotate(-28deg);
+  animation: wx-shoot 13s ease-out infinite;
+}
+@keyframes wx-shoot {
+  0%,
+  86% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  88% {
+    opacity: 1;
+  }
+  95%,
+  100% {
+    opacity: 0;
+    translate: -260px 140px;
+  }
+}
+.wx-moon {
+  position: absolute;
+  top: 10px;
+  right: 56px;
+  width: 58px;
+  height: 58px;
+  border-radius: 9999px;
+  box-shadow: 14px -6px 0 0 #f6efcf;
+  filter: drop-shadow(0 0 14px rgba(255, 240, 190, 0.7));
+  transform: rotate(-20deg);
+}
+
+/* Cloudy: big soft clouds drifting behind the screen. */
+.wx-cloud {
+  position: absolute;
+  left: 0;
+  border-radius: 9999px;
+  /* Soft round puffs, densest in the middle. */
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    rgba(120, 135, 160, 0.48),
+    rgba(120, 135, 160, 0.2) 45%,
+    transparent 70%
+  );
+  filter: blur(10px);
+  animation: wx-drift 60s linear infinite;
+}
 @keyframes wx-drift {
   from {
     transform: translateX(-40vw);
@@ -585,6 +706,8 @@
     transform: translateX(110vw);
   }
 }
+
+/* Rain. */
 .wx-drop {
   position: absolute;
   top: -20vh;
@@ -639,10 +762,14 @@
     transform: scale(1.6);
   }
 }
+/* Storm: heavier, more slanted rain, lightning bolts and a double flash. */
+.wx-drop-storm {
+  rotate: 8deg;
+}
 .wx-flash {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(235, 235, 255, 0.85);
   opacity: 0;
   animation: wx-flash 11s linear infinite;
 }
@@ -655,16 +782,55 @@
   }
   92%,
   94% {
-    opacity: 0.5;
+    opacity: 0.6;
   }
 }
+.wx-bolt {
+  position: absolute;
+  top: 70px;
+  opacity: 0;
+  filter: drop-shadow(0 0 10px rgba(255, 250, 210, 0.95))
+    drop-shadow(0 0 30px rgba(190, 180, 255, 0.8));
+  animation: wx-bolt 11s linear infinite;
+}
+.wx-bolt-late {
+  top: 120px;
+  scale: 0.8;
+  animation-delay: -5.5s;
+}
+@keyframes wx-bolt {
+  0%,
+  91%,
+  93%,
+  93.6%,
+  95%,
+  100% {
+    opacity: 0;
+  }
+  91.5%,
+  93.3%,
+  94% {
+    opacity: 1;
+  }
+}
+
+/* Snow: light-blue crystals and soft flakes, a snowbank and a snowman. */
 .wx-flake {
   position: absolute;
   top: -3vh;
   border-radius: 9999px;
-  background: rgba(130, 158, 196, 0.75);
-  box-shadow: 0 0 4px rgba(130, 158, 196, 0.5);
+  background: rgba(160, 205, 245, 0.9);
+  box-shadow: 0 0 6px rgba(150, 200, 250, 0.7);
   animation: wx-snow 12s linear infinite;
+}
+.wx-crystal {
+  position: absolute;
+  top: -4vh;
+  color: #8cc4f2;
+  filter: drop-shadow(0 0 3px rgba(140, 200, 250, 0.8));
+  animation-name: wx-snow-spin;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
 }
 @keyframes wx-snow {
   25% {
@@ -679,6 +845,76 @@
   to {
     transform: translate(0, 108vh);
   }
+}
+@keyframes wx-snow-spin {
+  25% {
+    transform: translate(1.5vw, 27vh) rotate(90deg);
+  }
+  50% {
+    transform: translate(-1vw, 55vh) rotate(180deg);
+  }
+  75% {
+    transform: translate(1vw, 82vh) rotate(270deg);
+  }
+  to {
+    transform: translate(0, 108vh) rotate(360deg);
+  }
+}
+.wx-snowbank {
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  bottom: -40px;
+  height: 120px;
+  border-radius: 50% 50% 0 0;
+  background: linear-gradient(to bottom, #ffffff, #e6eff9);
+  box-shadow: 0 -6px 30px rgba(150, 185, 225, 0.45);
+}
+.wx-snowman {
+  position: absolute;
+  left: 3%;
+  bottom: 30px;
+  filter: drop-shadow(0 6px 10px rgba(80, 110, 150, 0.3));
+  animation: wx-sway 5s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+}
+@keyframes wx-sway {
+  to {
+    transform: rotate(2deg);
+  }
+}
+
+/* Christmas: a tree with twinkling ornaments, and lights in the sky strip. */
+.wx-tree {
+  position: absolute;
+  right: 3%;
+  bottom: 24px;
+  filter: drop-shadow(0 6px 10px rgba(30, 60, 40, 0.3));
+}
+.wx-ornament {
+  animation: wx-glow 1.8s ease-in-out infinite alternate;
+}
+.wx-tree-star {
+  filter: drop-shadow(0 0 6px rgba(255, 220, 90, 0.95));
+  animation: wx-glow 2.4s ease-in-out infinite alternate;
+}
+@keyframes wx-glow {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.wx-bulb {
+  position: absolute;
+  width: 8px;
+  height: 11px;
+  margin-left: -4px;
+  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+  background: currentColor;
+  box-shadow: 0 0 10px 3px currentColor;
+  animation: wx-glow 1.6s ease-in-out infinite alternate;
 }
 
 /* Adding items: a scan line while a photo is analysed or cut out. */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { weatherScene } from '@/lib/weatherScene';
+import { seasonFor, weatherScene } from '@/lib/weatherScene';
 
 describe('weatherScene', () => {
   it.each([
@@ -31,5 +31,19 @@ describe('weatherScene', () => {
     expect(weatherScene('', 'Snow').scene).toBe('snowy');
     expect(weatherScene('', 'Clear').scene).toBe('sunny');
     expect(weatherScene('', 'Haze').scene).toBe('cloudy');
+  });
+});
+
+describe('seasonFor', () => {
+  it("is Christmas through December and on New Year's Day", () => {
+    expect(seasonFor(new Date(2026, 11, 1))).toBe('christmas');
+    expect(seasonFor(new Date(2026, 11, 31))).toBe('christmas');
+    expect(seasonFor(new Date(2027, 0, 1))).toBe('christmas');
+  });
+
+  it('has no season touch the rest of the year', () => {
+    expect(seasonFor(new Date(2027, 0, 2))).toBeNull();
+    expect(seasonFor(new Date(2026, 10, 30))).toBeNull();
+    expect(seasonFor(new Date(2026, 6, 4))).toBeNull();
   });
 });
