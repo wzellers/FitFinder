@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import type { SceneChoice, Season } from '@/lib/weatherScene';
+import type { SceneChoice } from '@/lib/weatherScene';
 
 /** A repeatable pseudo-random number in [0, 1) for particle `i`, so the
  * layout is the same on every render. */
@@ -19,8 +19,8 @@ const BRIGHT_STAR_EVERY = 7;
 const CRYSTAL_EVERY = 3;
 
 interface WeatherProps extends SceneChoice {
-  /** A seasonal touch, e.g. a Christmas tree in December. */
-  season?: Season | null;
+  /** The snowman wears a Santa hat (at Christmas). */
+  santaHat?: boolean;
 }
 
 /** Which sky colour the scene uses. */
@@ -30,10 +30,10 @@ const skyKey = ({ scene, night, storm }: SceneChoice) =>
 /**
  * The animated weather behind the whole Outfits screen: a sky tint, a sun
  * glow or a starry night, slow clouds, rain (with lightning in a storm) or
- * snow (with a snowman), and seasonal touches. Decorative and behind
+ * snow (with a snowman). Decorative and behind
  * everything; users who prefer reduced motion get it still.
  */
-export default function WeatherBackdrop({ scene, night, storm, season = null }: WeatherProps) {
+export default function WeatherBackdrop({ scene, night, storm, santaHat = false }: WeatherProps) {
   const key = skyKey({ scene, night, storm });
   const particles = useMemo(() => {
     const n =
@@ -179,11 +179,9 @@ export default function WeatherBackdrop({ scene, night, storm, season = null }: 
             ),
           )}
           <div className="wx-snowbank" />
-          <Snowman />
+          <Snowman santaHat={santaHat} />
         </>
       )}
-
-      {season === 'christmas' && <ChristmasTree />}
     </div>
   );
 }
@@ -220,19 +218,12 @@ const STRIP_CLOUDS: Record<
   ],
 };
 
-/** Christmas light colours, in order along the string. */
-const BULBS = ['#e5484d', '#30a46c', '#f5c542', '#3e8ef7', '#e93d82'];
-const BULB_COUNT = 18;
-/** How far the light string sags at `x` (0–1 across), in px from the top. */
-const sag = (x: number) => 6 + 10 * Math.abs(Math.sin(x * Math.PI * 3));
-
 /**
  * The sky just above the "Today's fit" banner: the sun, the moon or clouds
- * for today's weather, drifting partly behind the banner, plus seasonal
- * lights. Keeps the weather out of the banner, which takes the outfit's
- * colours.
+ * for today's weather, drifting partly behind the banner. Keeps the weather
+ * out of the banner, which takes the outfit's colours.
  */
-export function WeatherSky({ scene, night, storm, season = null }: WeatherProps) {
+export function WeatherSky({ scene, night, storm }: SceneChoice) {
   const key = skyKey({ scene, night, storm });
   const clouds = STRIP_CLOUDS[key === 'storm' ? 'rainy' : key] ?? [];
   const puffClass =
@@ -272,41 +263,6 @@ export function WeatherSky({ scene, night, storm, season = null }: WeatherProps)
           }
         />
       ))}
-      {season === 'christmas' && (
-        <div className="absolute inset-x-0 top-0 h-8" data-testid="weather-lights">
-          <svg
-            className="absolute inset-0 w-full h-full"
-            viewBox="0 0 100 32"
-            preserveAspectRatio="none"
-          >
-            <path
-              d={Array.from({ length: 61 }, (_, i) => {
-                const x = i / 60;
-                return `${i ? 'L' : 'M'}${x * 100} ${sag(x)}`;
-              }).join(' ')}
-              fill="none"
-              stroke="#2f3a2f"
-              strokeWidth="0.8"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
-          {Array.from({ length: BULB_COUNT }, (_, i) => {
-            const x = (i + 0.5) / BULB_COUNT;
-            return (
-              <span
-                key={i}
-                className="wx-bulb"
-                style={{
-                  left: `${x * 100}%`,
-                  top: sag(x) - 1,
-                  color: BULBS[i % BULBS.length],
-                  animationDelay: `${-(i % 5) * 0.4}s`,
-                }}
-              />
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -329,7 +285,7 @@ function Bolt({ className, style }: { className: string; style: React.CSSPropert
   );
 }
 
-function Snowflake({
+export function Snowflake({
   className,
   size,
   style,
@@ -352,7 +308,7 @@ function Snowflake({
   );
 }
 
-function Snowman() {
+function Snowman({ santaHat }: { santaHat: boolean }) {
   return (
     <svg
       className="wx-snowman"
@@ -388,55 +344,19 @@ function Snowman() {
       {/* Scarf */}
       <path d="M42 58 Q60 66 78 58 L78 64 Q60 72 42 64 Z" fill="#d6404a" />
       <path d="M70 62 L76 82 L69 83 L64 64 Z" fill="#b8323b" />
-      {/* Hat */}
-      <rect x="40" y="26" width="40" height="5" rx="2" fill="#2b3440" />
-      <rect x="47" y="6" width="26" height="22" rx="2" fill="#2b3440" />
-      <rect x="47" y="21" width="26" height="4" fill="#d6404a" />
-    </svg>
-  );
-}
-
-function ChristmasTree() {
-  const ornaments = [
-    [48, 46, '#e5484d'],
-    [38, 64, '#f5c542'],
-    [60, 70, '#3e8ef7'],
-    [32, 92, '#e93d82'],
-    [52, 96, '#e5484d'],
-    [70, 100, '#f5c542'],
-    [42, 120, '#3e8ef7'],
-    [66, 124, '#e93d82'],
-  ] as const;
-  return (
-    <svg
-      className="wx-tree"
-      data-testid="weather-tree"
-      viewBox="0 0 100 160"
-      width="110"
-      height="176"
-    >
-      <rect x="44" y="134" width="12" height="20" rx="2" fill="#7a5233" />
-      <g fill="#2f7a4a">
-        <path d="M50 20 L78 64 L22 64 Z" />
-        <path d="M50 44 L86 100 L14 100 Z" />
-        <path d="M50 76 L94 138 L6 138 Z" />
-      </g>
-      {ornaments.map(([x, y, c], i) => (
-        <circle
-          key={i}
-          className="wx-ornament"
-          cx={x}
-          cy={y}
-          r="4"
-          fill={c}
-          style={{ animationDelay: `${-i * 0.35}s` }}
-        />
-      ))}
-      <path
-        className="wx-tree-star"
-        d="M50 4 L54 14 L65 14 L56 21 L59 32 L50 25 L41 32 L44 21 L35 14 L46 14 Z"
-        fill="#f5c542"
-      />
+      {santaHat ? (
+        <g data-testid="santa-hat">
+          <path d="M42 30 Q58 -4 84 14 L78 22 Q62 10 78 30 Z" fill="#d6404a" />
+          <rect x="40" y="26" width="40" height="7" rx="3.5" fill="#ffffff" />
+          <circle cx="82" cy="16" r="5" fill="#ffffff" />
+        </g>
+      ) : (
+        <>
+          <rect x="40" y="26" width="40" height="5" rx="2" fill="#2b3440" />
+          <rect x="47" y="6" width="26" height="22" rx="2" fill="#2b3440" />
+          <rect x="47" y="21" width="26" height="4" fill="#d6404a" />
+        </>
+      )}
     </svg>
   );
 }

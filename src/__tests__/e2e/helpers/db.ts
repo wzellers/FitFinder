@@ -170,6 +170,8 @@ export async function resetAndSeed(
       daily_email_time: '07:00',
       timezone: null,
       daily_email_last_sent: null,
+      weather_effects: true,
+      seasonal_themes: true,
       ...opts.profile,
     }),
     'reset profile',

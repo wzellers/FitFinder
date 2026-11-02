@@ -31,14 +31,3 @@ export function weatherScene(icon: string, condition = ''): SceneChoice {
   else scene = 'cloudy';
   return { scene, night, storm };
 }
-
-/** A seasonal touch for the weather screen. */
-export type Season = 'christmas';
-
-/** The season `date` falls in, if it has a touch: Christmas runs through
- * December to New Year's Day. */
-export function seasonFor(date: Date): Season | null {
-  const month = date.getMonth();
-  if (month === 11 || (month === 0 && date.getDate() === 1)) return 'christmas';
-  return null;
-}

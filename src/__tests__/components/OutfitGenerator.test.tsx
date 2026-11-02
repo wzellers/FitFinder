@@ -484,6 +484,43 @@ describe('OutfitGenerator', () => {
     expect(screen.queryByTestId('weather-sun')).toBeNull();
   });
 
+  it('shows the seasonal theme, and leaves out whichever effects are turned off', async () => {
+    const rain = {
+      temperature: 48,
+      highTemperature: 52,
+      condition: 'Rain',
+      description: 'light rain',
+      icon: '10d',
+      humidity: 80,
+      windSpeed: 5,
+      timestamp: 0,
+      zipCode: '10001',
+    };
+    mockSingle.profiles = { zip_code: '10001' };
+    vi.mocked(fetchWeather).mockResolvedValueOnce(rain);
+    const first = renderWithProviders(<OutfitGenerator />);
+    expect(await screen.findByTestId('weather-backdrop')).toBeTruthy();
+    expect(screen.getByTestId('seasonal-backdrop')).toBeTruthy();
+    expect(screen.getByTestId('seasonal-sky')).toBeTruthy();
+    first.unmount();
+
+    mockSingle.profiles = { zip_code: '10001', weather_effects: false };
+    vi.mocked(fetchWeather).mockResolvedValueOnce(rain);
+    const noWeather = renderWithProviders(<OutfitGenerator />);
+    expect(await screen.findByTestId('seasonal-backdrop')).toBeTruthy();
+    expect(screen.queryByTestId('weather-backdrop')).toBeNull();
+    expect(screen.queryByTestId('weather-sky')).toBeNull();
+    noWeather.unmount();
+
+    mockSingle.profiles = { zip_code: '10001', weather_effects: false, seasonal_themes: false };
+    vi.mocked(fetchWeather).mockResolvedValueOnce(rain);
+    renderWithProviders(<OutfitGenerator />);
+    await screen.findByRole('heading', { name: "Today's fit" });
+    await waitFor(() => expect(screen.getByText(/52°F high/)).toBeTruthy());
+    expect(screen.queryByTestId('seasonal-backdrop')).toBeNull();
+    expect(screen.queryByTestId('weather-backdrop')).toBeNull();
+  });
+
   it('shows no weather backdrop without a ZIP code', async () => {
     renderWithProviders(<OutfitGenerator />);
     await screen.findByText(/Add your ZIP code/);

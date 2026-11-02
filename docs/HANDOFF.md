@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-11-02 (weather sky above the banner; dramatic weather; Christmas touch)
+**Last updated:** 2026-11-02 (seasonal themes; Effects settings; migration 024 written, not yet applied)
 
 ## What's live
 
@@ -23,7 +23,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   deepened to stay readable. Shared UI: `ModalHeader` for dialogs,
   `Dropdown` instead of native selects, `SettingsCard`, `.toggle-pill`. The
   clock is 12-hour; clicking it switches to 24-hour.
-- **Settings:** sections in a tab bar across the top; weather rules as
+- **Settings:** sections in a tab bar across the top (Weather, Occasions,
+  Colors, Email, Effects); weather rules as
   Cold/Cool/Warm/Hot chips per type; occasions edited one at a time; colour
   pairings from two swatch rows.
 - **Stats:** highlights (streak, go-to pairing, busiest day, repeats),
@@ -50,9 +51,17 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   light-blue snow crystals on a snowbank with a snowman) and in a sky strip
   above the "Today's fit" banner (`WeatherSky`: the sun, a crescent moon, or
   cartoon clouds coloured for the weather, drifting partly behind the banner,
-  which keeps the outfit's colours). Through December to New Year's Day
-  (`seasonFor`) Christmas lights hang across the sky strip and a tree stands
-  in the corner). Coming back to the tab
+  which keeps the outfit's colours). A seasonal theme shows alongside the
+  weather (`lib/seasons.ts`, `SeasonalDecor`): always one of the four seasons
+  (frost and icicles; petals, flowers and a butterfly; fireflies at night and
+  sunglasses on the sun; falling leaves), with holidays taking over for their
+  dates: New Year's, Lunar New Year, Valentine's Day, St. Patrick's Day,
+  Easter, Earth Day, Fourth of July, back to school, Halloween, Thanksgiving,
+  Hanukkah (a candle a night) and Christmas (lights, a tree, a Santa hat on
+  the snowman). Moving dates are computed (Easter, Thanksgiving) or read from
+  tables to 2035 (Lunar New Year, Hanukkah). Settings → Effects turns the
+  weather effects and seasonal themes off separately (`weather_effects`,
+  `seasonal_themes` on `profiles`, both default on)). Coming back to the tab
   re-reads the ZIP code and weather settings. Pointing at a rating warms the
   outfit's glow; Wear today stamps the pieces into a calendar tile; Share
   draws a PNG card (`lib/shareCard.ts`), shared on phones and downloaded on
@@ -101,7 +110,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 ## Infrastructure
 
 - **Supabase:** project `tbpxmszuuuuvastknqpw`, free plan. Migrations
-  `001`–`023` are all applied. Vault holds the two daily-email secrets.
+  `001`–`023` are applied; `024_effects_settings.sql` (the two Effects
+  columns) is written and waiting for the user to run it. Vault holds the two daily-email secrets.
 - **Vercel env vars (production):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`,
   `OPENWEATHERMAP_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`,
@@ -125,8 +135,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 540 unit/component tests (`npm run test`).
-- **Playwright:** 57 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 582 unit/component tests (`npm run test`).
+- **Playwright:** 58 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a

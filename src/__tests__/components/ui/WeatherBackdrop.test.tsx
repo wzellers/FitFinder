@@ -63,14 +63,12 @@ describe('WeatherBackdrop', () => {
     expect(screen.getByTestId('weather-snowman')).toBeTruthy();
   });
 
-  it('adds a Christmas tree at Christmas, whatever the weather', () => {
-    const { unmount } = render(
-      <WeatherBackdrop scene="cloudy" night={false} storm={false} season="christmas" />,
-    );
-    expect(screen.getByTestId('weather-tree')).toBeTruthy();
+  it('puts a Santa hat on the snowman when asked', () => {
+    const { unmount } = render(<WeatherBackdrop scene="snowy" night={false} storm={false} />);
+    expect(screen.queryByTestId('santa-hat')).toBeNull();
     unmount();
-    render(<WeatherBackdrop scene="cloudy" night={false} storm={false} />);
-    expect(screen.queryByTestId('weather-tree')).toBeNull();
+    render(<WeatherBackdrop scene="snowy" night={false} storm={false} santaHat />);
+    expect(screen.getByTestId('santa-hat')).toBeTruthy();
   });
 
   it('is decoration, hidden from screen readers and clicks', () => {
@@ -146,11 +144,5 @@ describe('WeatherSky', () => {
     r.unmount();
     render(<WeatherSky scene="snowy" night={false} storm={false} />);
     expect(cloudClasses().every((c) => c.includes('wx-puff-snow'))).toBe(true);
-  });
-
-  it('hangs Christmas lights at Christmas', () => {
-    render(<WeatherSky scene="sunny" night={false} storm={false} season="christmas" />);
-    const lights = screen.getByTestId('weather-lights');
-    expect(lights.querySelectorAll('.wx-bulb').length).toBeGreaterThan(10);
   });
 });

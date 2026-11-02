@@ -98,7 +98,7 @@ export default function DailyEmailSettings() {
     <SettingsCard
       icon={Mail}
       title="Daily outfit email"
-      description="Each morning: an outfit picked for the day's forecast, in its colours, plus the pieces you haven't worn yet this week."
+      description="Each morning: an outfit picked for the day's forecast, in its colours."
     >
       {state === 'loading' && <p className="text-sm text-[var(--text-secondary)]">Loading…</p>}
       {state === 'unavailable' && (
