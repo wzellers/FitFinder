@@ -30,7 +30,7 @@ import { getColorName, getColorStyle } from '@/lib/colorUtils';
 import SlotReel, { type ReelDirection } from '@/components/ui/SlotReel';
 import SwipeArea, { type SwipeDirection } from '@/components/ui/SwipeArea';
 import WornStamp from '@/components/ui/WornStamp';
-import WeatherBackdrop from '@/components/ui/WeatherBackdrop';
+import WeatherBackdrop, { SunnySky } from '@/components/ui/WeatherBackdrop';
 import { weatherScene } from '@/lib/weatherScene';
 import { supabase } from '@/lib/supabaseClient';
 import { isUniqueViolation, throwIfAnyError } from '@/lib/supabaseResult';
@@ -878,15 +878,17 @@ export default function OutfitGenerator({
     );
   }
 
+  const scene = weather && !ignoreWeather ? weatherScene(weather.icon, weather.condition) : null;
+  const sunnyDay = scene?.scene === 'sunny' && !scene.night;
+
   return (
     <div className="w-full outfit-glass">
       {/* Today's weather, faintly, behind the screen (off when not dressing for it). */}
-      {weather && !ignoreWeather && (
-        <WeatherBackdrop {...weatherScene(weather.icon, weather.condition)} />
-      )}
+      {scene && <WeatherBackdrop {...scene} />}
       {wornStamp && <WornStamp pieces={wornStamp} date={new Date()} onDone={clearWornStamp} />}
       <PosterHeader
         compact
+        decor={sunnyDay ? <SunnySky /> : undefined}
         title="Today's fit"
         script="get dressed"
         readout={`{ ${items.length} clean ${items.length === 1 ? 'item' : 'items'} to pick from }`}

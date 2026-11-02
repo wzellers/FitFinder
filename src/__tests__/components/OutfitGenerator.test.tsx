@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 // A stable user object, as the real useAuth keeps it: a new object on every
@@ -444,6 +444,41 @@ describe('OutfitGenerator', () => {
     expect(backdrop.dataset.scene).toBe('rainy');
     fireEvent.click(screen.getByRole('switch', { name: /Dress for the weather/ }));
     expect(screen.queryByTestId('weather-backdrop')).toBeNull();
+  });
+
+  it('puts a sun and clouds in the banner on a sunny day, and not when it rains', async () => {
+    mockSingle.profiles = { zip_code: '10001' };
+    vi.mocked(fetchWeather).mockResolvedValueOnce({
+      temperature: 75,
+      highTemperature: 80,
+      condition: 'Clear',
+      description: 'clear sky',
+      icon: '01d',
+      humidity: 40,
+      windSpeed: 3,
+      timestamp: 0,
+      zipCode: '10001',
+    });
+    const { unmount } = renderWithProviders(<OutfitGenerator />);
+    const banner = (await screen.findByRole('heading', { name: "Today's fit" })).closest('header')!;
+    expect(await within(banner).findByTestId('weather-sun')).toBeTruthy();
+    expect(within(banner).getAllByTestId('weather-cloud').length).toBeGreaterThan(0);
+    unmount();
+
+    vi.mocked(fetchWeather).mockResolvedValueOnce({
+      temperature: 48,
+      highTemperature: 52,
+      condition: 'Rain',
+      description: 'light rain',
+      icon: '10d',
+      humidity: 80,
+      windSpeed: 5,
+      timestamp: 0,
+      zipCode: '10001',
+    });
+    renderWithProviders(<OutfitGenerator />);
+    await screen.findByTestId('weather-backdrop');
+    expect(screen.queryByTestId('weather-sun')).toBeNull();
   });
 
   it('shows no weather backdrop without a ZIP code', async () => {

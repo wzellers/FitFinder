@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-11-02 (rating submit button; prompt skips rated days)
+**Last updated:** 2026-11-02 (sun and clouds in the banner on sunny days)
 
 ## What's live
 
@@ -46,7 +46,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   outfit colours (a background wash, the button accent and a palette strip;
   registered CSS properties fade between outfits) and shows the weather
   behind it (`WeatherBackdrop`: a sky tint plus sun or stars, clouds, rain
-  or snow, seen through the screen's frosted cards). Coming back to the tab
+  or snow, seen through the screen's frosted cards; on a sunny day the "Today's fit" banner
+  also shows a sun in its corner and white clouds drifting past, `SunnySky`). Coming back to the tab
   re-reads the ZIP code and weather settings. Pointing at a rating warms the
   outfit's glow; Wear today stamps the pieces into a calendar tile; Share
   draws a PNG card (`lib/shareCard.ts`), shared on phones and downloaded on
@@ -119,7 +120,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 529 unit/component tests (`npm run test`).
+- **Vitest:** 531 unit/component tests (`npm run test`).
 - **Playwright:** 57 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
