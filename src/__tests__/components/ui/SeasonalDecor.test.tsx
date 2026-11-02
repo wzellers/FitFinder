@@ -38,6 +38,31 @@ describe('SeasonalBackdrop', () => {
     expect(screen.getAllByTestId(testId).length).toBeGreaterThan(0);
   });
 
+  it('fills spring with a meadow of flowers and three butterflies', () => {
+    render(<SeasonalBackdrop theme="spring" />);
+    expect(screen.getByTestId('seasonal-flowers').querySelectorAll('svg').length).toBeGreaterThan(
+      20,
+    );
+    expect(screen.getAllByTestId('seasonal-butterfly')).toHaveLength(3);
+  });
+
+  it('sets up a beach for summer days, and a palm silhouette at night', () => {
+    const { unmount } = render(<SeasonalBackdrop theme="summer" />);
+    for (const id of ['seasonal-beach', 'seasonal-umbrella', 'seasonal-palm']) {
+      expect(screen.getByTestId(id), id).toBeTruthy();
+    }
+    unmount();
+    render(<SeasonalBackdrop theme="summer" night />);
+    expect(screen.getByTestId('seasonal-palm')).toBeTruthy();
+    expect(screen.queryByTestId('seasonal-umbrella')).toBeNull();
+  });
+
+  it('gives Easter a basket of eggs and a hopping bunny', () => {
+    render(<SeasonalBackdrop theme="easter" />);
+    expect(screen.getByTestId('seasonal-basket')).toBeTruthy();
+    expect(screen.getByTestId('seasonal-bunny')).toBeTruthy();
+  });
+
   it('lights one more Hanukkah candle each night, plus the helper candle', () => {
     const { unmount } = render(<SeasonalBackdrop theme="hanukkah" hanukkahNight={1} />);
     expect(screen.getAllByTestId('menorah-flame')).toHaveLength(2);
@@ -69,6 +94,8 @@ describe('SeasonalSky', () => {
     ['stpatricks', 'seasonal-rainbow'],
     ['halloween', 'seasonal-bat'],
     ['winter', 'seasonal-icicles'],
+    ['spring', 'seasonal-blossoms'],
+    ['easter', 'seasonal-egg-garland'],
   ] as const)('%s hangs %s above the banner', (theme, testId) => {
     render(<SeasonalSky theme={theme} />);
     expect(screen.getAllByTestId(testId).length).toBeGreaterThan(0);
@@ -80,5 +107,6 @@ describe('SeasonalSky', () => {
     unmount();
     render(<SeasonalSky theme="summer" sun />);
     expect(screen.getByTestId('seasonal-sunglasses')).toBeTruthy();
+    expect(screen.getByTestId('seasonal-kite')).toBeTruthy();
   });
 });

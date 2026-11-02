@@ -63,28 +63,34 @@ export function SeasonalBackdrop({ theme, night = false, hanukkahNight = 8 }: Ba
 
       {theme === 'spring' && (
         <>
-          <Falling count={26} className="sz-petal" colors={PETALS} spin />
-          <FlowerRow />
-          <Butterfly />
+          <Falling count={22} className="sz-petal" colors={PETALS} spin />
+          <Meadow />
+          {range(3).map((i) => (
+            <Butterfly key={i} index={i} />
+          ))}
         </>
       )}
 
-      {theme === 'summer' &&
-        (night ? (
-          range(22).map((i) => (
-            <span
-              key={i}
-              className="sz-firefly"
-              style={{
-                left: `${rand(i, 1) * 100}%`,
-                top: `${30 + rand(i, 2) * 65}%`,
-                animationDelay: `${-rand(i, 4) * 8}s, ${-rand(i, 6) * 3}s`,
-              }}
-            />
-          ))
-        ) : (
-          <div className="sz-shimmer" />
-        ))}
+      {theme === 'summer' && (
+        <>
+          {night ? (
+            range(26).map((i) => (
+              <span
+                key={i}
+                className="sz-firefly"
+                style={{
+                  left: `${rand(i, 1) * 100}%`,
+                  top: `${30 + rand(i, 2) * 62}%`,
+                  animationDelay: `${-rand(i, 4) * 8}s, ${-rand(i, 6) * 3}s`,
+                }}
+              />
+            ))
+          ) : (
+            <div className="sz-shimmer" />
+          )}
+          <Beach night={night} />
+        </>
+      )}
 
       {(theme === 'fall' || theme === 'thanksgiving') && (
         <>
@@ -152,7 +158,7 @@ export function SeasonalBackdrop({ theme, night = false, hanukkahNight = 8 }: Ba
           />
         ))}
 
-      {theme === 'easter' && <EasterGrass />}
+      {theme === 'easter' && <EasterScene />}
       {theme === 'earthday' && (
         <>
           <Vine side="left" />
@@ -253,30 +259,21 @@ export function SeasonalSky({ theme, night = false, sun = false }: SkyProps) {
             }}
           />
         ))}
+      {theme === 'spring' && <BlossomBranch />}
+      {theme === 'easter' && <EggGarland />}
       {theme === 'summer' && sun && <Sunglasses />}
+      {theme === 'summer' && !night && <Kite />}
       {theme === 'summer' &&
         !night &&
-        range(2).map((i) => (
-          <svg
+        range(3).map((i) => (
+          <Gull
             key={i}
-            className="sz-drift sz-gull"
-            viewBox="0 0 24 8"
-            width="30"
-            height="10"
             style={{
-              top: `${20 + i * 30}%`,
-              animationDelay: `${-i * 20}s`,
-              animationDuration: '40s',
+              top: `${18 + i * 22}%`,
+              animationDelay: `${-i * 13}s`,
+              animationDuration: `${38 + i * 6}s`,
             }}
-          >
-            <path
-              d="M1 6 Q6 0 12 6 Q18 0 23 6"
-              fill="none"
-              stroke="#3b4652"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
+          />
         ))}
     </div>
   );
@@ -527,100 +524,414 @@ function Shamrock({ size, style }: { size: number; style: React.CSSProperties })
   );
 }
 
-function FlowerRow() {
-  // Each flower is its own small drawing at a fixed size, spread across the
-  // bottom, so none is cropped however wide the screen is.
+/** One spring flower, drawn on its own at a fixed size: a daisy, a tulip
+ * or a five-petal blossom on a stem with a leaf. */
+function Flower({ kind, height, color }: { kind: number; height: number; color: string }) {
+  const h = height;
   return (
-    <div className="sz-ground h-16" data-testid="seasonal-flowers">
-      {range(28).map((i) => {
-        const h = 22 + rand(i, 2) * 26;
-        const c = PASTELS[i % PASTELS.length];
+    <svg
+      viewBox={`-12 ${-h - 12} 24 ${h + 12}`}
+      width="34"
+      height={((h + 12) * 34) / 24}
+      className="block"
+    >
+      <path
+        d={`M0 0 Q${kind % 2 ? 2 : -2} ${-h / 2} 0 ${-h}`}
+        stroke="#4f8a3a"
+        strokeWidth="1.8"
+        fill="none"
+      />
+      <path d={`M0 ${-h * 0.35} q7 -6 10 -2 q-4 5 -10 2`} fill="#5f9e46" />
+      <path d={`M0 ${-h * 0.55} q-7 -6 -10 -2 q4 5 10 2`} fill="#6aad4f" />
+      {kind === 0 && (
+        // Daisy: thin white petals round a yellow middle.
+        <g transform={`translate(0 ${-h})`}>
+          {range(10).map((p) => (
+            <ellipse
+              key={p}
+              rx="1.6"
+              ry="5"
+              cy="-5"
+              fill="#ffffff"
+              stroke="#e6e1d6"
+              strokeWidth="0.4"
+              transform={`rotate(${p * 36})`}
+            />
+          ))}
+          <circle r="3" fill="#f5c542" stroke="#e0a922" strokeWidth="0.6" />
+        </g>
+      )}
+      {kind === 1 && (
+        // Tulip: a cup of three petals.
+        <g transform={`translate(0 ${-h})`}>
+          <path
+            d="M-6 -2 C-7 -9 -4 -12 -2 -12 L0 -7 L2 -12 C4 -12 7 -9 6 -2 C5 3 -5 3 -6 -2 Z"
+            fill={color}
+          />
+          <path d="M0 -7 C-2 -2 -2 1 0 2 C2 1 2 -2 0 -7 Z" fill="rgba(0,0,0,0.12)" />
+        </g>
+      )}
+      {kind === 2 && (
+        // Blossom: five round petals with a speckled middle.
+        <g transform={`translate(0 ${-h})`}>
+          {range(5).map((p) => (
+            <circle
+              key={p}
+              cx={4 * Math.cos((p * 2 * Math.PI) / 5 - Math.PI / 2)}
+              cy={4 * Math.sin((p * 2 * Math.PI) / 5 - Math.PI / 2)}
+              r="3.6"
+              fill={color}
+            />
+          ))}
+          <circle r="2.2" fill="#f5c542" />
+          <circle r="0.7" cx="0.8" cy="-0.5" fill="#c98a12" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+const TULIPS = ['#e5484d', '#f472b6', '#c084fc', '#f5c542', '#fb923c'];
+
+/** A strip of grass along the bottom, full of mixed spring flowers. */
+function Meadow() {
+  return (
+    <div className="sz-ground h-24" data-testid="seasonal-flowers">
+      <Grass className="absolute inset-x-0 bottom-0 w-full h-10" />
+      {range(30).map((i) => {
+        const kind = i % 3;
         return (
-          <svg
+          <div
             key={i}
             className="sz-flower sz-sway"
-            style={{ left: `${(i + 0.2 + rand(i, 1) * 0.6) * (100 / 28)}%` }}
-            viewBox={`-8 ${-h - 8} 16 ${h + 8}`}
-            width="16"
-            height={h + 8}
+            style={{
+              left: `${(i + 0.2 + rand(i, 1) * 0.6) * (100 / 30)}%`,
+              animationDelay: `${-rand(i, 4) * 4}s`,
+            }}
           >
-            <path d={`M0 0 V${-h}`} stroke="#4f8a3a" strokeWidth="1.6" />
-            <path d={`M0 ${-h * 0.4} q5 -4 7 -1 q-3 3 -7 1`} fill="#5f9e46" />
-            {range(5).map((p) => (
-              <circle
-                key={p}
-                cx={3.4 * Math.cos((p * 2 * Math.PI) / 5)}
-                cy={-h + 3.4 * Math.sin((p * 2 * Math.PI) / 5)}
-                r="2.8"
-                fill={c}
-              />
-            ))}
-            <circle cx="0" cy={-h} r="2" fill="#f5c542" />
-          </svg>
+            <Flower
+              kind={kind}
+              height={24 + rand(i, 2) * 30}
+              color={kind === 1 ? TULIPS[i % TULIPS.length] : PASTELS[i % PASTELS.length]}
+            />
+          </div>
         );
       })}
     </div>
   );
 }
 
-function Butterfly() {
+/** Two layers of grass blades, stretched to the screen's width. */
+function Grass({ className }: { className: string }) {
+  const blades = (seed: number, base: number, tall: number) =>
+    `M0 50 ${range(101)
+      .map((i) => `L${i * 4} ${i % 2 ? base - tall * (0.4 + rand(i, seed) * 0.6) : base}`)
+      .join(' ')} L400 50 Z`;
   return (
-    <div className="sz-butterfly-path" data-testid="seasonal-butterfly">
-      <svg className="sz-butterfly" viewBox="-12 -10 24 20" width="34" height="28">
-        <g className="sz-wing">
-          <path d="M0 0 C-4 -9 -12 -9 -11 -2 C-10 3 -4 3 0 0 Z" fill="#8e4ec6" />
-          <path d="M0 0 C-3 4 -9 8 -8 3 Z" fill="#c084fc" />
+    <svg className={className} viewBox="0 0 400 50" preserveAspectRatio="none">
+      <path d={blades(11, 30, 26)} fill="#5aa64a" />
+      <path d={blades(13, 38, 20)} fill="#7cc46a" />
+      <rect y="44" width="400" height="6" fill="#6db75c" />
+    </svg>
+  );
+}
+
+const BUTTERFLIES = [
+  { wing: '#8e4ec6', inner: '#c084fc', top: '38%', delay: 0 },
+  { wing: '#f08a24', inner: '#fcd34d', top: '58%', delay: -9 },
+  { wing: '#3e8ef7', inner: '#93c5fd', top: '28%', delay: -17 },
+];
+
+function Butterfly({ index }: { index: number }) {
+  const b = BUTTERFLIES[index % BUTTERFLIES.length];
+  const wings = (
+    <>
+      <path
+        d="M0 0 C-4 -10 -13 -11 -12 -3 C-11 2 -5 3 0 0 Z"
+        fill={b.wing}
+        stroke="#2b3440"
+        strokeWidth="0.6"
+      />
+      <path
+        d="M0 0 C-3 5 -10 9 -9 3 C-8 1 -4 1 0 0 Z"
+        fill={b.inner}
+        stroke="#2b3440"
+        strokeWidth="0.6"
+      />
+      <circle cx="-7" cy="-5" r="1.6" fill="#ffffff" />
+      <circle cx="-9.5" cy="-2" r="0.9" fill="#ffffff" />
+      <circle cx="-5" cy="4" r="1" fill="#2b3440" />
+    </>
+  );
+  return (
+    <div
+      className="sz-butterfly-path"
+      data-testid="seasonal-butterfly"
+      style={{ top: b.top, animationDelay: `${b.delay}s` }}
+    >
+      <svg className="sz-butterfly" viewBox="-13 -12 26 22" width="38" height="32">
+        <g className="sz-wing">{wings}</g>
+        <g transform="scale(-1 1)">
+          <g className="sz-wing">{wings}</g>
         </g>
-        <g className="sz-wing sz-wing-right">
-          <path d="M0 0 C4 -9 12 -9 11 -2 C10 3 4 3 0 0 Z" fill="#8e4ec6" />
-          <path d="M0 0 C3 4 9 8 8 3 Z" fill="#c084fc" />
-        </g>
-        <path d="M0 -5 V6" stroke="#2b3440" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M0 -6 V7" stroke="#2b3440" strokeWidth="1.8" strokeLinecap="round" />
+        <path
+          d="M0 -6 Q-2 -10 -4 -11 M0 -6 Q2 -10 4 -11"
+          stroke="#2b3440"
+          strokeWidth="0.7"
+          fill="none"
+        />
       </svg>
     </div>
   );
 }
 
-function EasterGrass() {
+/** A cherry-blossom branch reaching in from the top-left of the sky. */
+function BlossomBranch() {
+  const flowers = [
+    [38, 14, 1],
+    [62, 24, 0.85],
+    [90, 12, 1.1],
+    [118, 30, 0.9],
+    [146, 18, 1],
+    [176, 34, 0.8],
+    [204, 22, 0.95],
+    [74, 40, 0.75],
+    [132, 46, 0.7],
+  ] as const;
   return (
-    <div className="sz-ground h-20" data-testid="seasonal-eggs">
-      {/* Grass stretches to fit; the eggs are drawn at a fixed size on it. */}
+    <svg
+      className="absolute left-0 top-0"
+      data-testid="seasonal-blossoms"
+      viewBox="0 0 240 70"
+      width="300"
+      height="88"
+    >
+      <path
+        d="M0 6 C50 10 90 22 150 26 C185 28 210 24 236 30"
+        stroke="#6b4a2f"
+        strokeWidth="4"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <path
+        d="M80 20 C90 32 100 40 118 44 M150 26 C160 36 170 40 182 40"
+        stroke="#6b4a2f"
+        strokeWidth="2.4"
+        fill="none"
+        strokeLinecap="round"
+      />
+      {flowers.map(([x, y, k], i) => (
+        <g key={i} transform={`translate(${x} ${y}) scale(${k})`}>
+          {/* The sway goes on an inner group: a CSS animation would
+              replace the position set on this one. */}
+          <g className="sz-twirl" style={{ animationDelay: `${-i * 0.5}s` }}>
+            {range(5).map((p) => (
+              <ellipse
+                key={p}
+                rx="4"
+                ry="5.5"
+                cy="-5"
+                fill={i % 2 ? '#fbd5e0' : '#f9c6d3'}
+                stroke="#f4a7bb"
+                strokeWidth="0.5"
+                transform={`rotate(${p * 72})`}
+              />
+            ))}
+            <circle r="2.2" fill="#e93d82" />
+          </g>
+        </g>
+      ))}
+      {[
+        [24, 8],
+        [104, 24],
+        [228, 30],
+      ].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="2.6" fill="#f4a7bb" />
+      ))}
+    </svg>
+  );
+}
+
+/** Easter: a meadow with decorated eggs, tulips, a basket of eggs and a
+ * bunny hopping past now and then. */
+function EasterScene() {
+  return (
+    <div className="sz-ground h-28" data-testid="seasonal-eggs">
+      <Grass className="absolute inset-x-0 bottom-0 w-full h-12" />
+      {range(8).map((i) => (
+        <div
+          key={`f${i}`}
+          className="sz-flower sz-sway"
+          style={{ left: `${3 + i * 12.5 + rand(i, 3) * 5}%`, animationDelay: `${-i * 0.6}s` }}
+        >
+          <Flower kind={1} height={26 + rand(i, 2) * 18} color={TULIPS[i % TULIPS.length]} />
+        </div>
+      ))}
+      {range(9).map((i) => (
+        <svg
+          key={i}
+          className="sz-egg"
+          style={{
+            left: `${5 + i * 10.5 + rand(i, 1) * 4}%`,
+            rotate: `${(rand(i, 2) - 0.5) * 30}deg`,
+          }}
+          viewBox="-10 -12 20 24"
+          width="28"
+          height="34"
+        >
+          <EasterEgg
+            pattern={i % 4}
+            color={PASTELS[i % PASTELS.length]}
+            accent={PASTELS[(i + 2) % PASTELS.length]}
+          />
+        </svg>
+      ))}
+      <EggBasket />
+      <Bunny />
+    </div>
+  );
+}
+
+/** A decorated egg (drawn in a -10 -12 20 24 box) with one of four patterns. */
+function EasterEgg({ pattern, color, accent }: { pattern: number; color: string; accent: string }) {
+  const id = `egg-${pattern}-${color.slice(1)}`;
+  return (
+    <>
+      <defs>
+        <clipPath id={id}>
+          <ellipse rx="8.5" ry="11" />
+        </clipPath>
+      </defs>
+      <ellipse rx="8.5" ry="11" fill={color} />
+      <g clipPath={`url(#${id})`}>
+        {pattern === 0 && (
+          <path
+            d="M-9 0 L-6 -3 L-3 0 L0 -3 L3 0 L6 -3 L9 0"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="1.8"
+          />
+        )}
+        {pattern === 1 && (
+          <>
+            <rect x="-9" y="-4" width="18" height="2.6" fill={accent} />
+            <rect x="-9" y="2" width="18" height="2.6" fill="#ffffff" />
+          </>
+        )}
+        {pattern === 2 &&
+          [
+            [-3, -6],
+            [3, -4],
+            [-4, 1],
+            [2, 3],
+            [-1, 7],
+            [5, 7],
+          ].map(([x, y], d) => (
+            <circle key={d} cx={x} cy={y} r="1.5" fill={d % 2 ? '#ffffff' : accent} />
+          ))}
+        {pattern === 3 && (
+          <>
+            <path d="M-9 -2 Q-4.5 -6 0 -2 T9 -2" fill="none" stroke={accent} strokeWidth="2" />
+            <path d="M-9 4 Q-4.5 0 0 4 T9 4" fill="none" stroke="#ffffff" strokeWidth="1.6" />
+          </>
+        )}
+      </g>
+      <ellipse rx="8.5" ry="11" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="0.6" />
+      <ellipse cx="-3.5" cy="-5" rx="1.6" ry="3" fill="rgba(255,255,255,0.55)" />
+    </>
+  );
+}
+
+function EggBasket() {
+  return (
+    <svg
+      className="sz-ground-right"
+      data-testid="seasonal-basket"
+      viewBox="0 0 120 90"
+      width="130"
+      height="98"
+    >
+      <path d="M14 46 Q60 -10 106 46" fill="none" stroke="#9a6a3a" strokeWidth="5" />
+      {[
+        [34, 44, 0],
+        [52, 38, 1],
+        [70, 40, 2],
+        [86, 46, 3],
+      ].map(([x, y, p], i) => (
+        <g key={i} transform={`translate(${x} ${y}) rotate(${(i - 1.5) * 12})`}>
+          <EasterEgg
+            pattern={p}
+            color={PASTELS[(i + 1) % PASTELS.length]}
+            accent={PASTELS[(i + 3) % PASTELS.length]}
+          />
+        </g>
+      ))}
+      <path d="M10 48 H110 L100 86 H20 Z" fill="#b5844f" />
+      <path d="M13 58 H107 M16 68 H104 M18 78 H102" stroke="#8a5f33" strokeWidth="2.2" />
+      {range(9).map((i) => (
+        <path key={i} d={`M${22 + i * 10} 48 V86`} stroke="#9a6a3a" strokeWidth="1.4" />
+      ))}
+      <path d="M8 46 H112" stroke="#8a5f33" strokeWidth="5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function Bunny() {
+  return (
+    <div className="sz-hop" data-testid="seasonal-bunny">
+      <svg className="sz-hop-body" viewBox="0 0 60 50" width="62" height="52">
+        <ellipse cx="26" cy="34" rx="16" ry="12" fill="#f1ece4" />
+        <circle cx="10" cy="34" r="5" fill="#ffffff" />
+        <circle cx="42" cy="24" r="9" fill="#f1ece4" />
+        <ellipse cx="38" cy="8" rx="3.2" ry="10" fill="#f1ece4" transform="rotate(-12 38 8)" />
+        <ellipse cx="38" cy="8" rx="1.6" ry="7" fill="#f6c1cf" transform="rotate(-12 38 8)" />
+        <ellipse cx="45" cy="8" rx="3.2" ry="10" fill="#f1ece4" transform="rotate(10 45 8)" />
+        <ellipse cx="45" cy="8" rx="1.6" ry="7" fill="#f6c1cf" transform="rotate(10 45 8)" />
+        <circle cx="45" cy="22" r="1.4" fill="#2b3440" />
+        <circle cx="50" cy="26" r="1.3" fill="#e991a9" />
+        <ellipse cx="34" cy="45" rx="6" ry="3" fill="#e6dfd3" />
+        <ellipse cx="18" cy="45" rx="5" ry="3" fill="#e6dfd3" />
+      </svg>
+    </div>
+  );
+}
+
+/** A string of pastel eggs hung across the sky. */
+function EggGarland() {
+  const n = 16;
+  return (
+    <div className="absolute inset-x-0 top-0 h-12" data-testid="seasonal-egg-garland">
       <svg
-        className="absolute inset-x-0 bottom-0 w-full h-12"
-        viewBox="0 0 400 50"
+        className="absolute inset-0 w-full h-full"
+        viewBox="0 0 100 32"
         preserveAspectRatio="none"
       >
         <path
-          d={`M0 50 ${range(81)
-            .map((i) => `L${i * 5} ${i % 2 ? 6 + rand(i, 1) * 16 : 26}`)
-            .join(' ')} L400 50 Z`}
-          fill="#7cc46a"
+          d={sagPath()}
+          fill="none"
+          stroke="#b9a58a"
+          strokeWidth="0.8"
+          vectorEffect="non-scaling-stroke"
         />
       </svg>
-      {range(9).map((i) => {
-        const c = PASTELS[i % PASTELS.length];
+      {range(n).map((i) => {
+        const x = (i + 0.5) / n;
         return (
           <svg
             key={i}
-            className="sz-egg"
-            style={{
-              left: `${6 + i * 11 + rand(i, 1) * 4}%`,
-              rotate: `${(rand(i, 2) - 0.5) * 30}deg`,
-            }}
-            viewBox="-10 -12 20 24"
-            width="26"
-            height="32"
+            className="sz-hang"
+            style={{ left: `${x * 100}%`, top: sag(x) - 2, animationDelay: `${-i * 0.35}s` }}
+            viewBox="-10 -15 20 27"
+            width="18"
+            height="24"
           >
-            <ellipse rx="8.5" ry="11" fill={c} stroke="rgba(0,0,0,0.1)" />
-            <path
-              d="M-8.5 0 L-5 -3 L-1.5 0 L2 -3 L5.5 0 L8.5 -3"
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth="1.6"
+            <path d="M0 -15 V-11" stroke="#b9a58a" strokeWidth="1" />
+            <EasterEgg
+              pattern={i % 4}
+              color={PASTELS[i % PASTELS.length]}
+              accent={PASTELS[(i + 2) % PASTELS.length]}
             />
-            <path d="M-7.5 5 H7.5" stroke={PASTELS[(i + 2) % PASTELS.length]} strokeWidth="2.2" />
-            <circle cx="-3" cy="-7" r="1.2" fill="#ffffff" />
-            <circle cx="3" cy="-6" r="1.2" fill="#ffffff" />
           </svg>
         );
       })}
@@ -998,14 +1309,217 @@ function Sunglasses() {
     <svg
       className="sz-sunglasses"
       data-testid="seasonal-sunglasses"
-      viewBox="0 0 60 20"
-      width="60"
-      height="20"
+      viewBox="0 0 60 22"
+      width="62"
+      height="23"
     >
-      <path d="M2 4 H58" stroke="#1f2328" strokeWidth="2.5" />
-      <path d="M6 4 H26 Q26 18 16 18 Q6 18 6 4 Z" fill="#1f2328" />
-      <path d="M34 4 H54 Q54 18 44 18 Q34 18 34 4 Z" fill="#1f2328" />
-      <path d="M10 7 L14 7" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
+      <defs>
+        <linearGradient id="sz-lens" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#3b4a5e" />
+          <stop offset="1" stopColor="#11161d" />
+        </linearGradient>
+      </defs>
+      <path d="M2 5 Q30 1 58 5" stroke="#1f2328" strokeWidth="2.5" fill="none" />
+      <path
+        d="M5 4 H27 Q27 19 16 19 Q5 19 5 4 Z"
+        fill="url(#sz-lens)"
+        stroke="#11161d"
+        strokeWidth="1"
+      />
+      <path
+        d="M33 4 H55 Q55 19 44 19 Q33 19 33 4 Z"
+        fill="url(#sz-lens)"
+        stroke="#11161d"
+        strokeWidth="1"
+      />
+      <path
+        d="M8 7 L13 7 M10 10 L12 10"
+        stroke="rgba(255,255,255,0.7)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M36 7 L41 7"
+        stroke="rgba(255,255,255,0.7)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M22 15 Q30 20 38 15"
+        stroke="#c96f12"
+        strokeWidth="1.6"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** A seagull gliding across the sky strip, flapping now and then. */
+function Gull({ style }: { style: React.CSSProperties }) {
+  return (
+    <svg className="sz-drift" style={style} viewBox="-16 -8 32 14" width="34" height="15">
+      <g className="sz-gull-wings">
+        <path
+          d="M0 0 Q-6 -7 -15 -2 Q-8 -3 0 2 Z"
+          fill="#ffffff"
+          stroke="#55606b"
+          strokeWidth="0.8"
+        />
+        <path d="M0 0 Q6 -7 15 -2 Q8 -3 0 2 Z" fill="#ffffff" stroke="#55606b" strokeWidth="0.8" />
+        <path d="M-15 -2 L-12 -3 M15 -2 L12 -3" stroke="#2b3440" strokeWidth="1.4" />
+      </g>
+      <ellipse cx="0" cy="1" rx="4" ry="2" fill="#ffffff" stroke="#55606b" strokeWidth="0.6" />
+      <path d="M3.5 0.5 L6 1 L3.5 1.6 Z" fill="#f5a524" />
+    </svg>
+  );
+}
+
+/** A diamond kite with a bow-tied tail, bobbing in the breeze. */
+function Kite() {
+  return (
+    <svg
+      className="sz-kite"
+      data-testid="seasonal-kite"
+      viewBox="0 0 70 110"
+      width="58"
+      height="92"
+    >
+      <path d="M35 2 L58 30 L35 62 L12 30 Z" fill="#e5484d" />
+      <path d="M35 2 L58 30 L35 30 Z" fill="#f5c542" />
+      <path d="M35 30 L12 30 L35 62 Z" fill="#3e8ef7" />
+      <path d="M35 2 V62 M12 30 H58" stroke="#7a1d1d" strokeWidth="1.2" />
+      <path
+        className="sz-kite-tail"
+        d="M35 62 Q28 72 36 80 T34 98 T38 108"
+        stroke="#55606b"
+        strokeWidth="1.2"
+        fill="none"
+      />
+      {[
+        [31, 72, '#f472b6'],
+        [37, 86, '#30a46c'],
+        [34, 100, '#f5c542'],
+      ].map(([x, y, c], i) => (
+        <path key={i} d={`M${x} ${y} l-5 -3 v6 Z M${x} ${y} l5 -3 v6 Z`} fill={c as string} />
+      ))}
+    </svg>
+  );
+}
+
+/** Summer's beach along the bottom: sand, an umbrella, a bouncing ball, a
+ * sandcastle and a palm tree (a silhouette at night). */
+function Beach({ night }: { night: boolean }) {
+  return (
+    <div className="sz-ground h-56" data-testid="seasonal-beach">
+      <svg
+        className="absolute inset-x-0 bottom-0 w-full h-14"
+        viewBox="0 0 400 50"
+        preserveAspectRatio="none"
+      >
+        <path
+          d="M0 22 Q60 10 130 18 T260 14 T400 20 V50 H0 Z"
+          fill={night ? '#7d6f58' : '#f1dca8'}
+        />
+        <path d="M0 32 Q80 24 170 30 T400 28 V50 H0 Z" fill={night ? '#6f624d' : '#e8cd8f'} />
+      </svg>
+      {!night && (
+        <>
+          <svg
+            className="absolute bottom-6 left-[5%]"
+            data-testid="seasonal-umbrella"
+            viewBox="0 0 120 120"
+            width="120"
+            height="120"
+          >
+            <path d="M60 30 L72 116" stroke="#8a6a46" strokeWidth="3" />
+            <path d="M8 46 Q60 -6 112 46 Z" fill="#ffffff" />
+            {[0, 2, 4].map((k) => (
+              <path
+                key={k}
+                d={`M60 20 L${8 + k * 20.8} 46 Q${18.4 + k * 20.8} 40 ${28.8 + k * 20.8} 46 Z`}
+                fill="#e5484d"
+              />
+            ))}
+            <path
+              d="M8 46 Q18 40 28 46 Q39 40 49 46 Q60 40 70 46 Q81 40 91 46 Q102 40 112 46"
+              fill="none"
+              stroke="#c43a3f"
+              strokeWidth="1.2"
+            />
+            <circle cx="60" cy="19" r="3" fill="#c43a3f" />
+          </svg>
+          <div className="sz-ball-bounce" style={{ left: '15%' }}>
+            <svg className="sz-ball" viewBox="-12 -12 24 24" width="30" height="30">
+              <circle r="11" fill="#ffffff" stroke="#c9ced6" strokeWidth="0.6" />
+              <path d="M0 -11 A11 11 0 0 1 11 0 L0 0 Z" fill="#e5484d" />
+              <path d="M0 11 A11 11 0 0 1 -11 0 L0 0 Z" fill="#3e8ef7" />
+              <path d="M11 0 A11 11 0 0 1 0 11 L0 0 Z" fill="#f5c542" />
+              <circle r="2.4" fill="#ffffff" />
+            </svg>
+          </div>
+          <svg className="absolute bottom-5 left-[22%]" viewBox="0 0 70 60" width="70" height="60">
+            <path
+              d="M6 58 V34 H16 V28 H22 V34 H30 V22 H40 V34 H48 V28 H54 V34 H64 V58 Z"
+              fill="#e2c27d"
+            />
+            <path d="M32 30 h6 v8 h-6 z" fill="#c9a660" />
+            <path d="M35 22 V6" stroke="#55606b" strokeWidth="1.2" />
+            <path className="sz-flag-wave" d="M35 6 L47 10 L35 14 Z" fill="#e5484d" />
+          </svg>
+        </>
+      )}
+      <Palm night={night} />
+    </div>
+  );
+}
+
+function Palm({ night }: { night: boolean }) {
+  const leaf = night ? '#1e2b26' : '#2f8a4a';
+  const leafLight = night ? '#26352f' : '#3fa35a';
+  const trunk = night ? '#2a2420' : '#8a6239';
+  return (
+    <svg
+      className="absolute bottom-4 right-[2%]"
+      data-testid="seasonal-palm"
+      viewBox="0 0 160 220"
+      width="150"
+      height="206"
+    >
+      <path
+        d="M86 216 C82 170 90 120 78 72"
+        stroke={trunk}
+        strokeWidth="11"
+        fill="none"
+        strokeLinecap="round"
+      />
+      {range(9).map((i) => (
+        <path
+          key={i}
+          d={`M${88 - i * 1} ${210 - i * 16} q-7 -3 -13 0`}
+          stroke={night ? '#1a1512' : '#6e4c2b'}
+          strokeWidth="2"
+          fill="none"
+        />
+      ))}
+      <g className="sz-fronds" style={{ transformOrigin: '78px 72px' }}>
+        {[
+          'M78 72 C50 50 22 58 4 82 C30 66 52 66 78 76 Z',
+          'M78 72 C58 36 30 26 12 32 C40 38 60 52 78 74 Z',
+          'M78 72 C76 38 92 14 112 6 C98 26 88 46 80 74 Z',
+          'M78 72 C104 46 132 48 154 66 C126 58 104 62 80 76 Z',
+          'M78 72 C110 66 138 84 150 108 C126 88 104 80 80 76 Z',
+          'M78 72 C64 84 50 104 46 128 C58 104 68 92 80 76 Z',
+        ].map((d, i) => (
+          <path key={i} d={d} fill={i % 2 ? leafLight : leaf} />
+        ))}
+        {!night && (
+          <>
+            <circle cx="74" cy="78" r="5" fill="#6b4a2f" />
+            <circle cx="83" cy="80" r="5" fill="#5a3e27" />
+          </>
+        )}
+      </g>
     </svg>
   );
 }

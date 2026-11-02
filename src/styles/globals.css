@@ -1433,3 +1433,108 @@
   top: 34px;
   right: 49px;
 }
+/* A bunny hopping across the bottom now and then. */
+.sz-hop {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  animation: sz-hop-across 22s linear infinite;
+}
+.sz-hop-body {
+  animation: sz-hop 0.7s ease-in-out infinite;
+}
+@keyframes sz-hop-across {
+  0% {
+    transform: translateX(-80px);
+  }
+  45%,
+  100% {
+    transform: translateX(105vw);
+  }
+}
+@keyframes sz-hop {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-22px) rotate(-8deg);
+  }
+}
+.sz-ball-bounce {
+  position: absolute;
+  bottom: 14px;
+  animation: sz-bounce 1.6s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate;
+}
+.sz-ball {
+  animation: wx-spin 2.4s linear infinite;
+}
+@keyframes sz-bounce {
+  to {
+    transform: translateY(-46px);
+  }
+}
+.sz-kite {
+  position: absolute;
+  top: 2px;
+  left: 18%;
+  transform-origin: 50% 90%;
+  animation: sz-kite 4s ease-in-out infinite alternate;
+}
+@keyframes sz-kite {
+  from {
+    transform: rotate(-8deg) translateY(0);
+  }
+  to {
+    transform: rotate(7deg) translateY(6px);
+  }
+}
+.sz-kite-tail {
+  animation: sz-sway 1.4s ease-in-out infinite alternate;
+  transform-origin: 35px 62px;
+}
+.sz-hang {
+  position: absolute;
+  margin-left: -9px;
+  transform-origin: top center;
+  animation: sz-sway 2.6s ease-in-out infinite alternate;
+}
+.sz-fronds {
+  animation: sz-fronds 5s ease-in-out infinite alternate;
+}
+@keyframes sz-fronds {
+  from {
+    transform: rotate(-3deg);
+  }
+  to {
+    transform: rotate(3deg);
+  }
+}
+.sz-gull-wings {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: sz-gull-flap 3s ease-in-out infinite;
+}
+@keyframes sz-gull-flap {
+  0%,
+  60%,
+  100% {
+    transform: scaleY(1);
+  }
+  70%,
+  90% {
+    transform: scaleY(0.4);
+  }
+  80% {
+    transform: scaleY(1.1);
+  }
+}
+.sz-flag-wave {
+  transform-origin: 35px 10px;
+  animation: sz-sway 1.2s ease-in-out infinite alternate;
+}
+.sz-twirl {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sz-sway 3s ease-in-out infinite alternate;
+}

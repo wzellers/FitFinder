@@ -53,10 +53,11 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   cartoon clouds coloured for the weather, drifting partly behind the banner,
   which keeps the outfit's colours). A seasonal theme shows alongside the
   weather (`lib/seasons.ts`, `SeasonalDecor`): always one of the four seasons
-  (frost and icicles; petals, flowers and a butterfly; fireflies at night and
-  sunglasses on the sun; falling leaves), with holidays taking over for their
+  (frost and icicles; a cherry-blossom branch, a meadow of mixed flowers and
+  butterflies; a beach with a palm, umbrella, beach ball, kite, gulls and
+  sunglasses on the sun, fireflies at night; falling leaves), with holidays taking over for their
   dates: New Year's, Lunar New Year, Valentine's Day, St. Patrick's Day,
-  Easter, Earth Day, Fourth of July, back to school, Halloween, Thanksgiving,
+  Easter (eggs, tulips, a basket, a hopping bunny, an egg garland), Earth Day, Fourth of July, back to school, Halloween, Thanksgiving,
   Hanukkah (a candle a night) and Christmas (lights, a tree, a Santa hat on
   the snowman). Moving dates are computed (Easter, Thanksgiving) or read from
   tables to 2035 (Lunar New Year, Hanukkah). Settings → Effects turns the
@@ -135,7 +136,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 582 unit/component tests (`npm run test`).
+- **Vitest:** 587 unit/component tests (`npm run test`).
 - **Playwright:** 58 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
