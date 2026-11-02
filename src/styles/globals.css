@@ -417,7 +417,15 @@
   inset: 0;
 }
 .wx-sky-sunny {
-  background: linear-gradient(to bottom, rgba(255, 214, 140, 0.28), transparent 60%);
+  /* Clear blue sky at the top, warmed toward the sun's corner. */
+  background:
+    radial-gradient(60% 50% at 100% 0%, rgba(255, 214, 140, 0.35), transparent 70%),
+    linear-gradient(
+      to bottom,
+      rgba(120, 180, 235, 0.38),
+      rgba(170, 210, 245, 0.14) 45%,
+      transparent 70%
+    );
 }
 .wx-sky-night {
   background: linear-gradient(to bottom, rgba(70, 85, 130, 0.22), transparent 70%);
@@ -463,6 +471,73 @@
   );
   animation: wx-sun 18s ease-in-out infinite alternate;
 }
+/* The sun itself, peeking into the banner's top-right corner. */
+.wx-sun-disc {
+  position: absolute;
+  top: -22px;
+  right: 22px;
+  width: 78px;
+  height: 78px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 40% 38%, #fff3b8, #ffd25a 55%, #ffb733);
+  box-shadow:
+    0 0 40px 12px rgba(255, 200, 80, 0.45),
+    0 0 120px 40px rgba(255, 190, 70, 0.22);
+  animation: wx-sun-pulse 6s ease-in-out infinite;
+}
+.wx-sun-rays {
+  position: absolute;
+  inset: -40px;
+  border-radius: 9999px;
+  background: repeating-conic-gradient(rgba(255, 196, 70, 0.4) 0deg 6deg, transparent 6deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 44px, #000 48px, transparent 80px);
+  mask: radial-gradient(circle, transparent 44px, #000 48px, transparent 80px);
+  animation: wx-spin 60s linear infinite;
+}
+@keyframes wx-sun-pulse {
+  50% {
+    box-shadow:
+      0 0 48px 16px rgba(255, 200, 80, 0.55),
+      0 0 140px 50px rgba(255, 190, 70, 0.26);
+  }
+}
+@keyframes wx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* A white cartoon cloud: a rounded base with two puffs on top. */
+.wx-puff {
+  position: absolute;
+  left: 0;
+  width: 150px;
+  height: 46px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 24px -8px rgba(90, 120, 160, 0.35);
+  transform-origin: left top;
+  scale: var(--puff-scale, 1);
+  animation: wx-drift-across 80s linear infinite;
+}
+.wx-puff::before,
+.wx-puff::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  background: inherit;
+}
+.wx-puff::before {
+  width: 64px;
+  height: 64px;
+  left: 24px;
+  top: -30px;
+}
+.wx-puff::after {
+  width: 82px;
+  height: 82px;
+  left: 62px;
+  top: -44px;
+}
 @keyframes wx-sun {
   to {
     transform: translate(-4vmax, 3vmax) scale(1.08);
@@ -493,6 +568,14 @@
   );
   filter: blur(10px);
   animation: wx-drift 60s linear infinite;
+}
+@keyframes wx-drift-across {
+  from {
+    left: -160px;
+  }
+  to {
+    left: 100%;
+  }
 }
 @keyframes wx-drift {
   from {

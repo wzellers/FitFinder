@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import WeatherBackdrop from '@/components/ui/WeatherBackdrop';
+import WeatherBackdrop, { SunnySky } from '@/components/ui/WeatherBackdrop';
 
 const backdrop = () => screen.getByTestId('weather-backdrop');
 const count = (cls: string) => backdrop().querySelectorAll(`.${cls}`).length;
@@ -12,6 +12,12 @@ describe('WeatherBackdrop', () => {
     expect(backdrop().dataset.scene).toBe('sunny');
     expect(count('wx-sun')).toBe(1);
     expect(count('wx-star')).toBe(0);
+  });
+
+  it('draws a sun and white clouds for the sunny banner', () => {
+    render(<SunnySky />);
+    expect(screen.getByTestId('weather-sun')).toBeTruthy();
+    expect(screen.getAllByTestId('weather-cloud').length).toBeGreaterThanOrEqual(3);
   });
 
   it('shows stars instead on a clear night', () => {

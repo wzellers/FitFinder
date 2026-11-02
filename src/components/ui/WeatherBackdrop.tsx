@@ -133,3 +133,40 @@ export default function WeatherBackdrop({ scene, night, storm }: SceneChoice) {
     </div>
   );
 }
+
+/** White fair-weather clouds drifting across the banner on a sunny day. */
+const FAIR_CLOUDS = [
+  { top: 8, scale: 0.55, delay: 6, duration: 46 },
+  { top: 52, scale: 0.4, delay: 24, duration: 60 },
+  { top: 20, scale: 0.45, delay: 40, duration: 54 },
+];
+
+/**
+ * A sunny sky for the top of the Outfits screen: a sun in the corner with
+ * slowly turning rays, and white clouds drifting past. Shown inside the
+ * "Today's fit" banner, so it's always in view and reads as the weather.
+ */
+export function SunnySky() {
+  return (
+    <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+      {FAIR_CLOUDS.map((c, i) => (
+        <span
+          key={i}
+          className="wx-puff"
+          data-testid="weather-cloud"
+          style={
+            {
+              top: `${c.top}%`,
+              '--puff-scale': c.scale,
+              animationDelay: `${-c.delay}s`,
+              animationDuration: `${c.duration}s`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+      <div className="wx-sun-disc" data-testid="weather-sun">
+        <span className="wx-sun-rays" />
+      </div>
+    </div>
+  );
+}
