@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-10-28 (vision test set from the closet)
+**Last updated:** 2026-11-02 (rating submit button; prompt skips rated days)
 
 ## What's live
 
@@ -40,7 +40,7 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 - **Outfits screen:** a slim header; the outfit centred as a vertical stack
   (top, bottom, shoes) with Try another under it; occasion and weather to its
   left; Save, Wear today, Share and rating to its right (below it on phones).
-  A rated outfit stays on screen with its rating until Try another.
+  Rating is picked first and sent with Submit, so it can be changed before then; a rated outfit stays on screen with its rating until Try another.
   Reels spin top to bottom; one piece can be swapped with its arrows or a
   sideways swipe, sliding the way the user pointed. The screen takes today's
   outfit colours (a background wash, the button accent and a palette strip;
@@ -58,6 +58,10 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   is on (`lib/closetOrder.ts`).
 - **Calendar:** logging or editing a day offers every piece, including ones
   in the wash (badged "Dirty"); rating or editing a past day re-learns it.
+- **Rating prompt:** asks about yesterday's worn outfit only if it's still
+  unrated and the same outfit wasn't rated on the Outfits tab since
+  (`lib/pendingRating.ts`); it re-checks on every tab change, so rating the
+  day in the Calendar takes it away. A skipped prompt stays skipped.
 - **App icon:** the Tag F (a fog-white clothing tag with a slate F on a
   slate square): `src/app/icon.svg`, and `src/app/apple-icon.tsx` draws the
   180px Home Screen / Dock PNG.
@@ -115,8 +119,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 523 unit/component tests (`npm run test`).
-- **Playwright:** 56 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 529 unit/component tests (`npm run test`).
+- **Playwright:** 57 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a

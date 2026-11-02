@@ -1,4 +1,4 @@
-import { test, expect, openApp, expectImagesLoaded } from './helpers/test';
+import { test, expect, openApp, goToTab, expectImagesLoaded } from './helpers/test';
 import { localDate, ok, testDb } from './helpers/db';
 
 test("asks for a rating of yesterday's outfit, and the model learns from it", async ({
@@ -80,4 +80,47 @@ test('"Remind me later" tucks the prompt away until reopened', async ({ page, se
   await expect(prompt).toHaveCount(0);
   await page.getByRole('button', { name: "Rate yesterday's outfit" }).click();
   await expect(prompt).toBeVisible();
+});
+
+test("doesn't ask about yesterday's outfit once it's been rated another way", async ({
+  page,
+  seeded,
+}) => {
+  const { db, userId } = await testDb();
+  const outfit = {
+    top_id: seeded.navyShirt,
+    bottom_id: seeded.denimJeans,
+    shoes_id: seeded.whiteShoes,
+  };
+  ok(
+    await db.from('outfit_wears').insert({ user_id: userId, worn_date: localDate(-1), ...outfit }),
+    'seed wear',
+  );
+
+  // Asked at first, and put off for later.
+  await openApp(page);
+  const prompt = page.getByRole('dialog', { name: "Rate yesterday's outfit" });
+  await expect(prompt).toBeVisible();
+  await prompt.getByRole('button', { name: 'Remind me later' }).click();
+  const later = page.getByRole('button', { name: "Rate yesterday's outfit" });
+  await expect(later).toBeVisible();
+
+  // The day gets its rating elsewhere (as the Calendar saves it): the next
+  // tab change finds nothing left to ask.
+  ok(await db.from('outfit_wears').update({ rating: 6 }).eq('user_id', userId), 'rate in calendar');
+  await goToTab(page, 'Calendar');
+  await expect(later).toHaveCount(0);
+
+  // Unrated again, but the same outfit was rated on the Outfits tab since it
+  // was worn: still nothing to ask.
+  ok(await db.from('outfit_wears').update({ rating: null }).eq('user_id', userId), 'unrate');
+  ok(
+    await db.from('outfit_ratings').insert({ user_id: userId, rating: 8, ...outfit }),
+    'rate on Outfits',
+  );
+  await page.reload();
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+  await goToTab(page, 'Stats');
+  await expect(prompt).toHaveCount(0);
+  await expect(later).toHaveCount(0);
 });

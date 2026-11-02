@@ -57,9 +57,14 @@ vi.mock('@/lib/supabaseClient', () => ({
   },
 }));
 
+// Yesterday's outfit awaiting a rating: none unless a test says so.
+const mockFindPendingRating = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/pendingRating', () => ({ findPendingRating: mockFindPendingRating }));
+
 import Page from '@/app/page';
 
 beforeEach(() => {
+  mockFindPendingRating.mockReset().mockResolvedValue(null);
   // Route supabase calls per table to avoid onboarding trigger
   mockSupabaseFrom.mockImplementation((table: string) => {
     if (table === 'clothing_items') {
@@ -184,6 +189,35 @@ describe('Page — Logged In Navigation', () => {
     );
     // Cleared, so a reload doesn't put it back.
     expect(window.location.search).toBe('');
+  });
+
+  it("drops the rating prompt once yesterday's outfit is rated elsewhere, and keeps a skip", async () => {
+    const RatingPrompt = vi.mocked((await import('@/components/RatingPrompt')).default);
+    RatingPrompt.mockImplementation(({ onSkip }) => (
+      <div role="dialog" aria-label="Rate yesterday">
+        <button onClick={onSkip}>Skip</button>
+      </div>
+    ));
+    const pending = { wear_id: 'w1', worn_date: '2026-11-01', outfit_items: {} };
+    mockFindPendingRating.mockResolvedValue(pending);
+    renderWithProviders(<Page />);
+    expect(await screen.findByRole('dialog', { name: 'Rate yesterday' })).toBeTruthy();
+
+    // Rated in the Calendar meanwhile: the next check finds nothing to ask.
+    mockFindPendingRating.mockResolvedValue(null);
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Rate yesterday' })).toBeNull(),
+    );
+
+    // A skipped prompt doesn't come back on the next tab change.
+    mockFindPendingRating.mockResolvedValue(pending);
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Closet' }));
+    await waitFor(() => expect(mockFindPendingRating).toHaveBeenCalledTimes(4));
+    expect(screen.queryByRole('dialog', { name: 'Rate yesterday' })).toBeNull();
+    RatingPrompt.mockImplementation(() => null as unknown as React.JSX.Element);
   });
 
   it('opens Add items with photos dropped on the Closet screen', async () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BarChart3, CalendarDays, LogOut, Shirt, SlidersHorizontal, Sparkles } from 'lucide-react';
 import Wordmark from '@/components/ui/Wordmark';
 import LiveClock from '@/components/ui/LiveClock';
@@ -22,6 +22,7 @@ import { useToast } from '@/components/ToastProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { toLocalDateString } from '@/lib/dates';
 import { syncWearLearning } from '@/lib/outfitLearning';
+import { findPendingRating } from '@/lib/pendingRating';
 import { parseOutfitLink, type OutfitLinkIds } from '@/lib/outfitLink';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import type { DashboardTab, ClothingItem, PendingRating } from '@/lib/types';
@@ -105,39 +106,21 @@ export default function Page() {
     check();
   }, [user]);
 
-  // Check for unrated outfits from yesterday
+  // Yesterday's outfit, if it still needs a rating. Checked again whenever the
+  // user changes tab, so rating the day in the Calendar (or the outfit on the
+  // Outfits tab) takes the prompt away. A skipped prompt stays skipped.
+  const skippedRatings = useRef(new Set<string>());
   const checkPendingRatings = useCallback(async () => {
     if (!user) return;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = toLocalDateString(yesterday);
-
-    const { data } = await supabase
-      .from('outfit_wears')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('worn_date', yStr)
-      .is('rating', null)
-      .limit(1);
-
-    if (data && data.length > 0) {
-      const wear = data[0];
-      setPendingRating({
-        wear_id: wear.id,
-        worn_date: wear.worn_date,
-        occasion: wear.occasion ?? null,
-        outfit_items: {
-          top_id: wear.top_id ?? undefined,
-          bottom_id: wear.bottom_id ?? undefined,
-          shoes_id: wear.shoes_id ?? undefined,
-        },
-      });
-    }
+    const pending = await findPendingRating(supabase, user.id, toLocalDateString(yesterday));
+    setPendingRating(pending && !skippedRatings.current.has(pending.wear_id) ? pending : null);
   }, [user]);
 
   useEffect(() => {
     if (user && onboardingChecked && !showOnboarding) checkPendingRatings();
-  }, [user, onboardingChecked, showOnboarding, checkPendingRatings]);
+  }, [user, onboardingChecked, showOnboarding, checkPendingRatings, activeTab]);
 
   const handleRatingSubmit = async (wearId: string, rating: number) => {
     const { error } = await supabase.from('outfit_wears').update({ rating }).eq('id', wearId);
@@ -300,7 +283,10 @@ export default function Page() {
           <RatingPrompt
             pendingRating={pendingRating}
             onSubmit={handleRatingSubmit}
-            onSkip={() => setPendingRating(null)}
+            onSkip={() => {
+              skippedRatings.current.add(pendingRating.wear_id);
+              setPendingRating(null);
+            }}
             onMinimize={() => setRatingMinimized(true)}
           />
         )}
