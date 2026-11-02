@@ -124,9 +124,58 @@ describe('digest', () => {
     expect(pickDailyOutfit(input({ items: [makeTop(), makeBottom()] }), 'warm')).toBeNull();
   });
 
-  it('sends just the outfit and the temperature', () => {
+  it('sends just the outfit, whether it was logged, and the temperature', () => {
     const digest = buildDigest(input({ items: [makeTop(), makeBottom(), makeShoes(), makeTop()] }));
-    expect(Object.keys(digest).sort()).toEqual(['outfit', 'temperature']);
+    expect(Object.keys(digest).sort()).toEqual(['logged', 'outfit', 'temperature']);
+    expect(digest.logged).toBe(false);
+  });
+
+  it('sends the outfit already logged for today instead of picking one', () => {
+    const tee = makeTop({ type: 'T-Shirt' });
+    const hoodie = makeTop({ type: 'Hoodie', is_dirty: true });
+    const jeans = makeBottom();
+    const shoes = makeShoes();
+    const wear = (id: string, worn_date: string, top_id: string, created_at: string) => ({
+      id,
+      user_id: 'u',
+      worn_date,
+      top_id,
+      bottom_id: jeans.id,
+      shoes_id: shoes.id,
+      created_at,
+    });
+    const digest = buildDigest(
+      input({
+        items: [tee, hoodie, jeans, shoes],
+        forecast: { ...mild, high: 95, low: 80 },
+        recentWears: [
+          wear('yesterday', '2026-10-12', tee.id, '2026-10-12T08:00:00Z'),
+          wear('early', '2026-10-13', tee.id, '2026-10-13T06:00:00Z'),
+          // The latest log wins, even if it's in the wash or off for the weather.
+          wear('late', '2026-10-13', hoodie.id, '2026-10-13T07:00:00Z'),
+        ],
+      }),
+    );
+    expect(digest.logged).toBe(true);
+    expect(digest.outfit?.top.id).toBe(hoodie.id);
+    expect(digest.outfit?.bottom.id).toBe(jeans.id);
+  });
+
+  it("picks as usual when today's log is missing a piece or names a deleted one", () => {
+    const tee = makeTop();
+    const jeans = makeBottom();
+    const shoes = makeShoes();
+    const today = { id: 'w', user_id: 'u', worn_date: '2026-10-13' };
+    for (const partial of [
+      { top_id: tee.id, bottom_id: jeans.id },
+      { top_id: 'gone', bottom_id: jeans.id, shoes_id: shoes.id },
+    ]) {
+      const digest = buildDigest(
+        input({ items: [tee, jeans, shoes], recentWears: [{ ...today, ...partial }] }),
+      );
+      expect(digest.logged).toBe(false);
+      expect(digest.outfit?.top.id).toBe(tee.id);
+    }
   });
 
   it('uses the forecast high and custom thresholds', () => {
@@ -165,10 +214,13 @@ describe('render', () => {
       forecast: mild,
       digest: {
         outfit: { top, bottom, shoes },
+        logged: false,
         temperature: 'warm',
       },
     });
     expect(email.subject).toBe("Today's fit: Red T-Shirt + Navy blue Jeans · 70°");
+    expect(email.html).toContain('Wear this');
+    expect(email.text).toContain('WEAR THIS');
     expect(email.html).toContain('Tuesday, October 13');
     expect(email.html).toContain('src="https://img.example/top.png?token=a&amp;b=1"');
     expect(email.html).toContain('aria-label="Navy blue Jeans"');
@@ -179,11 +231,23 @@ describe('render', () => {
     expect(email.text).toContain(`Unsubscribe: ${base.unsubscribeUrl}`);
   });
 
+  it("says you're wearing it when the outfit was already logged", () => {
+    const email = renderDailyEmail({
+      ...base,
+      forecast: mild,
+      digest: { outfit: { top, bottom, shoes }, logged: true, temperature: 'warm' },
+    });
+    expect(email.html).toContain("You're wearing");
+    expect(email.html).not.toContain('Wear this');
+    expect(email.text).toContain("YOU'RE WEARING");
+    expect(email.text).not.toContain('WEAR THIS');
+  });
+
   it('handles no forecast and no outfit', () => {
     const email = renderDailyEmail({
       ...base,
       forecast: null,
-      digest: { outfit: null, temperature: null },
+      digest: { outfit: null, logged: false, temperature: null },
     });
     expect(email.subject).toBe('Your FitFinder morning, Tuesday, October 13');
     expect(email.text).toContain('Add your ZIP code');
@@ -194,7 +258,7 @@ describe('render', () => {
     const email = renderDailyEmail({
       ...base,
       forecast: mild,
-      digest: { outfit: { top, bottom, shoes }, temperature: 'warm' },
+      digest: { outfit: { top, bottom, shoes }, logged: false, temperature: 'warm' },
     });
     const theme = themeFromOutfit(top.colors[0], bottom.colors[0], shoes.colors[0]);
     expect(emailColors({ top, bottom, shoes }).accent).toBe(theme.uiAccent);
@@ -209,7 +273,7 @@ describe('render', () => {
     const email = renderDailyEmail({
       ...base,
       forecast: null,
-      digest: { outfit: null, temperature: null },
+      digest: { outfit: null, logged: false, temperature: null },
     });
     expect(email.html).toContain(`background:${NEUTRAL_ACCENT};border-radius:999px`);
   });
@@ -219,7 +283,7 @@ describe('render', () => {
     const email = renderDailyEmail({
       ...base,
       forecast: mild,
-      digest: { outfit: { top: odd, bottom, shoes }, temperature: 'warm' },
+      digest: { outfit: { top: odd, bottom, shoes }, logged: false, temperature: 'warm' },
     });
     expect(email.html).not.toContain('<script>');
   });
@@ -228,7 +292,7 @@ describe('render', () => {
     const email = renderDailyEmail({
       ...base,
       forecast: mild,
-      digest: { outfit: { top, bottom, shoes }, temperature: 'warm' },
+      digest: { outfit: { top, bottom, shoes }, logged: false, temperature: 'warm' },
     });
     const link = `${base.appUrl}/?top=${top.id}&amp;bottom=${bottom.id}&amp;shoes=${shoes.id}`;
     expect(email.html).toContain(`href="${link}"`);
@@ -241,7 +305,7 @@ describe('render', () => {
     const email = renderDailyEmail({
       ...base,
       forecast: null,
-      digest: { outfit: null, temperature: null },
+      digest: { outfit: null, logged: false, temperature: null },
     });
     expect(email.html).toContain(`href="${base.appUrl}"`);
   });
