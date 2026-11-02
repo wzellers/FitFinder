@@ -305,7 +305,17 @@ test('rates an outfit without wearing it, learns from it, and keeps it on screen
   };
 
   const rating = page.getByRole('group', { name: /Rate this outfit/ });
+  // Picking a number doesn't send it: the user can change their mind first.
+  await rating.getByRole('button', { name: '5 out of 10' }).click();
   await rating.getByRole('button', { name: '8 out of 10' }).click();
+  await expect(rating.getByRole('button', { name: '8 out of 10' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(
+    ok(await db.from('outfit_ratings').select('id').eq('user_id', userId), 'ratings'),
+  ).toHaveLength(0);
+  await page.getByRole('button', { name: 'Submit 8/10' }).click();
   await expect(toast(page, "Rated 8/10. Try another when you're ready.")).toBeVisible();
   // The rated outfit stays, showing its rating.
   await expect(page.getByRole('group', { name: /You rated this 8\/10/ })).toBeVisible();
