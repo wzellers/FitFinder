@@ -251,7 +251,11 @@ export default function Closet({ onAddItem, onEditItem, highlightIds = [] }: Clo
             <button onClick={() => setLaundryAction('dirty')} className="btn-poster">
               Mark all dirty
             </button>
-            <button onClick={onAddItem} className="btn-poster-primary order-first sm:order-last">
+            <button
+              data-tour="add-items"
+              onClick={onAddItem}
+              className="btn-poster-primary order-first sm:order-last"
+            >
               <Plus size={18} aria-hidden="true" /> Add item
             </button>
           </>
@@ -485,6 +489,7 @@ function ItemCard({
   const name = describeItem(item);
   return (
     <div
+      data-tour="closet-item"
       className={`item-card h-full flex flex-col ${justAdded ? 'just-added' : ''}`}
       data-just-added={justAdded ? 'true' : undefined}
     >
@@ -515,6 +520,7 @@ function ItemCard({
           ))}
         </span>
         <button
+          data-tour="dirty-toggle"
           onClick={onToggleDirty}
           aria-label={`${name} is ${item.is_dirty ? 'dirty' : 'clean'}. Mark as ${
             item.is_dirty ? 'clean' : 'dirty'

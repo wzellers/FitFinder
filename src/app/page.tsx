@@ -16,6 +16,7 @@ import RatingPrompt from '@/components/RatingPrompt';
 import Onboarding from '@/components/Onboarding';
 import ImageUpload from '@/components/ImageUpload';
 import EditItem from '@/components/EditItem';
+import TipTour from '@/components/ui/TipTour';
 import { useAuth } from '@/hooks/useAuth';
 import { usePhotoDrop } from '@/hooks/usePhotoDrop';
 import { useToast } from '@/components/ToastProvider';
@@ -24,6 +25,7 @@ import { toLocalDateString } from '@/lib/dates';
 import { syncWearLearning } from '@/lib/outfitLearning';
 import { findPendingRating } from '@/lib/pendingRating';
 import { parseOutfitLink, type OutfitLinkIds } from '@/lib/outfitLink';
+import { TIPS, TIPS_RESET_EVENT, markTipsSeen, tipsSeen } from '@/lib/tips';
 import { SkeletonFullScreen } from '@/components/ui/Skeleton';
 import type { DashboardTab, ClothingItem, PendingRating } from '@/lib/types';
 
@@ -122,6 +124,37 @@ export default function Page() {
     if (user && onboardingChecked && !showOnboarding) checkPendingRatings();
   }, [user, onboardingChecked, showOnboarding, checkPendingRatings, activeTab]);
 
+  // First-visit tips: shown once per screen (remembered in this browser), when
+  // nothing else is asking for attention. Resetting them in Settings shows the
+  // open screen's tips again.
+  const [tipTab, setTipTab] = useState<DashboardTab | null>(null);
+  const [tipsResets, setTipsResets] = useState(0);
+  useEffect(() => {
+    const onReset = () => setTipsResets((n) => n + 1);
+    window.addEventListener(TIPS_RESET_EVENT, onReset);
+    return () => window.removeEventListener(TIPS_RESET_EVENT, onReset);
+  }, []);
+  const busy =
+    !user ||
+    !onboardingChecked ||
+    showOnboarding ||
+    showImageUpload ||
+    showEditItem ||
+    (!!pendingRating && !ratingMinimized);
+  useEffect(() => {
+    setTipTab(null);
+    if (busy || tipsSeen().has(activeTab)) return;
+    const t = setTimeout(() => setTipTab(activeTab), 600);
+    return () => clearTimeout(t);
+  }, [activeTab, busy, tipsResets]);
+  const endTips = useCallback(
+    (shown: boolean) => {
+      if (shown && tipTab) markTipsSeen(tipTab);
+      setTipTab(null);
+    },
+    [tipTab],
+  );
+
   const handleRatingSubmit = async (wearId: string, rating: number) => {
     const { error } = await supabase.from('outfit_wears').update({ rating }).eq('id', wearId);
     if (error) {
@@ -165,9 +198,13 @@ export default function Page() {
   if (showOnboarding) {
     return (
       <Onboarding
-        onComplete={() => {
+        onComplete={(firstOutfit) => {
           setShowOnboarding(false);
           setClosetRefreshKey((k) => k + 1);
+          if (firstOutfit) {
+            setLinkedOutfit(firstOutfit);
+            setActiveTab('generator');
+          }
         }}
       />
     );
@@ -277,6 +314,10 @@ export default function Page() {
           onItemUpdated={() => setClosetRefreshKey((k) => k + 1)}
           onItemDeleted={() => setClosetRefreshKey((k) => k + 1)}
         />
+
+        {tipTab && tipTab === activeTab && (
+          <TipTour key={`${tipTab}-${tipsResets}`} tips={TIPS[tipTab]} onDone={endTips} />
+        )}
 
         {/* Rating prompt */}
         {pendingRating && !ratingMinimized && (

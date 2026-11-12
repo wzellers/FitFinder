@@ -350,6 +350,7 @@ export default function OutfitCalendar() {
         {calendarDays.map((day, idx) => (
           <button
             key={idx}
+            data-tour={day.isToday ? 'calendar-today' : undefined}
             onClick={() => handleDayClick(day)}
             aria-label={`${day.date.toLocaleDateString('en-US', {
               weekday: 'long',

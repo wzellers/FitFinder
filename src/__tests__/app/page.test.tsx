@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { renderWithProviders } from '../utils/renderWithProviders';
 
 // Mock all the heavy child components
@@ -19,11 +19,24 @@ vi.mock('@/components/ColorPreferences', () => ({
   default: vi.fn(() => <div data-testid="preferences">Preferences Content</div>),
 }));
 vi.mock('@/components/Onboarding', () => ({
-  default: vi.fn(({ onComplete }: { onComplete: () => void }) => (
+  default: vi.fn(({ onComplete }: { onComplete: (outfit: unknown) => void }) => (
     <div data-testid="onboarding">
-      <button onClick={onComplete}>Complete Onboarding</button>
+      <button onClick={() => onComplete(null)}>Complete Onboarding</button>
+      <button onClick={() => onComplete({ top_id: 't9', bottom_id: 'b9', shoes_id: 's9' })}>
+        Complete with an outfit
+      </button>
     </div>
   )),
+}));
+// The tip tour, reduced to which screen's tips it shows.
+vi.mock('@/components/ui/TipTour', () => ({
+  default: vi.fn(
+    ({ tips, onDone }: { tips: { target: string }[]; onDone: (shown: boolean) => void }) => (
+      <div role="dialog" aria-label={`Tips: ${tips[0].target}`}>
+        <button onClick={() => onDone(true)}>Got it</button>
+      </div>
+    ),
+  ),
 }));
 vi.mock('@/components/ImageUpload', () => ({
   default: vi.fn(() => null),
@@ -62,8 +75,10 @@ const mockFindPendingRating = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/pendingRating', () => ({ findPendingRating: mockFindPendingRating }));
 
 import Page from '@/app/page';
+import { markTipsSeen, resetTips } from '@/lib/tips';
 
 beforeEach(() => {
+  localStorage.clear();
   mockFindPendingRating.mockReset().mockResolvedValue(null);
   // Route supabase calls per table to avoid onboarding trigger
   mockSupabaseFrom.mockImplementation((table: string) => {
@@ -389,5 +404,105 @@ describe('Page — Onboarding', () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  it('opens the first outfit from setup on the Outfits screen', async () => {
+    mockUseAuth.mockReturnValue({ user: mockUser, signOut: vi.fn() });
+    const base = mockSupabaseFrom.getMockImplementation()!;
+    mockSupabaseFrom.mockImplementation((table: string) =>
+      table === 'clothing_items'
+        ? {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+              })),
+            })),
+          }
+        : table === 'profiles'
+          ? {
+              select: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn(() =>
+                    Promise.resolve({ data: { onboarding_completed: false }, error: null }),
+                  ),
+                })),
+              })),
+            }
+          : base(table),
+    );
+    const OutfitGenerator = vi.mocked((await import('@/components/OutfitGenerator')).default);
+    renderWithProviders(<Page />);
+    fireEvent.click(await screen.findByText('Complete with an outfit', {}, { timeout: 3000 }));
+    await waitFor(() => screen.getByTestId('generator'), { timeout: 3000 });
+    expect(OutfitGenerator).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        active: true,
+        initialOutfit: { top_id: 't9', bottom_id: 'b9', shoes_id: 's9' },
+      }),
+      undefined,
+    );
+  });
+});
+
+describe('Page — First-visit tips', () => {
+  beforeEach(() => {
+    mockUseAuth.mockReturnValue({ user: mockUser, signOut: vi.fn() });
+  });
+
+  it("shows each screen's tips the first time it opens, and not again", async () => {
+    const { unmount } = renderWithProviders(<Page />);
+    const closetTips = await screen.findByRole(
+      'dialog',
+      { name: 'Tips: add-items' },
+      { timeout: 3000 },
+    );
+    fireEvent.click(within(closetTips).getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
+    fireEvent.click(
+      within(
+        await screen.findByRole('dialog', { name: 'Tips: stats-customize' }, { timeout: 3000 }),
+      ).getByRole('button', { name: 'Got it' }),
+    );
+    unmount();
+
+    // Seen tips stay seen, even after a reload.
+    renderWithProviders(<Page />);
+    await waitFor(() => screen.getByTestId('closet'), { timeout: 3000 });
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
+    await new Promise((r) => setTimeout(r, 800));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('waits until the rating prompt is out of the way', async () => {
+    mockFindPendingRating.mockResolvedValue({ wear_id: 'w1' });
+    const RatingPrompt = vi.mocked((await import('@/components/RatingPrompt')).default);
+    RatingPrompt.mockImplementation(({ onSkip }) => (
+      <div role="dialog" aria-label="Rate yesterday">
+        <button onClick={onSkip}>Skip</button>
+      </div>
+    ));
+    renderWithProviders(<Page />);
+    const prompt = await screen.findByRole('dialog', { name: 'Rate yesterday' }, { timeout: 3000 });
+    await new Promise((r) => setTimeout(r, 800));
+    expect(screen.queryByRole('dialog', { name: /Tips/ })).toBeNull();
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Skip' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Tips: add-items' }, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    RatingPrompt.mockImplementation(() => null as unknown as React.JSX.Element);
+  });
+
+  it('shows the open screen’s tips again when they are reset', async () => {
+    markTipsSeen('closet');
+    renderWithProviders(<Page />);
+    await waitFor(() => screen.getByTestId('closet'), { timeout: 3000 });
+    await new Promise((r) => setTimeout(r, 800));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    act(() => resetTips());
+    expect(
+      await screen.findByRole('dialog', { name: 'Tips: add-items' }, { timeout: 3000 }),
+    ).toBeInTheDocument();
   });
 });

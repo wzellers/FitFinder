@@ -15,10 +15,13 @@ export const test = base.extend<{
   seeded: SeededIds;
   /** Extra error patterns a test expects (e.g. a failed login's 400). */
   allowedErrors: RegExp[];
+  /** Show the first-visit tips; off by default so they don't cover the screens. */
+  showTips: boolean;
   pageErrors: string[];
 }>({
   seedOptions: [{}, { option: true }],
   allowedErrors: [[], { option: true }],
+  showTips: [false, { option: true }],
 
   // Auto: every test gets a clean account, whether or not it reads the ids.
   seeded: [
@@ -29,7 +32,15 @@ export const test = base.extend<{
   ],
 
   pageErrors: [
-    async ({ page, allowedErrors }, use) => {
+    async ({ page, allowedErrors, showTips }, use) => {
+      if (!showTips) {
+        await page.addInitScript(() =>
+          localStorage.setItem(
+            'fitfinder:tips-seen',
+            JSON.stringify(['closet', 'generator', 'calendar', 'stats', 'preferences']),
+          ),
+        );
+      }
       // The dev server's floating Next.js button covers the phone tab bar.
       // Hide it; errors are still caught below, through the console.
       await page.addInitScript(() => {

@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ToastProvider';
 
 /** The browser's IANA time zone, e.g. "America/New_York". */
-function detectTimeZone(): string {
+export function detectTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   } catch {
