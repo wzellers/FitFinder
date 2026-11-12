@@ -93,7 +93,8 @@ test('adds a first outfit’s worth of clothes and opens it on the Outfits scree
   const sections = page.getByRole('list', { name: 'Closet so far' });
   await expect(sections).toContainText('Tops0 / 3');
   await page.getByRole('button', { name: /Add photos/ }).click();
-  const dialog = page.getByRole('dialog', { name: 'Add a clothing item' });
+  // The dialog is renamed for the batch once several photos are in it.
+  const dialog = page.getByRole('dialog', { name: /^Add (a clothing item|3 items)$/ });
   await dialog.locator('input[type="file"][multiple]').setInputFiles(FIXTURES);
   await dialog.getByRole('button', { name: 'Add 3 items to closet' }).click();
   await expect(dialog).toHaveCount(0);
