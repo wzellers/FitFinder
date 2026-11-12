@@ -289,6 +289,7 @@ export default function WardrobeStats() {
       {/* Customize: choose which cards show. */}
       <div className="flex justify-end mb-4">
         <button
+          data-tour="stats-customize"
           onClick={() => setCustomizing(!customizing)}
           aria-expanded={customizing}
           className="btn-ghost"

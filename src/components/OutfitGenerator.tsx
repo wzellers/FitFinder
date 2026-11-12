@@ -1075,7 +1075,7 @@ export default function OutfitGenerator({
               )}
             </div>
 
-            <ul className="mt-4 flex flex-col gap-3">
+            <ul data-tour="outfit" className="mt-4 flex flex-col gap-3">
               {slots.map(({ key, label, item, locked, toggle }) => {
                 const canSwap = hasOutfit && !locked && !loading;
                 const arrow = (direction: SwipeDirection) => (
@@ -1148,6 +1148,7 @@ export default function OutfitGenerator({
                     </div>
                     <div className="justify-self-start">
                       <button
+                        data-tour="keep"
                         onClick={toggle}
                         disabled={!item}
                         aria-pressed={locked}
@@ -1180,6 +1181,7 @@ export default function OutfitGenerator({
             )}
 
             <button
+              data-tour="try-another"
               onClick={tryAnother}
               disabled={loading}
               className="btn-primary w-full mt-5 text-base min-h-[52px]"
@@ -1191,7 +1193,11 @@ export default function OutfitGenerator({
 
           {/* ====== Right: rating and history (below the outfit on phones) ====== */}
           <div className="order-2 lg:order-3 flex flex-col gap-4 lg:sticky lg:top-24">
-            <section aria-label="This outfit" className="card p-4 flex flex-col gap-2">
+            <section
+              aria-label="This outfit"
+              data-tour="outfit-actions"
+              className="card p-4 flex flex-col gap-2"
+            >
               <h3 className="panel-label mb-1">This outfit</h3>
               <button
                 onClick={openSaveModal}
@@ -1212,7 +1218,7 @@ export default function OutfitGenerator({
                 <Share2 size={16} aria-hidden="true" /> Share
               </button>
             </section>
-            <section aria-label="Rate this outfit" className="card p-4">
+            <section aria-label="Rate this outfit" data-tour="rate" className="card p-4">
               {hasOutfit ? (
                 <>
                   <RatingPicker

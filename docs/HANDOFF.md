@@ -5,7 +5,7 @@ starts from here. It describes how things are **now**; history lives in git.
 Update it in the same PR as any change that makes it wrong (see `CLAUDE.md`).
 Never put secret values or personal account details here: the repo is public.
 
-**Last updated:** 2026-11-02 (the daily email sends today's logged outfit)
+**Last updated:** 2026-11-12 (first-run setup and first-visit tips)
 
 ## What's live
 
@@ -23,6 +23,17 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
   deepened to stay readable. Shared UI: `ModalHeader` for dialogs,
   `Dropdown` instead of native selects, `SettingsCard`, `.toggle-pill`. The
   clock is 12-hour; clicking it switches to 24-hour.
+- **First run:** a new user with an empty closet gets a six-step setup
+  (`Onboarding`): welcome; ZIP code and "I run cold / just right / warm"
+  (moves the weather thresholds 5° either way, `lib/onboarding.ts`); adding
+  clothes with Tops/Bottoms/Shoes counters; colour pairings to like; the
+  daily email (off unless turned on); then, if the closet makes an outfit,
+  spinning a first one that opens on the Outfits screen. Every step can be
+  skipped. After that, each screen shows a few spotlight tips the first time
+  it opens (`TipTour`, `lib/tips.ts`, targets marked with `data-tour`),
+  remembered in `localStorage` per browser; Settings → Effects → Show tips
+  again brings them back. E2E runs hide the tips unless a test sets
+  `showTips`.
 - **Settings:** sections in a tab bar across the top (Weather, Occasions,
   Colors, Email, Effects); weather rules as
   Cold/Cool/Warm/Hot chips per type; occasions edited one at a time; colour
@@ -136,8 +147,8 @@ needs Node's built-in WebSocket, so clients fail to start on Node 20.
 
 ## Tests
 
-- **Vitest:** 592 unit/component tests (`npm run test`).
-- **Playwright:** 58 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
+- **Vitest:** 622 unit/component tests (`npm run test`).
+- **Playwright:** 60 end-to-end tests (`npm run test:e2e`), desktop and Pixel 7.
   They run against the real Supabase project, Claude and OpenWeatherMap, using
   a dedicated test account that every run wipes and re-seeds. Locally they need
   `.env.e2e` (git-ignored, see README). In CI they use the Actions secrets and a

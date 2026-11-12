@@ -19,6 +19,7 @@ import SettingsCard from '@/components/ui/SettingsCard';
 import Dropdown from '@/components/ui/Dropdown';
 import DailyEmailSettings from '@/components/DailyEmailSettings';
 import EffectsSettings from '@/components/EffectsSettings';
+import TipsSettings from '@/components/TipsSettings';
 import ColorCombinationModal from '@/components/ColorCombinationModal';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
@@ -746,7 +747,10 @@ export default function ColorPreferences() {
     ) : activeSection === 'email' ? (
       <DailyEmailSettings />
     ) : activeSection === 'effects' ? (
-      <EffectsSettings />
+      <>
+        <EffectsSettings />
+        <TipsSettings />
+      </>
     ) : (
       colorsContent
     );
@@ -761,7 +765,10 @@ export default function ColorPreferences() {
 
       {/* Sections across the top, the active one highlighted. */}
       <nav aria-label="Preference sections" className="mb-6 -mx-1 px-1 overflow-x-auto flex">
-        <div className="mx-auto inline-flex gap-1 p-1 rounded-full border border-[var(--border)] bg-white">
+        <div
+          data-tour="settings-sections"
+          className="mx-auto inline-flex gap-1 p-1 rounded-full border border-[var(--border)] bg-white"
+        >
           {sections.map((item) => {
             const active = activeSection === item.key;
             return (
